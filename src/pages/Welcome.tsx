@@ -1,6 +1,8 @@
-import './Welcome.css'
+import { useNavigate } from 'react-router-dom';
+import './Welcome.css';
 
 export default function Welcome() {
+    const navigate = useNavigate();
 
     return (
         <div className='welcome-container'>
@@ -10,7 +12,7 @@ export default function Welcome() {
 
                 <div className='welcome-buttons'>
                     <button className='btn btn-primary'>See more information</button>
-                    <button className='btn btn-primary'>Connect to HeurAIDEAS</button>
+                    <button className='btn btn-primary' onClick={() => navigate('/auth')}>Connect to HeurAIDEAS</button>
                 </div>
             </div>
         </div>

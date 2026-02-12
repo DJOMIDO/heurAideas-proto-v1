@@ -3,6 +3,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  background: linear-gradient(
+    125deg,
+    #00c853 0%,
+    #42a5f5 50%,
+    #9c27b0 100%
+  );
 }
 
 .welcome-content {
@@ -18,8 +24,7 @@
   font-size: 42px;
   font-weight: 800;
   margin-bottom: 16px;
-  /* background: linear-gradient(135deg, #b5e63a 0%, #5f82d9 100%); */
-  background: black;
+  background: white;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -27,7 +32,7 @@
 
 .welcome-subtitle {
   font-size: 18px;
-  color: black;
+  color: white;
   margin-bottom: 40px;
   line-height: 1.6;
 }
@@ -53,7 +58,6 @@
 }
 
 .btn-primary {
-  /* background-color: #2858d0; */
   background-color: gray;
   color: white;
 }
