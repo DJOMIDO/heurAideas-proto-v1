@@ -15,7 +15,7 @@ export default function Menu() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="flex justify-between items-center mb-10">
-        <Button className="flex items-center gap-2 bg-white shadow-md hover:shadow-lg border-0">
+        <Button className="flex items-center gap-2 bg-white text-gray-800 shadow-md hover:shadow-lg hover:text-white border-0">
           <User className="w-4 h-4" />
           Manage account
         </Button>
