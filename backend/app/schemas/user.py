@@ -20,7 +20,7 @@ class UserResponse(BaseModel):
 
 # 用户登录
 class UserLogin(BaseModel):
-    username: str
+    email: EmailStr
     password: str
 
 # Token 响应

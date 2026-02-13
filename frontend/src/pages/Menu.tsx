@@ -1,17 +1,33 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, Plus, Folder } from "lucide-react";
 
-const mockUser = {
-  name: "John Doe",
-  recentProjects: [
-    { id: 1, name: "Project 1" },
-    { id: 2, name: "Project 2" },
-    { id: 3, name: "Project 3" },
-  ],
-};
-
 export default function Menu() {
+  // 从 localStorage 读取用户名
+  const [username, setUsername] = useState(() => {
+    return localStorage.getItem("username") || "Guest";
+  });
+
+  // 监听 localStorage 变化（可选）
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setUsername(localStorage.getItem("username") || "Guest");
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
+
+  const mockUser = {
+    name: username,
+    recentProjects: [
+      { id: 1, name: "Project 1" },
+      { id: 2, name: "Project 2" },
+      { id: 3, name: "Project 3" },
+    ],
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="flex justify-between items-center mb-10">
@@ -22,7 +38,7 @@ export default function Menu() {
       </div>
       <div className="max-w-6xl mx-auto">
         <h1 className="text-5xl font-bold text-center mb-20">
-          Welcome, {mockUser.name}!
+          Welcome, {username}!
         </h1>
       </div>
 

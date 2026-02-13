@@ -52,7 +52,7 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login", response_model=Token)
 async def login(user_login: UserLogin, db: Session = Depends(get_db)):
     # 查找用户
-    user = db.query(User).filter(User.username == user_login.username).first()
+    user = db.query(User).filter(User.email == user_login.email).first()
     
     # 验证用户是否存在
     if not user:

@@ -16,14 +16,72 @@ export default function Auth() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = (e: React.SyntheticEvent<HTMLFormElement>) => {
+  const handleLogin = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     console.log("Login:", { email, password });
+
+    try {
+      const response = await fetch("http://localhost:8000/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Login failed");
+      }
+
+      console.log("Login successful:", data);
+
+      // 保存 token
+      localStorage.setItem("token", data.access_token);
+
+      // 从 token 中解析用户名
+      try {
+        const payload = JSON.parse(atob(data.access_token.split(".")[1]));
+        localStorage.setItem("username", payload.sub);
+      } catch (error) {
+        console.error("Failed to parse token:", error);
+      }
+
+      // 跳转到菜单
+      navigate("/menu");
+    } catch (error) {
+      console.error("Login error:", error);
+      alert(error instanceof Error ? error.message : "Login failed");
+    }
   };
 
-  const handleRegister = (e: React.SyntheticEvent<HTMLFormElement>) => {
+  const handleRegister = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     console.log("Register:", { email, username, password });
+
+    try {
+      const response = await fetch("http://localhost:8000/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, username, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Registration failed");
+      }
+
+      console.log("Registration successful:", data);
+      alert("Registration successful! Please login.");
+      setMode("login");
+    } catch (error) {
+      console.error("Registration error:", error);
+      alert(error instanceof Error ? error.message : "Registration failed");
+    }
   };
 
   return (
