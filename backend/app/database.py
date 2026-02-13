@@ -1,8 +1,8 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine # pyright: ignore[reportMissingImports]
+from sqlalchemy.ext.declarative import declarative_base # pyright: ignore[reportMissingImports]
+from sqlalchemy.orm import sessionmaker # pyright: ignore[reportMissingImports]
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv # pyright: ignore[reportMissingImports]
 
 load_dotenv()
 

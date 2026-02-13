@@ -1,15 +1,19 @@
-from fastapi import FastAPI, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from fastapi import FastAPI, Depends # pyright: ignore[reportMissingImports]
+from fastapi.middleware.cors import CORSMiddleware # pyright: ignore[reportMissingImports]
+from sqlalchemy.orm import Session # pyright: ignore[reportMissingImports]
+from sqlalchemy import text # pyright: ignore[reportMissingImports]
 from app.database import engine, Base, get_db
 from app.core.config import settings
+
+# 导入路由
+from app.api import auth, users
 
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="HeurAIDEAS API",
-    description="Backend API for HeurAIDEAS project management platform",
+    description="Backend API for HeurAideas project management platform",
     version="1.0.0"
 )
 
@@ -22,6 +26,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 注册路由
+app.include_router(auth.router)
+app.include_router(users.router)
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to HeurAIDEAS API", "status": "healthy"}
@@ -29,13 +37,13 @@ async def root():
 @app.get("/health")
 async def health_check(db: Session = Depends(get_db)):
     try:
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         return {"status": "ok", "database": "connected"}
     except Exception as e:
         return {"status": "error", "database": str(e)}
 
 if __name__ == "__main__":
-    import uvicorn
+    import uvicorn # pyright: ignore[reportMissingImports]
     uvicorn.run(
         "app.main:app",
         host=settings.HOST,
