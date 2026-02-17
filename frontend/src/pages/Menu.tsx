@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { User, Plus, Folder } from "lucide-react";
 
 export default function Menu() {
+  const navigate = useNavigate();
+
   // 从 localStorage 读取用户名
   const [username, setUsername] = useState(() => {
     return localStorage.getItem("username") || "Guest";
@@ -49,7 +52,10 @@ export default function Menu() {
           </CardHeader>
           <CardContent className="flex flex-col items-center">
             <div className="h-[240px] flex items-center justify-center">
-              <button className="bg-transparent border-0 p-0 cursor-pointer hover:opacity-80 transition-opacity">
+              <button
+                className="bg-transparent border-0 p-0 cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => navigate("/overview")}
+              >
                 <Plus className="w-34 h-34 text-green-500" />
               </button>
             </div>
