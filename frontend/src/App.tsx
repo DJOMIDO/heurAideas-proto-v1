@@ -2,7 +2,7 @@ import { Route, Routes } from 'react-router-dom'
 import Welcome from './pages/Welcome'
 import Auth from './pages/Auth'
 import Menu from './pages/Menu'
-import Overview from './pages/Overview'
+import Overview from './pages/overview/Overview'
 
 function App() {
 

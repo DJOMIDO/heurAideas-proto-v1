@@ -8,6 +8,7 @@ export interface Subtask {
 export interface Substep {
   id: string;
   title: string;
+  description?: string;
   status?: "todo" | "in-progress" | "completed";
   subtasks: Subtask[];
 }
