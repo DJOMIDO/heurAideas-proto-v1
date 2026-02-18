@@ -5,12 +5,14 @@ interface SubstepListProps {
   substeps: Substep[];
   selectedId: string | null;
   onSelect: (substep: Substep) => void;
+  stepId?: number;
 }
 
 export default function SubstepList({
   substeps,
   selectedId,
   onSelect,
+  stepId = 1,
 }: SubstepListProps) {
   return (
     <ResizablePanel
@@ -24,7 +26,7 @@ export default function SubstepList({
           Substeps
         </h3>
         <div className="space-y-2">
-          {substeps.map((substep) => (
+          {substeps.map((substep, index) => (
             <div
               key={substep.id}
               onClick={() => onSelect(substep)}
@@ -35,7 +37,14 @@ export default function SubstepList({
                     : "bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300"
                 }`}
             >
-              <span className="font-medium text-sm">{substep.title}</span>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-gray-500">
+                  Substep {stepId}.{index + 1}
+                </span>
+                <span className="font-medium text-sm text-gray-900">
+                  {substep.title}
+                </span>
+              </div>
             </div>
           ))}
         </div>

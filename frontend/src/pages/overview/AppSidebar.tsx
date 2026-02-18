@@ -15,6 +15,8 @@ import {
   LogOut,
   ChevronDown,
 } from "lucide-react";
+// 新增：导入 auth 工具函数
+import { getUserInfo, signOut } from "@/utils/auth";
 
 interface AppSidebarProps {
   isCollapsed: boolean;
@@ -27,6 +29,11 @@ export default function AppSidebar({
   onToggle,
   onNavigate,
 }: AppSidebarProps) {
+  // 获取真实用户信息（Mock/Real 自动切换）
+  const user = getUserInfo();
+  // 生成首字母头像（纯 CSS 方案）
+  const avatarInitial = user?.name?.charAt(0).toUpperCase() || "U";
+
   return (
     <div
       className={`${
@@ -43,19 +50,20 @@ export default function AppSidebar({
                 variant="ghost"
                 className="w-full justify-start px-2 py-2 text-white hover:bg-gray-700"
               >
-                {/* 用户头像 */}
-                <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center shrink-0">
-                  <User className="w-5 h-5 text-white" />
+                {/* 纯 CSS 首字母头像（无需安装 Avatar 组件） */}
+                <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center shrink-0 border-2 border-gray-600">
+                  <span className="text-white font-semibold text-sm">
+                    {avatarInitial}
+                  </span>
                 </div>
-                {/* 用户信息 */}
+
+                {/* 真实用户信息 */}
                 <div className="flex-1 min-w-0 ml-3 text-left">
                   <p className="text-white font-medium text-sm truncate">
-                    John Doe
-                  </p>
-                  <p className="text-gray-400 text-xs truncate">
-                    john@example.com
+                    {user?.name || "Loading..."}
                   </p>
                 </div>
+
                 {/* 下拉箭头 */}
                 <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
               </Button>
@@ -66,7 +74,12 @@ export default function AppSidebar({
               sideOffset={8}
               className="w-56 bg-gray-800 border-gray-700"
             >
-              <DropdownMenuSeparator className="bg-gray-700" />
+              {/* 显示用户信息摘要 */}
+              <div className="px-3 py-2 border-b border-gray-700">
+                <p className="text-white font-medium text-sm">{user?.name}</p>
+                <p className="text-gray-400 text-xs">{user?.email}</p>
+              </div>
+
               <DropdownMenuItem className="text-gray-300 hover:bg-gray-700 hover:text-white cursor-pointer">
                 <User className="w-4 h-4 mr-2" />
                 Profile
@@ -76,9 +89,14 @@ export default function AppSidebar({
                 Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-gray-700" />
+
+              {/* Sign Out：调用 signOut() + 跳转 */}
               <DropdownMenuItem
                 className="text-red-400 hover:bg-gray-700 hover:text-red-300 cursor-pointer"
-                onClick={() => console.log("Sign out")}
+                onClick={() => {
+                  signOut();
+                  onNavigate("/auth");
+                }}
               >
                 <LogOut className="w-4 h-4 mr-2" />
                 Sign Out

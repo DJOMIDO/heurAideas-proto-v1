@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ResizablePanelGroup,
@@ -6,6 +6,7 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 import { stepsData, type Substep } from "@/data/steps";
+import { isAuthenticated } from "@/utils/auth";
 
 import AppSidebar from "./AppSidebar";
 import StepMenu from "./StepMenu";
@@ -15,6 +16,12 @@ import DetailPanel from "./DetailPanel";
 
 export default function Overview() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      navigate("/auth");
+    }
+  }, [navigate]);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [activeStepId, setActiveStepId] = useState(1);
@@ -70,6 +77,7 @@ export default function Overview() {
                 substeps={activeStep.substeps}
                 selectedId={selectedSubstep?.id ?? null}
                 onSelect={handleSubstepSelect}
+                stepId={activeStepId}
               />
 
               <ResizableHandle

@@ -1,29 +1,30 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Plus, Folder } from "lucide-react";
+import { Plus, Folder, LogOut } from "lucide-react";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { getUserInfo, signOut, isAuthenticated } from "@/utils/auth";
 
 export default function Menu() {
   const navigate = useNavigate();
 
-  // 从 localStorage 读取用户名
-  const [username, setUsername] = useState(() => {
-    return localStorage.getItem("username") || "Guest";
-  });
+  const user = getUserInfo();
 
-  // 监听 localStorage 变化（可选）
   useEffect(() => {
-    const handleStorageChange = () => {
-      setUsername(localStorage.getItem("username") || "Guest");
-    };
-
-    window.addEventListener("storage", handleStorageChange);
-    return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
+    if (!isAuthenticated()) {
+      navigate("/auth");
+    }
+  }, [navigate]);
 
   const mockUser = {
-    name: username,
     recentProjects: [
       { id: 1, name: "Project 1" },
       { id: 2, name: "Project 2" },
@@ -31,17 +32,50 @@ export default function Menu() {
     ],
   };
 
+  const avatarInitial = user?.name?.charAt(0).toUpperCase() || "U";
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="flex justify-between items-center mb-10">
-        <Button className="flex items-center gap-2 bg-white text-gray-800 shadow-md hover:shadow-lg hover:text-white border-0">
-          <User className="w-4 h-4" />
-          Manage account
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="flex items-center gap-2 bg-white text-gray-800 shadow-md hover:shadow-lg hover:text-white border-0">
+              <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-semibold text-xs">
+                  {avatarInitial}
+                </span>
+              </div>
+              Manage account
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            className="w-56 bg-white border border-gray-200"
+          >
+            <div className="px-3 py-2">
+              <p className="font-medium text-sm text-gray-900">
+                {user?.name || "Guest"}
+              </p>
+              <p className="text-xs text-gray-500">{user?.email || ""}</p>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-red-600 cursor-pointer hover:bg-gray-50"
+              onClick={() => {
+                signOut();
+                navigate("/auth");
+              }}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
+
       <div className="max-w-6xl mx-auto">
         <h1 className="text-5xl font-bold text-center mb-20">
-          Welcome, {username}!
+          Welcome, {user?.name || "Guest"}!
         </h1>
       </div>
 
@@ -54,7 +88,13 @@ export default function Menu() {
             <div className="h-[240px] flex items-center justify-center">
               <button
                 className="bg-transparent border-0 p-0 cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => navigate("/overview")}
+                onClick={() => {
+                  if (isAuthenticated()) {
+                    navigate("/overview");
+                  } else {
+                    navigate("/auth");
+                  }
+                }}
               >
                 <Plus className="w-34 h-34 text-green-500" />
               </button>
