@@ -3,6 +3,7 @@ import Welcome from './pages/Welcome'
 import Auth from './pages/Auth'
 import Menu from './pages/Menu'
 import Overview from './pages/overview/Overview'
+import Substep from './pages/substep/Substep'
 
 function App() {
 
@@ -13,6 +14,7 @@ function App() {
         <Route path="/auth" element={<Auth />} />
         <Route path="/menu" element={<Menu />} />
         <Route path="/overview" element={<Overview />} />
+        <Route path="/substep/:stepId/:substepId" element={<Substep />} />
       </Routes>
     </>
   )
