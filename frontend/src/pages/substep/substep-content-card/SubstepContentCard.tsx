@@ -20,6 +20,9 @@ interface SubstepContentCardProps {
   onFormDataChange?: (field: string, value: any) => void;
   lastSaved?: string | null;
   isSaving?: boolean;
+  isDropTarget?: boolean;
+  onDropZoneEnter?: () => void;
+  onDropZoneLeave?: () => void;
 }
 
 export default function SubstepContentCard({
@@ -29,10 +32,65 @@ export default function SubstepContentCard({
   onFormDataChange,
   lastSaved,
   isSaving = false,
+  isDropTarget = false,
+  onDropZoneEnter,
+  onDropZoneLeave,
 }: SubstepContentCardProps) {
+  // 🔹 新增：处理空 activeTab（分屏初始状态）
+  if (!activeTab || activeTab === "") {
+    return (
+      <Card
+        className={`
+          flex-1 m-4 border border-gray-200 shadow-sm
+          ${isDropTarget ? "ring-2 ring-blue-400 ring-inset bg-blue-50/30" : ""}
+          transition-all duration-200
+        `}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (isDropTarget) onDropZoneEnter?.();
+        }}
+        onDragLeave={(e) => {
+          if (
+            isDropTarget &&
+            e.currentTarget.contains(e.relatedTarget as Node)
+          ) {
+            return;
+          }
+          onDropZoneLeave?.();
+        }}
+      >
+        <CardContent className="px-6 py-8 flex items-center justify-center h-full">
+          <div className="text-center text-gray-500 max-w-sm">
+            <div className="mb-4">
+              <svg
+                className="w-12 h-12 mx-auto text-gray-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                />
+              </svg>
+            </div>
+            <p className="text-sm font-medium text-gray-700 mb-2">
+              Choose a sub-substep to display
+            </p>
+            <p className="text-xs text-gray-500">
+              Drag and drop tabs from above to this area
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // 获取当前 Subtask
   const getCurrentSubtask = (): Subtask | null => {
-    if (!activeTab || activeTab === "description") return null;
+    if (activeTab === "description") return null;
     const subtaskId = activeTab.replace("subtask-", "");
     return substep.subtasks.find((t) => t.id === subtaskId) || null;
   };
@@ -40,7 +98,7 @@ export default function SubstepContentCard({
   const subtask = getCurrentSubtask();
 
   // Description Tab
-  if (!activeTab || activeTab === "description") {
+  if (activeTab === "description") {
     return (
       <DescriptionTab
         stepTitle={substep.title}
@@ -54,9 +112,35 @@ export default function SubstepContentCard({
   // Subtask not found
   if (!subtask) {
     return (
-      <Card className="flex-1 m-4 border border-gray-200 shadow-sm">
-        <CardContent className="px-6">
-          <p className="text-sm text-gray-500">Select a tab to view content.</p>
+      <Card
+        className={`
+          flex-1 m-4 border border-gray-200 shadow-sm
+          ${isDropTarget ? "ring-2 ring-blue-400 ring-inset bg-blue-50/30" : ""}
+          transition-all duration-200
+        `}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (isDropTarget) onDropZoneEnter?.();
+        }}
+        onDragLeave={(e) => {
+          if (
+            isDropTarget &&
+            e.currentTarget.contains(e.relatedTarget as Node)
+          ) {
+            return;
+          }
+          onDropZoneLeave?.();
+        }}
+      >
+        <CardContent className="px-6 py-8 flex items-center justify-center">
+          <div className="text-center text-gray-500">
+            <p className="text-sm mb-2">Invalid subtask selected</p>
+            {isDropTarget && (
+              <p className="text-xs text-blue-600 font-medium">
+                ← Drop a tab here to load content
+              </p>
+            )}
+          </div>
         </CardContent>
       </Card>
     );
@@ -70,7 +154,23 @@ export default function SubstepContentCard({
   const getField = (field: string) => formData[`${fieldPrefix}-${field}`] || "";
 
   return (
-    <Card className="flex-1 m-4 border border-gray-200 shadow-sm">
+    <Card
+      className={`
+        flex-1 m-4 border border-gray-200 shadow-sm
+        ${isDropTarget ? "ring-2 ring-blue-400 ring-inset bg-blue-50/30" : ""}
+        transition-all duration-200
+      `}
+      onDragOver={(e) => {
+        e.preventDefault();
+        if (isDropTarget) onDropZoneEnter?.();
+      }}
+      onDragLeave={(e) => {
+        if (isDropTarget && e.currentTarget.contains(e.relatedTarget as Node)) {
+          return;
+        }
+        onDropZoneLeave?.();
+      }}
+    >
       {/* 标题 */}
       <SubtaskHeader subtaskId={subtask.id} title={subtask.title} />
 
