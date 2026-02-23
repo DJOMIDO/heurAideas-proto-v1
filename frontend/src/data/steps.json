@@ -1,0 +1,113 @@
+[
+  {
+    "id": 1,
+    "title": "Prerequisite",
+    "description": "To be completed...",
+    "status": "todo",
+    "substeps": [
+      {
+        "id": "1.1",
+        "title": "System of Interest context definition",
+        "description": "",
+        "status": "todo",
+        "subtasks": [
+          {
+            "id": "a",
+            "title": "Activity definition",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "b",
+            "title": "System of Interest definition",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "c",
+            "title": "SoIs value definition",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "d",
+            "title": "Stakeholders needs definition",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          }
+        ]
+      },
+      {
+        "id": "1.2",
+        "title": "Definition of the project's stakeholders",
+        "description": "",
+        "status": "todo",
+        "subtasks": []
+      },
+      {
+        "id": "1.3",
+        "title": "HE confirmation",
+        "description": "",
+        "status": "todo",
+        "subtasks": [
+          {
+            "id": "a",
+            "title": "Definition of the HE motivation",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "b",
+            "title": "HE timeline",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          }
+        ]
+      },
+      {
+        "id": "1.4",
+        "title": "Inspection Degrees of Freedom definition",
+        "description": "",
+        "status": "todo",
+        "subtasks": [
+          {
+            "id": "a",
+            "title": "Individual Degree of Freedom",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "b",
+            "title": "External Degree of Freedom",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          }
+        ]
+      }
+    ]
+  }
+]
