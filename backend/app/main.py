@@ -1,12 +1,28 @@
-from fastapi import FastAPI, Depends # pyright: ignore[reportMissingImports]
-from fastapi.middleware.cors import CORSMiddleware # pyright: ignore[reportMissingImports]
-from sqlalchemy.orm import Session # pyright: ignore[reportMissingImports]
-from sqlalchemy import text # pyright: ignore[reportMissingImports]
+from fastapi import FastAPI, Depends  # pyright: ignore[reportMissingImports]
+from fastapi.middleware.cors import CORSMiddleware  # pyright: ignore[reportMissingImports]
+from sqlalchemy.orm import Session  # pyright: ignore[reportMissingImports]
+from sqlalchemy import text  # pyright: ignore[reportMissingImports]
 from app.database import engine, Base, get_db
 from app.core.config import settings
 
+# 导入所有模型（确保表被创建）- noqa: F401 告诉 linter 这些导入是故意的
+from app.models import (
+    User,
+    ProjectTemplate,
+    TemplateStep,
+    TemplateSubstep,
+    TemplateSubtask,
+    Project,
+    ProjectStep,
+    ProjectSubstep,
+    ProjectSubtask,
+    SubstepContent,
+    Attachment,
+    Stakeholder,  # noqa: F401
+)
+
 # 导入路由
-from app.api import auth, users
+from app.api import auth, users, projects
 
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
@@ -20,7 +36,7 @@ app = FastAPI(
 # CORS 配置（允许前端访问）
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite 默认端口
+    allow_origins=["http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,6 +45,7 @@ app.add_middleware(
 # 注册路由
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(projects.router)
 
 @app.get("/")
 async def root():
@@ -43,7 +60,7 @@ async def health_check(db: Session = Depends(get_db)):
         return {"status": "error", "database": str(e)}
 
 if __name__ == "__main__":
-    import uvicorn # pyright: ignore[reportMissingImports]
+    import uvicorn  # pyright: ignore[reportMissingImports]
     uvicorn.run(
         "app.main:app",
         host=settings.HOST,

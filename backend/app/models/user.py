@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime # pyright: ignore[reportMissingImports]
 from sqlalchemy.sql import func # pyright: ignore[reportMissingImports]
+from sqlalchemy.orm import relationship # pyright: ignore[reportMissingImports]
 from app.database import Base
 
 class User(Base):
@@ -12,5 +13,8 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    projects = relationship("Project", back_populates="creator", cascade="all, delete-orphan")
+
     def __repr__(self):
         return f"<User(id={self.id}, username='{self.username}', email='{self.email}')>"
+    
