@@ -1,14 +1,51 @@
-from fastapi import APIRouter, Depends, HTTPException, status # pyright: ignore[reportMissingImports]
-from sqlalchemy.orm import Session # pyright: ignore[reportMissingImports]
+# backend/app/api/auth.py
+
+from fastapi import APIRouter, Depends, HTTPException, status  # pyright: ignore[reportMissingImports]
+from fastapi.security import OAuth2PasswordBearer  # pyright: ignore[reportMissingImports]
+from sqlalchemy.orm import Session  # pyright: ignore[reportMissingImports]
 from datetime import timedelta
 
 from app.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, UserResponse, UserLogin, Token
-from app.core.security import verify_password, get_password_hash, create_access_token
+from app.core.security import verify_password, get_password_hash, create_access_token, decode_access_token
 from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+# OAuth2 scheme，用于从 Header 中提取 Token
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+# ============================
+# 获取当前用户依赖函数
+# ============================
+async def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """从 Token 中获取当前用户"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    
+    try:
+        payload = decode_access_token(token)
+        if payload is None:
+            raise credentials_exception
+        user_id: int = payload.get("user_id")
+        if user_id is None:
+            raise credentials_exception
+    except Exception:
+        raise credentials_exception
+    
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise credentials_exception
+    
+    return user
+
 
 # ============================
 # 注册
@@ -46,6 +83,7 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     
     return db_user
 
+
 # ============================
 # 登录
 # ============================
@@ -70,10 +108,14 @@ async def login(user_login: UserLogin, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # 创建访问令牌
+    # 创建访问令牌（添加 user_id）
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username, "email": user.email},
+        data={
+            "sub": user.username,
+            "email": user.email,
+            "user_id": user.id
+        },
         expires_delta=access_token_expires
     )
     

@@ -1,8 +1,11 @@
+// src/pages/overview/SubstepList.tsx
+
 import { ResizablePanel } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { type Substep } from "@/data/steps";
+import { getUserId } from "@/utils/auth";
 
 interface SubstepListProps {
   substeps: Substep[];
@@ -19,6 +22,11 @@ export default function SubstepList({
 }: SubstepListProps) {
   const navigate = useNavigate();
 
+  // 读取带用户 ID 的 key
+  const userId = getUserId();
+  const storageKey = userId ? `currentProjectId-${userId}` : "currentProjectId";
+  const currentProjectId = localStorage.getItem(storageKey) || "1";
+
   return (
     <ResizablePanel
       defaultSize="25"
@@ -27,9 +35,6 @@ export default function SubstepList({
       className="bg-white"
     >
       <div className="h-full overflow-y-auto p-4">
-        <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-          Substeps
-        </h3>
         <div className="space-y-2">
           {substeps.map((substep, index) => (
             <div
@@ -62,13 +67,13 @@ export default function SubstepList({
                   className="h-8 w-8 p-0 shrink-0 hover:bg-blue-200"
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/substep/${stepId}/${substep.id}`);
+                    navigate(
+                      `/substep/${currentProjectId}/${stepId}/${substep.id}`,
+                    );
                   }}
                   title="Open Substep"
                 >
-                  <ArrowRight
-                    className="w-4 h-4 stroke-4 group-hover:text-blue-600 transition-colors"
-                  />
+                  <ArrowRight className="w-4 h-4 stroke-4 group-hover:text-blue-600 transition-colors" />
                 </Button>
               </div>
             </div>

@@ -1,23 +1,21 @@
-// src/utils/auth.ts
+// frontend/src/utils/auth.ts
 
 export interface UserInfo {
   name: string;
   email: string;
+  id?: number;
 }
 
-// 🔧 配置：从环境变量读取认证模式
-const AUTH_MODE = import.meta.env.VITE_AUTH_MODE || "real";
+const AUTH_MODE = import.meta.env.VITE_AUTH_MODE || "mock";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-// 生成 Mock JWT（仅开发用，无实际加密）
 function createMockToken(username: string): string {
   const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const payload = btoa(JSON.stringify({ sub: username }));
+  const payload = btoa(JSON.stringify({ sub: username, user_id: 1 }));
   const signature = "mock-signature";
   return `${header}.${payload}.${signature}`;
 }
 
-// 解码 JWT payload（通用工具）
 function decodeToken(token: string): any {
   try {
     return JSON.parse(atob(token.split(".")[1]));
@@ -26,57 +24,86 @@ function decodeToken(token: string): any {
   }
 }
 
-// 获取当前用户信息（Mock/Real 自动切换）
+// 获取用户 ID
+export function getUserId(): number | null {
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+
+  const payload = decodeToken(token);
+  return payload?.user_id || null;
+}
+
 export function getUserInfo(): UserInfo | null {
   const token = localStorage.getItem("token");
   const username = localStorage.getItem("username");
 
   if (!token || !username) return null;
 
-  // Mock 模式：使用 localStorage 中的 username 和 email
   if (AUTH_MODE === "mock") {
     return {
       name: username,
-      email: localStorage.getItem("email") || "", // 读取用户输入的邮箱
+      email: localStorage.getItem("email") || "",
+      id: 1, // Mock 模式固定 ID
     };
   }
 
-  // Real 模式：解码真实 JWT
   try {
     const payload = decodeToken(token);
     return {
       name: username,
       email: payload?.email || payload?.sub || "",
+      id: payload?.user_id || null, // 用户 ID
     };
   } catch {
     return { name: username, email: "" };
   }
 }
 
-// 登出：清除本地存储
+// signOut 清除所有用户相关的 localStorage key
 export function signOut(): void {
+  const userId = getUserId();
+
   localStorage.removeItem("token");
   localStorage.removeItem("username");
-  localStorage.removeItem("email"); // 新增：清除 email
+  localStorage.removeItem("email");
+
+  // 清除当前用户的项目相关 key
+  if (userId) {
+    localStorage.removeItem(`currentProjectId-${userId}`);
+
+    // 清除该用户的所有 last-edited 记录
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (
+        key &&
+        (key.startsWith(`substep-state-${userId}-`) ||
+          key.startsWith(`last-edited-${userId}-`))
+      ) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+  }
 }
 
-// 检查是否已认证
 export function isAuthenticated(): boolean {
   return !!localStorage.getItem("token");
 }
 
-// 统一登录/注册处理函数（Mock/Real 自动切换）
+export function getToken(): string | null {
+  return localStorage.getItem("token");
+}
+
 export async function handleAuth(
   email: string,
   password: string,
   username?: string,
   mode: "login" | "register" = "login",
 ): Promise<{ success: boolean; error?: string }> {
-  // Mock 模式：模拟 API 响应
   if (AUTH_MODE === "mock") {
-    await new Promise((resolve) => setTimeout(resolve, 400)); // 模拟网络延迟
+    await new Promise((resolve) => setTimeout(resolve, 400));
 
-    // 简单验证（仅用于开发测试）
     if (password.length < 6) {
       return {
         success: false,
@@ -84,13 +111,10 @@ export async function handleAuth(
       };
     }
 
-    // 确定 username 的优先级逻辑
     let authUsername: string;
     if (mode === "register" && username) {
-      // 注册：使用用户输入的用户名
       authUsername = username;
     } else {
-      // 登录：已保存的 username > 传入的 username > 邮箱前缀 > 默认值
       authUsername =
         username ||
         localStorage.getItem("username") ||
@@ -100,15 +124,13 @@ export async function handleAuth(
 
     const mockToken = createMockToken(authUsername);
 
-    // 保存 token、username 和 email 到 localStorage
     localStorage.setItem("token", mockToken);
     localStorage.setItem("username", authUsername);
-    localStorage.setItem("email", email); // ← 新增：保存用户输入的邮箱
+    localStorage.setItem("email", email);
 
     return { success: true };
   }
 
-  // Real 模式：调用真实后端 API
   try {
     const endpoint = mode === "login" ? "/auth/login" : "/auth/register";
     const body =
@@ -128,7 +150,6 @@ export async function handleAuth(
       return { success: false, error: data.detail || "Request failed" };
     }
 
-    // 登录成功：保存 token 和 username
     if (mode === "login") {
       localStorage.setItem("token", data.access_token);
       const payload = decodeToken(data.access_token);
@@ -136,7 +157,7 @@ export async function handleAuth(
         "username",
         payload?.sub || username || email.split("@")[0],
       );
-      // Real 模式下邮箱从 JWT payload 获取，不需要额外保存
+      localStorage.setItem("email", payload?.email || email);
     }
 
     return { success: true };

@@ -1,3 +1,5 @@
+// src/pages/overview/DetailPanel.tsx
+
 import { ResizablePanel } from "@/components/ui/resizable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -25,7 +27,6 @@ export default function DetailPanel({ substep }: DetailPanelProps) {
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
-              {/* Description */}
               <div>
                 <h4 className="text-sm font-semibold text-gray-500 mb-1">
                   Description
@@ -35,35 +36,34 @@ export default function DetailPanel({ substep }: DetailPanelProps) {
                 </p>
               </div>
 
-              {/* Tasks Accordion */}
               <div className="pt-4">
-                <h4 className="text-sm font-semibold text-gray-500 mb-2">
-                  Tasks
-                </h4>
-                <Accordion
-                  type="single"
-                  collapsible
-                  className="w-full"
-                  defaultValue={substep.subtasks[0]?.id}
-                >
-                  {substep.subtasks.map((task) => (
-                    <AccordionItem key={task.id} value={task.id}>
-                      <AccordionTrigger className="hover:no-underline">
-                        {task.title}
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <p className="text-gray-600 text-sm mb-2">
-                          {task.description || "No description provided"}
-                        </p>
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
+                {substep.subtasks && substep.subtasks.length > 0 ? (
+                  <Accordion
+                    type="single"
+                    collapsible
+                    className="w-full"
+                    defaultValue={substep.subtasks[0]?.id}
+                  >
+                    {substep.subtasks.map((task) => (
+                      <AccordionItem key={task.id} value={task.id}>
+                        <AccordionTrigger className="hover:no-underline">
+                          {task.title}
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <p className="text-gray-600 text-sm mb-2">
+                            {task.description || "No description provided"}
+                          </p>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
+                ) : (
+                  <p className="text-sm text-gray-500">No tasks available</p>
+                )}
               </div>
             </CardContent>
           </Card>
         ) : (
-          /* Empty State */
           <div className="h-full flex flex-col items-center justify-center text-gray-400">
             <FileText className="w-16 h-16 mb-4 opacity-30" />
             <p>Select a substep to view details</p>

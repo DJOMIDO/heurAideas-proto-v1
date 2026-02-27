@@ -1,4 +1,6 @@
-import { useEffect } from "react";
+// frontend/src/pages/Menu.tsx
+
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,25 +13,94 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getUserInfo, signOut, isAuthenticated } from "@/utils/auth";
+import { getUserInfo, signOut, isAuthenticated, getUserId } from "@/utils/auth";
+import { getProjects, createProject } from "@/api/projects";
+import { getLastEditedSubstep } from "@/utils/substepState";
+
+interface Project {
+  id: number;
+  name: string;
+  status: string;
+  created_at: string;
+}
 
 export default function Menu() {
   const navigate = useNavigate();
-
   const user = getUserInfo();
+  const userId = getUserId(); // 获取用户 ID
+
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
       navigate("/auth");
     }
+
+    loadProjects();
   }, [navigate]);
 
-  const mockUser = {
-    recentProjects: [
-      { id: 1, name: "Project 1" },
-      { id: 2, name: "Project 2" },
-      { id: 3, name: "Project 3" },
-    ],
+  const loadProjects = async () => {
+    setIsLoading(true);
+    try {
+      const data = await getProjects();
+      setProjects(data.slice(0, 3));
+    } catch (error) {
+      console.error("Failed to load projects:", error);
+      setProjects([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateProject = async () => {
+    if (!isAuthenticated()) {
+      navigate("/auth");
+      return;
+    }
+
+    try {
+      const now = new Date();
+      const timestamp = now.toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      const projectName = `New Project ${timestamp}`;
+
+      const newProject = await createProject({
+        name: projectName,
+        description: "Created from Menu",
+      });
+
+      // localStorage key 与用户 ID 关联
+      const storageKey = userId
+        ? `currentProjectId-${userId}`
+        : "currentProjectId";
+      localStorage.setItem(storageKey, String(newProject.id));
+      navigate(`/overview`);
+    } catch (error) {
+      console.error("Failed to create project:", error);
+      alert("Failed to create project. Please try again.");
+    }
+  };
+
+  const handleOpenProject = (projectId: number) => {
+    const storageKey = userId
+      ? `currentProjectId-${userId}`
+      : "currentProjectId";
+    localStorage.setItem(storageKey, String(projectId));
+
+    const lastEdited = getLastEditedSubstep(projectId);
+
+    console.log(`[Menu] Opening project ${projectId}, lastEdited:`, lastEdited);
+
+    if (lastEdited) {
+      // 确保 URL 中包含正确的 projectId
+      navigate(
+        `/substep/${projectId}/${lastEdited.stepId}/${lastEdited.substepId}`,
+        { replace: true },
+      );
+    } else {
+      // 跳转到 Overview，由 Overview 选择第一个 substep
+      navigate(`/overview`, { replace: true });
+    }
   };
 
   const avatarInitial = user?.name?.charAt(0).toUpperCase() || "U";
@@ -88,13 +159,8 @@ export default function Menu() {
             <div className="h-[240px] flex items-center justify-center">
               <button
                 className="bg-transparent border-0 p-0 cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => {
-                  if (isAuthenticated()) {
-                    navigate("/overview");
-                  } else {
-                    navigate("/auth");
-                  }
-                }}
+                onClick={handleCreateProject}
+                disabled={isLoading}
               >
                 <Plus className="w-34 h-34 text-green-500" />
               </button>
@@ -116,14 +182,21 @@ export default function Menu() {
             <div className="text-left w-full mt-2 border-t border-gray-200 pt-2">
               <h3 className="font-medium text-sm mb-2">Recent projects:</h3>
               <ul className="space-y-1 text-sm">
-                {mockUser.recentProjects.map((project) => (
-                  <li
-                    key={project.id}
-                    className="hover:bg-purple-100 p-1.5 rounded transition-colors cursor-pointer"
-                  >
-                    {project.name}
-                  </li>
-                ))}
+                {isLoading ? (
+                  <li className="text-gray-500">Loading...</li>
+                ) : projects.length > 0 ? (
+                  projects.map((project) => (
+                    <li
+                      key={project.id}
+                      className="hover:bg-purple-100 p-1.5 rounded transition-colors cursor-pointer"
+                      onClick={() => handleOpenProject(project.id)}
+                    >
+                      {project.name}
+                    </li>
+                  ))
+                ) : (
+                  <li className="text-gray-500">No recent projects</li>
+                )}
               </ul>
             </div>
           </CardContent>

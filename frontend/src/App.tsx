@@ -14,7 +14,7 @@ function App() {
         <Route path="/auth" element={<Auth />} />
         <Route path="/menu" element={<Menu />} />
         <Route path="/overview" element={<Overview />} />
-        <Route path="/substep/:stepId/:substepId" element={<Substep />} />
+        <Route path="/substep/:projectId/:stepId/:substepId" element={<Substep />} />
       </Routes>
     </>
   )

@@ -36,7 +36,7 @@ export default function SubstepContentCard({
   onDropZoneEnter,
   onDropZoneLeave,
 }: SubstepContentCardProps) {
-  // 🔹 新增：处理空 activeTab（分屏初始状态）
+  // 处理空 activeTab（分屏初始状态）
   if (!activeTab || activeTab === "") {
     return (
       <Card
@@ -92,7 +92,7 @@ export default function SubstepContentCard({
   const getCurrentSubtask = (): Subtask | null => {
     if (activeTab === "description") return null;
     const subtaskId = activeTab.replace("subtask-", "");
-    return substep.subtasks.find((t) => t.id === subtaskId) || null;
+    return substep.subtasks?.find((t) => t.id === subtaskId) || null;
   };
 
   const subtask = getCurrentSubtask();

@@ -1,11 +1,12 @@
 // src/pages/substep/Substep.tsx
 
-import { useState, useEffect, useCallback, useRef } from "react"; // 🔹 添加 useRef
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { stepsData } from "@/data/steps";
 import {
-  getSubstepState,
-  saveSubstepState,
+  loadSubstepStateWithApi,
+  saveSubstepStateWithApi,
+  saveLastEditedSubstep,
   type SubstepState,
 } from "@/utils/substepState";
 
@@ -16,15 +17,13 @@ import SubstepTabs from "./SubstepTabs";
 import SubstepContentCard from "./substep-content-card/SubstepContentCard";
 
 export default function Substep() {
-  const { stepId, substepId } = useParams<{
+  const { projectId, stepId, substepId } = useParams<{
+    projectId: string;
     stepId: string;
     substepId: string;
   }>();
   const navigate = useNavigate();
 
-  // ─────────────────────────────────────────
-  // 原有状态
-  // ─────────────────────────────────────────
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [substepTabState, setSubstepTabState] = useState<
     Record<string, string>
@@ -33,20 +32,18 @@ export default function Substep() {
   const [lastSaved, setLastSaved] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // ─────────────────────────────────────────
-  // 🔹 分屏视图状态
-  // ─────────────────────────────────────────
   const [viewMode, setViewMode] = useState<"single" | "split">("single");
   const [splitViewTabs, setSplitViewTabs] = useState<{
     left: string;
     right: string;
   }>({ left: "", right: "" });
 
-  // 🔹 新增：记录当前 substepId，用于检测切换
   const prevSubstepIdRef = useRef<string | undefined>(undefined);
 
   const step = stepsData.find((s) => s.id === Number(stepId));
   const substep = step?.substeps.find((s) => s.id === substepId);
+
+  const projectIdNum = projectId ? Number(projectId) : 0;
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed);
@@ -88,11 +85,8 @@ export default function Substep() {
     });
   };
 
-  // ─────────────────────────────────────────
-  // 🔹 保存函数（不变）
-  // ─────────────────────────────────────────
   const handleSave = useCallback(() => {
-    if (!substepId) return;
+    if (!substepId || !projectIdNum) return;
 
     setIsSaving(true);
 
@@ -109,92 +103,139 @@ export default function Substep() {
           : undefined,
     };
 
-    saveSubstepState(substepId, stateToSave);
-    setLastSaved(new Date().toISOString());
-    setIsSaving(false);
-  }, [substepId, substepTabState, formData, viewMode, splitViewTabs]);
+    saveSubstepStateWithApi(projectIdNum, substepId, stateToSave, true)
+      .then(() => {
+        setLastSaved(new Date().toISOString());
+        setIsSaving(false);
+        saveLastEditedSubstep(projectIdNum, Number(stepId), substepId);
+      })
+      .catch((error) => {
+        console.error("Save failed:", error);
+        setIsSaving(false);
+      });
+  }, [
+    substepId,
+    projectIdNum,
+    substepTabState,
+    formData,
+    viewMode,
+    splitViewTabs,
+    stepId,
+  ]);
 
-  // ─────────────────────────────────────────
-  // 🔹 自动保存（防抖，不变）
-  // ─────────────────────────────────────────
+  // 自动保存：只写 localStorage
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (substepId && Object.keys(formData).length > 0) {
-        handleSave();
+      if (substepId && projectIdNum && Object.keys(formData).length > 0) {
+        const stateToSave: Partial<SubstepState> = {
+          activeTab: substepTabState[substepId] || "description",
+          formData,
+          viewMode,
+          splitView:
+            viewMode === "split"
+              ? {
+                  leftTab: splitViewTabs.left,
+                  rightTab: splitViewTabs.right,
+                }
+              : undefined,
+        };
+        saveSubstepStateWithApi(projectIdNum, substepId, stateToSave, false);
       }
     }, 1000);
     return () => clearTimeout(timer);
-  }, [substepId, formData, handleSave]);
+  }, [
+    substepId,
+    projectIdNum,
+    formData,
+    substepTabState,
+    viewMode,
+    splitViewTabs,
+  ]);
 
-  // ─────────────────────────────────────────
-  // 🔹 新增：切换 substep 时立即保存上一个 substep 的状态
-  // ─────────────────────────────────────────
+  // 切换 substep 时立即保存上一个 substep 的状态（只写 localStorage）
   useEffect(() => {
-    // 检测 substepId 是否变化
     if (prevSubstepIdRef.current && prevSubstepIdRef.current !== substepId) {
-      // 🔹 切换前立即保存上一个 substep 的状态
-      saveSubstepState(prevSubstepIdRef.current, {
-        activeTab: substepTabState[prevSubstepIdRef.current] || "description",
-        formData,
-        viewMode,
-        splitView:
-          viewMode === "split"
-            ? {
-                leftTab: splitViewTabs.left,
-                rightTab: splitViewTabs.right,
-              }
-            : undefined,
-      });
-      console.log("💾 Auto-saved previous substep:", prevSubstepIdRef.current);
+      saveSubstepStateWithApi(
+        projectIdNum,
+        prevSubstepIdRef.current,
+        {
+          activeTab: substepTabState[prevSubstepIdRef.current] || "description",
+          formData,
+          viewMode,
+          splitView:
+            viewMode === "split"
+              ? {
+                  leftTab: splitViewTabs.left,
+                  rightTab: splitViewTabs.right,
+                }
+              : undefined,
+        },
+        false,
+      );
+      console.log(
+        "Auto-saved previous substep to localStorage:",
+        prevSubstepIdRef.current,
+      );
     }
 
-    // 更新 ref
     prevSubstepIdRef.current = substepId;
-  }, [substepId, substepTabState, formData, viewMode, splitViewTabs]);
+  }, [
+    substepId,
+    projectIdNum,
+    substepTabState,
+    formData,
+    viewMode,
+    splitViewTabs,
+  ]);
 
-  // ─────────────────────────────────────────
-  // 🔹 加载已保存的状态（substepId 变化时）
-  // ─────────────────────────────────────────
+  // 加载状态时先清空 formData，避免显示上一个项目的内容
   useEffect(() => {
-    if (!substepId) return;
+    if (!substepId || !projectIdNum) return;
 
-    const saved = getSubstepState(substepId);
-    if (saved) {
-      setSubstepTabState((prev) => ({
-        ...prev,
-        [substepId]: saved.activeTab,
-      }));
-      setFormData(saved.formData || {});
-      setLastSaved(saved.lastSaved || null);
+    // 先清空
+    setFormData({});
+    setLastSaved(null);
 
-      // 🔹 恢复分屏状态
-      if (saved.viewMode) {
-        setViewMode(saved.viewMode);
-        console.log("📖 Restored viewMode:", saved.viewMode);
-      } else {
+    loadSubstepStateWithApi(projectIdNum, substepId)
+      .then((saved) => {
+        if (saved) {
+          setSubstepTabState((prev) => ({
+            ...prev,
+            [substepId]: saved.activeTab,
+          }));
+          setFormData(saved.formData || {});
+          setLastSaved(saved.lastSaved || null);
+
+          if (saved.viewMode) {
+            setViewMode(saved.viewMode);
+          } else {
+            setViewMode("single");
+          }
+
+          if (saved.splitView) {
+            setSplitViewTabs({
+              left: saved.splitView.leftTab,
+              right: saved.splitView.rightTab,
+            });
+          } else {
+            setSplitViewTabs({ left: "", right: "" });
+          }
+        } else {
+          setViewMode("single");
+          setSplitViewTabs({ left: "", right: "" });
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load substep state:", error);
         setViewMode("single");
-      }
-
-      if (saved.splitView) {
-        setSplitViewTabs({
-          left: saved.splitView.leftTab,
-          right: saved.splitView.rightTab,
-        });
-        console.log("📖 Restored splitView:", saved.splitView);
-      } else {
         setSplitViewTabs({ left: "", right: "" });
-      }
-    } else {
-      setViewMode("single");
-      setSplitViewTabs({ left: "", right: "" });
-    }
-  }, [substepId]);
+      });
+  }, [substepId, projectIdNum]);
 
   const handleFormDataChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  // 小屏幕自动退出分屏
   useEffect(() => {
     const checkScreen = () => {
       if (window.innerWidth < 1024 && viewMode === "split") {
@@ -215,10 +256,10 @@ export default function Substep() {
             Substep not found
           </h1>
           <button
-            onClick={() => navigate("/overview")}
+            onClick={() => navigate("/menu")}
             className="text-blue-600 hover:underline"
           >
-            Back to Overview
+            Back to Menu
           </button>
         </div>
       </div>
@@ -239,7 +280,10 @@ export default function Substep() {
         stepId={step.id}
         substeps={step.substeps}
         currentSubstepId={substep.id}
+        projectId={projectIdNum}
         onSave={handleSave}
+        isSaving={isSaving}
+        lastSaved={lastSaved}
       />
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
