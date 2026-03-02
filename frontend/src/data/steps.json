@@ -107,6 +107,389 @@
             "status": "todo"
           }
         ]
+      },
+      {
+        "id": "1.5",
+        "title": "Inspection protocol validation",
+        "description": "",
+        "status": "todo",
+        "subtasks": []
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "title": "Activity analysis",
+    "description": "To be completed...",
+    "status": "todo",
+    "substeps": [
+      {
+        "id": "2.1",
+        "title": "Activity analysis \"frame\" selection",
+        "description": "",
+        "status": "todo",
+        "subtasks": [
+          {
+            "id": "a",
+            "title": "Analytical orientation definition",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "b",
+            "title": "Theoretical reference selection",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "c",
+            "title": "Validation of the analysis frame",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "d",
+            "title": "Selection of the representation format",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          }
+        ]
+      },
+      {
+        "id": "2.2",
+        "title": "Selection of the data collection method selection",
+        "description": "",
+        "status": "todo",
+        "subtasks": [
+          {
+            "id": "a",
+            "title": "Data source identification",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "b",
+            "title": "Data collection method identification",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "c",
+            "title": "Data collection method selection",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          }
+        ]
+      },
+      {
+        "id": "2.3",
+        "title": "Activity analysis application",
+        "description": "",
+        "status": "todo",
+        "subtasks": [
+          {
+            "id": "a",
+            "title": "Activity decomposition",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "b",
+            "title": "Activity characterization",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "title": "Definition of the heuristic's knowledge domain (KD)",
+    "description": "To be completed...",
+    "status": "todo",
+    "substeps": [
+      {
+        "id": "3.1",
+        "title": "KD conceptualization",
+        "description": "",
+        "status": "todo",
+        "subtasks": [
+          {
+            "id": "a",
+            "title": "KD documentation",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "b",
+            "title": "KD concepts identification",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "c",
+            "title": "KD concepts selection",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "d",
+            "title": "KD conceptual card definition",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          }
+        ]
+      },
+      {
+        "id": "3.2",
+        "title": "KD's concepts correlation",
+        "description": "",
+        "status": "todo",
+        "subtasks": [
+          {
+            "id": "a",
+            "title": "KD's concepts mapping",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "b",
+            "title": "KD's correlation with activity characteristics",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "title": "Interaction analysis",
+    "description": "To be completed...",
+    "status": "todo",
+    "substeps": [
+      {
+        "id": "4.1",
+        "title": "Interaction analytical frame development",
+        "description": "",
+        "status": "todo",
+        "subtasks": [
+          {
+            "id": "a",
+            "title": "Interaction theory selection",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "b",
+            "title": "Interaction analytical frame validation",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "c",
+            "title": "Interaction questionnaire development",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          }
+        ]
+      },
+      {
+        "id": "4.2",
+        "title": "Interaction definition",
+        "description": "",
+        "status": "todo",
+        "subtasks": [
+          {
+            "id": "a",
+            "title": "AS-IS interaction context definition",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "b",
+            "title": "TO-BE interaction context definition",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "c",
+            "title": "Interaction criticality analysis",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "d",
+            "title": "Interaction demension weigthing",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "title": "Design rationales analysis",
+    "description": "To be completed...",
+    "status": "todo",
+    "substeps": [
+      {
+        "id": "5.1",
+        "title": "Corpus definition",
+        "description": "",
+        "status": "todo",
+        "subtasks": [
+          {
+            "id": "a",
+            "title": "Design corpus development",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "b",
+            "title": "Design corpus selection",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "c",
+            "title": "Design corpus metadata definition",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          }
+        ]
+      },
+      {
+        "id": "5.2",
+        "title": "System's design rationales analysis",
+        "description": "",
+        "status": "todo",
+        "subtasks": [
+          {
+            "id": "a",
+            "title": "Design corpus review",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          },
+          {
+            "id": "b",
+            "title": "Design corpus analysis",
+            "description": "To be completed...",
+            "objective": "",
+            "actions": "",
+            "recommendedDocumentation": "",
+            "status": "todo"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "title": "Heuristics and guidelines definition",
+    "description": "To be completed...",
+    "status": "todo",
+    "substeps": [
+      {
+        "id": "6.1",
+        "title": "Data correlation",
+        "description": "",
+        "status": "todo",
+        "subtasks": []
+      },
+      {
+        "id": "6.2",
+        "title": "Heuristic writting",
+        "description": "",
+        "status": "todo",
+        "subtasks": []
+      },
+      {
+        "id": "6.3",
+        "title": "Guideline's writting",
+        "description": "",
+        "status": "todo",
+        "subtasks": []
       }
     ]
   }
