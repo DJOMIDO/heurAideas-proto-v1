@@ -1,3 +1,5 @@
+// frontend/src/pages/overview/Overview.tsx
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -6,13 +8,18 @@ import {
   ResizableHandle,
 } from "@/components/ui/resizable";
 import { stepsData, type Substep } from "@/data/steps";
-import { isAuthenticated } from "@/utils/auth";
+import { isAuthenticated, getUserId } from "@/utils/auth";
 
 import AppSidebar from "./AppSidebar";
 import StepMenu from "./StepMenu";
 import StatusBar from "./StatusBar";
 import SubstepList from "./SubstepList";
 import DetailPanel from "./DetailPanel";
+
+const getActiveStepStorageKey = (): string => {
+  const userId = getUserId();
+  return userId ? `overview-active-step-${userId}` : "overview-active-step";
+};
 
 export default function Overview() {
   const navigate = useNavigate();
@@ -24,7 +31,12 @@ export default function Overview() {
   }, [navigate]);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [activeStepId, setActiveStepId] = useState(1);
+
+  const [activeStepId, setActiveStepId] = useState(() => {
+    const stored = localStorage.getItem(getActiveStepStorageKey());
+    return stored ? Number(stored) : 1;
+  });
+
   const [selectedSubstep, setSelectedSubstep] = useState<Substep | null>(null);
 
   const activeStep =
@@ -33,6 +45,7 @@ export default function Overview() {
   const handleStepChange = (id: number) => {
     setActiveStepId(id);
     setSelectedSubstep(null);
+    localStorage.setItem(getActiveStepStorageKey(), String(id));
   };
 
   const handleSubstepSelect = (substep: Substep) => {
