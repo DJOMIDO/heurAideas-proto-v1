@@ -10,7 +10,7 @@ import DescriptionTab from "./DescriptionTab";
 import SubtaskHeader from "./SubtaskHeader";
 import InfoSection from "./InfoSection";
 import PrimaryElementsTable from "./PrimaryElementsTable";
-import StakeholderRoleList from "./StakeholderRoleList";
+import StakeholderSection from "./StakeholderSection";
 import SaveStatus from "./SaveStatus";
 
 interface SubstepContentCardProps {
@@ -230,55 +230,11 @@ export default function SubstepContentCard({
           />
 
           {/* 4. Stakeholders Section */}
-          <div className="space-y-4">
-            <label className="text-sm font-semibold text-gray-800">
-              4. Identify the stakeholders involved in the activity and that
-              might be concerned by the SoI use
-            </label>
-
-            <div className="space-y-3 max-w-2xl">
-              {/* Add SoI stakeholder */}
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-600">
-                  Add SoI stakeholder
-                </label>
-                <Input
-                  placeholder="Enter SoI stakeholder"
-                  value={getField("soiStakeholder")}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    updateField("soiStakeholder", e.target.value)
-                  }
-                />
-              </div>
-
-              {/* Systems engineer */}
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-600">
-                  Systems engineer (Role with the SoI)
-                </label>
-                <Input
-                  placeholder="Enter systems engineer role"
-                  value={getField("systemsEngineer")}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    updateField("systemsEngineer", e.target.value)
-                  }
-                />
-              </div>
-
-              {/* SoI stakeholders role library */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-gray-600">
-                  SoI stakeholders role library
-                </label>
-                <StakeholderRoleList
-                  formData={formData}
-                  onFormDataChange={onFormDataChange!}
-                  fieldPrefix={fieldPrefix}
-                  initialCount={3}
-                />
-              </div>
-            </div>
-          </div>
+          <StakeholderSection
+            formData={formData}
+            onFormDataChange={onFormDataChange!}
+            fieldPrefix={fieldPrefix}
+          />
 
           {/* 5. Additional Stakeholders */}
           <div className="space-y-2">
