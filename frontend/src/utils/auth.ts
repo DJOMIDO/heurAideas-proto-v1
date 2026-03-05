@@ -70,6 +70,7 @@ export function signOut(): void {
   // 清除当前用户的项目相关 key
   if (userId) {
     localStorage.removeItem(`currentProjectId-${userId}`);
+    localStorage.removeItem(`overview-active-step-${userId}`);
 
     // 清除该用户的所有 last-edited 记录
     const keysToRemove: string[] = [];
@@ -85,6 +86,7 @@ export function signOut(): void {
     }
     keysToRemove.forEach((key) => localStorage.removeItem(key));
   }
+  localStorage.removeItem("overview-active-step");
 }
 
 export function isAuthenticated(): boolean {
