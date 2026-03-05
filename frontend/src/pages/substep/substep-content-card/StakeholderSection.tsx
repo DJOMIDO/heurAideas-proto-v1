@@ -1,6 +1,6 @@
 // src/pages/substep/substep-content-card/StakeholderSection.tsx
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Plus, X } from "lucide-react";
@@ -64,7 +64,11 @@ export default function StakeholderSection({
     role: string;
   } | null>(null);
 
-  const roleInputRefs = useRef<Record<number, HTMLSpanElement | null>>({});
+  const roleInputRef = useRef<HTMLInputElement>(null);
+
+   useEffect(() => {
+    setAddingStakeholder(null);
+  }, [fieldPrefix]);
 
   const getStakeholders = (): Stakeholder[] => {
     const stakeholders: Stakeholder[] = [];
@@ -96,7 +100,7 @@ export default function StakeholderSection({
   const handleConfirmAdd = () => {
     if (!addingStakeholder?.name) return;
 
-    const nextIdx = stakeholders.length;
+    const nextIdx = displayStakeholders.length;
 
     onFormDataChange(
       `${fieldPrefix}-stakeholder-role-${nextIdx}`,
@@ -119,17 +123,13 @@ export default function StakeholderSection({
 
     updatedStakeholders.forEach((s, idx) => {
       onFormDataChange(`${fieldPrefix}-stakeholder-role-${idx}`, s.name);
-      onFormDataChange(`${fieldPrefix}-stakeholder-role-${idx}-role`, "");
+      onFormDataChange(`${fieldPrefix}-stakeholder-role-${idx}-role`, s.role);
     });
 
     for (let i = updatedStakeholders.length; i < stakeholders.length; i++) {
       onFormDataChange(`${fieldPrefix}-stakeholder-role-${i}`, "");
       onFormDataChange(`${fieldPrefix}-stakeholder-role-${i}-role`, "");
     }
-  };
-
-  const handleSaveRole = (index: number, role: string) => {
-    onFormDataChange(`${fieldPrefix}-stakeholder-role-${index}-role`, role);
   };
 
   return (
@@ -162,22 +162,17 @@ export default function StakeholderSection({
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    handleConfirmAdd();
+                    roleInputRef.current?.focus();
                   }
                   if (e.key === "Escape") {
                     setAddingStakeholder(null);
                   }
                 }}
-                onBlur={() => {
-                  setTimeout(() => {
-                    if (addingStakeholder?.name) {
-                      handleConfirmAdd();
-                    }
-                  }, 150);
-                }}
                 className="w-full h-7 text-sm font-medium border-0 p-0 focus-visible:ring-0 bg-transparent placeholder-gray-400"
               />
+
               <input
+                ref={roleInputRef}
                 placeholder="Role"
                 value={addingStakeholder.role}
                 onChange={(e) =>
@@ -186,6 +181,15 @@ export default function StakeholderSection({
                     role: e.target.value,
                   })
                 }
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleConfirmAdd();
+                  }
+                  if (e.key === "Escape") {
+                    setAddingStakeholder(null);
+                  }
+                }}
                 className="w-full h-5 text-xs text-gray-500 border-0 p-0 focus-visible:ring-0 bg-transparent placeholder-gray-400"
               />
             </div>
@@ -200,7 +204,7 @@ export default function StakeholderSection({
             </Button>
           </div>
         )}
-        
+
         {!addingStakeholder && (
           <Button
             variant="ghost"
@@ -238,22 +242,17 @@ export default function StakeholderSection({
                 {stakeholder.name}
               </span>
 
-              <span
-                ref={(el) => {
-                  roleInputRefs.current[idx] = el;
+              <input
+                value={stakeholder.role}
+                onChange={(e) => {
+                  onFormDataChange(
+                    `${fieldPrefix}-stakeholder-role-${idx}-role`,
+                    e.target.value,
+                  );
                 }}
-                contentEditable
-                suppressContentEditableWarning
-                suppressHydrationWarning
-                onBlur={(e) => {
-                  const newRole = e.currentTarget.textContent || "";
-                  handleSaveRole(idx, newRole);
-                }}
-                data-placeholder="+ Add role"
-                className="block text-xs text-gray-500 truncate cursor-text hover:text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-0.5 -mx-0.5 min-h-[1.25rem]"
-              >
-                {stakeholder.role || "+ Add role"}
-              </span>
+                placeholder="+ Add role"
+                className="block text-xs text-gray-500 truncate border-0 p-0 focus-visible:ring-0 bg-transparent placeholder-gray-400 w-full h-5 min-h-[1.25rem]"
+              />
             </div>
 
             <Button

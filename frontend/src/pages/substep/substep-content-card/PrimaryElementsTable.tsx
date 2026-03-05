@@ -1,6 +1,5 @@
 // src/pages/substep/substep-content-card/PrimaryElementsTable.tsx
 
-import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
@@ -16,7 +15,13 @@ export default function PrimaryElementsTable({
   onFormDataChange,
   fieldPrefix,
 }: PrimaryElementsTableProps) {
-  const [rowCount, setRowCount] = useState(() => {
+
+  const getRowCount = () => {
+    const stored = formData[`${fieldPrefix}-element-row-count`];
+    if (stored && typeof stored === "number" && stored >= 1) {
+      return stored;
+    }
+
     let maxRow = 2;
     let idx = 0;
     while (true) {
@@ -27,7 +32,9 @@ export default function PrimaryElementsTable({
       idx++;
     }
     return maxRow;
-  });
+  };
+
+  const rowCount = getRowCount();
 
   const getField = (row: number, field: string) =>
     formData[`${fieldPrefix}-element-${row}-${field}`] || "";
@@ -36,8 +43,12 @@ export default function PrimaryElementsTable({
     onFormDataChange(`${fieldPrefix}-element-${row}-${field}`, value);
   };
 
+  const updateRowCount = (newCount: number) => {
+    onFormDataChange(`${fieldPrefix}-element-row-count`, newCount);
+  };
+
   const handleAddRow = () => {
-    setRowCount((prev) => prev + 1);
+    updateRowCount(rowCount + 1);
   };
 
   const handleDeleteRow = (index: number) => {
@@ -46,7 +57,7 @@ export default function PrimaryElementsTable({
     updateField(index, "name", "");
     updateField(index, "definition", "");
 
-    setRowCount((prev) => prev - 1);
+    updateRowCount(rowCount - 1);
 
     for (let i = index + 1; i < rowCount; i++) {
       const name = getField(i, "name");

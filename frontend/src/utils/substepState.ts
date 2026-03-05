@@ -16,19 +16,14 @@ export interface SubstepState {
 
 const STORAGE_PREFIX = "substep-state-";
 
-// ✅ 添加调试日志
 function getStorageKey(projectId: number, substepId: string): string {
   const userId = getUserId();
   const key = userId
     ? `${STORAGE_PREFIX}${userId}-${projectId}-${substepId}`
     : `${STORAGE_PREFIX}${projectId}-${substepId}`;
-  console.log(
-    `[getStorageKey] userId=${userId}, projectId=${projectId}, substepId=${substepId} → ${key}`,
-  );
   return key;
 }
 
-// 保存最后编辑的 substep 信息
 export function saveLastEditedSubstep(
   projectId: number,
   stepId: number,
@@ -44,13 +39,8 @@ export function saveLastEditedSubstep(
     timestamp: new Date().toISOString(),
   };
   localStorage.setItem(key, JSON.stringify(data));
-  console.log(
-    `[saveLastEditedSubstep] userId=${userId}, projectId=${projectId} → ${key}`,
-    data,
-  );
 }
 
-// 获取最后编辑的 substep 信息
 export function getLastEditedSubstep(projectId: number): {
   stepId: number;
   substepId: string;
@@ -60,9 +50,6 @@ export function getLastEditedSubstep(projectId: number): {
     ? `last-edited-${userId}-${projectId}`
     : `last-edited-${projectId}`;
   const data = localStorage.getItem(key);
-  console.log(
-    `[getLastEditedSubstep] userId=${userId}, projectId=${projectId} → ${key}, found=${!!data}`,
-  );
 
   if (!data) {
     return null;
@@ -89,7 +76,6 @@ export function getLastEditedSubstep(projectId: number): {
   }
 }
 
-// 清除最后编辑的 substep 信息
 export function clearLastEditedSubstep(projectId: number): void {
   const userId = getUserId();
   const key = userId
@@ -131,11 +117,7 @@ function convertToContentData(
       }
 
       if (fieldName.startsWith("stakeholder-role-")) {
-        const roleIdx = parseInt(fieldName.replace("stakeholder-role-", ""));
-        if (!contentData[subtaskKey].stakeholderRoles) {
-          contentData[subtaskKey].stakeholderRoles = [];
-        }
-        contentData[subtaskKey].stakeholderRoles[roleIdx] = formData[key];
+        contentData[subtaskKey][fieldName] = formData[key];
         return;
       }
 
@@ -168,10 +150,8 @@ function convertToFormData(
         return;
       }
 
-      if (fieldName === "stakeholderRoles" && Array.isArray(value)) {
-        value.forEach((role: string, idx: number) => {
-          formData[`subtask-${subtaskId}-stakeholder-role-${idx}`] = role;
-        });
+      if (fieldName.startsWith("stakeholder-role-")) {
+        formData[`subtask-${subtaskId}-${fieldName}`] = value;
         return;
       }
 
@@ -206,9 +186,6 @@ export async function saveSubstepStateWithApi(
         content_data: contentData,
         ui_state: uiState,
       });
-      console.log(
-        `[saveSubstepStateWithApi] Saved to API: projectId=${projectId}, substepId=${substepId}`,
-      );
     } catch (error) {
       console.warn(
         `[saveSubstepStateWithApi] Failed to save to API, falling back to localStorage:`,
@@ -218,19 +195,12 @@ export async function saveSubstepStateWithApi(
   }
 
   saveSubstepState(projectId, substepId, state);
-  console.log(
-    `[saveSubstepStateWithApi] Saved to localStorage: projectId=${projectId}, substepId=${substepId}`,
-  );
 }
 
 export async function loadSubstepStateWithApi(
   projectId: number,
   substepId: string,
 ): Promise<SubstepState | null> {
-  console.log(
-    `[loadSubstepStateWithApi] Loading: projectId=${projectId}, substepId=${substepId}`,
-  );
-
   if (import.meta.env.VITE_AUTH_MODE === "real" && isAuthenticated()) {
     try {
       const apiContent = await getSubstepContent(projectId, substepId);
@@ -243,9 +213,6 @@ export async function loadSubstepStateWithApi(
           viewMode: apiContent.ui_state?.viewMode || "single",
           splitView: apiContent.ui_state?.splitView,
         };
-        console.log(
-          `[loadSubstepStateWithApi] Loaded from API: projectId=${projectId}, substepId=${substepId}`,
-        );
         return state;
       }
     } catch (error) {
@@ -258,15 +225,8 @@ export async function loadSubstepStateWithApi(
 
   const localState = getSubstepState(projectId, substepId);
   if (localState) {
-    console.log(
-      `[loadSubstepStateWithApi] Loaded from localStorage: projectId=${projectId}, substepId=${substepId}`,
-    );
     return localState;
   }
-
-  console.log(
-    `[loadSubstepStateWithApi] No saved state found, returning default`,
-  );
   return {
     activeTab: "description",
     formData: {},
@@ -281,7 +241,6 @@ export function getSubstepState(
 ): SubstepState | null {
   const key = getStorageKey(projectId, substepId);
   const data = localStorage.getItem(key);
-  console.log(`[getSubstepState] key=${key}, found=${!!data}`);
 
   if (!data) return null;
 
@@ -319,7 +278,6 @@ export function saveSubstepState(
   try {
     const key = getStorageKey(projectId, substepId);
     localStorage.setItem(key, JSON.stringify(merged));
-    console.log(`[saveSubstepState] Saved: key=${key}`);
   } catch (error) {
     console.warn(`Failed to save substep state for ${substepId}:`, error);
   }
