@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save, CheckCircle2, Clock, Redo, Undo } from "lucide-react";
 import { type Substep } from "@/data/steps";
+import { useState } from "react";
+import "@/styles/animations.css";
 
 interface SubstepMenuProps {
   stepId: number;
@@ -21,10 +23,27 @@ export default function SubstepMenu({
   currentSubstepId,
   projectId,
   onSave,
-  isSaving = false,
-  lastSaved = null,
+  isSaving: parentIsSaving = false,
 }: SubstepMenuProps) {
   const navigate = useNavigate();
+
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success">(
+    "idle",
+  );
+
+  const isSaving = saveStatus === "saving" || parentIsSaving;
+
+  const handleSave = async () => {
+    setSaveStatus("saving");
+    try {
+      await onSave?.();
+      setSaveStatus("success");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    } catch (error) {
+      console.error("Save failed:", error);
+      setSaveStatus("idle");
+    }
+  };
 
   return (
     <div className="w-auto bg-gray-50 border-r border-gray-200 flex flex-col shrink-0 z-10 h-full">
@@ -39,26 +58,37 @@ export default function SubstepMenu({
           >
             <ArrowLeft className="w-3 h-3" />
           </Button>
+
           <Button
-            variant="default"
+            variant={saveStatus === "success" ? "default" : "outline"}
             size="sm"
-            className="flex-1 h-8 text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-            onClick={onSave}
+            className={`flex-1 h-8 text-xs transition-all duration-300 ${
+              saveStatus === "success"
+                ? "bg-green-600 hover:bg-green-700 border-green-600 text-white animate-success-pulse"
+                : "border-gray-200 hover:bg-gray-100 hover:border-gray-300 text-gray-700"
+            } disabled:opacity-50`}
+            onClick={handleSave}
             disabled={isSaving}
             title="Save Progress"
           >
-            {isSaving ? (
+            {saveStatus === "saving" ? (
               <>
                 <Clock className="w-3 h-3 animate-spin" />
-                <span className="ml-1">Saving...</span>
+                <span className="ml">Saving...</span>
+              </>
+            ) : saveStatus === "success" ? (
+              <>
+                <CheckCircle2 className="w-3 h-3" />
+                <span className="ml">Saved!</span>
               </>
             ) : (
               <>
                 <Save className="w-3 h-3" />
-                <span className="ml-1">Save</span>
+                <span className="ml">Save</span>
               </>
             )}
           </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -78,13 +108,6 @@ export default function SubstepMenu({
             <Redo className="w-3 h-3" />
           </Button>
         </div>
-
-        {lastSaved && (
-          <div className="mt-2 flex items-center gap-1 text-xs text-gray-500">
-            <CheckCircle2 className="w-3 h-3 text-green-600" />
-            <span>Last saved: {new Date(lastSaved).toLocaleTimeString()}</span>
-          </div>
-        )}
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden py-2">

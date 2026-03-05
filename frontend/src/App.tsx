@@ -4,6 +4,7 @@ import Auth from './pages/Auth'
 import Menu from './pages/Menu'
 import Overview from './pages/overview/Overview'
 import Substep from './pages/substep/Substep'
+import './styles/animations.css';
 
 function App() {
 

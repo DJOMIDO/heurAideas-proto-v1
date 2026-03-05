@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { type Substep, type Subtask } from "@/data/steps";
 
-// 导入子组件
 import DescriptionTab from "./DescriptionTab";
 import SubtaskHeader from "./SubtaskHeader";
 import InfoSection from "./InfoSection";
@@ -103,8 +102,6 @@ export default function SubstepContentCard({
       <DescriptionTab
         stepTitle={substep.title}
         description={substep.description}
-        lastSaved={lastSaved}
-        isSaving={isSaving}
       />
     );
   }

@@ -123,7 +123,6 @@ export default function Substep() {
     stepId,
   ]);
 
-  // 自动保存：只写 localStorage
   useEffect(() => {
     const timer = setTimeout(() => {
       if (substepId && projectIdNum && Object.keys(formData).length > 0) {
@@ -140,6 +139,8 @@ export default function Substep() {
               : undefined,
         };
         saveSubstepStateWithApi(projectIdNum, substepId, stateToSave, false);
+
+        setLastSaved(new Date().toISOString());
       }
     }, 1000);
     return () => clearTimeout(timer);
@@ -152,7 +153,6 @@ export default function Substep() {
     splitViewTabs,
   ]);
 
-  // 切换 substep 时立即保存上一个 substep 的状态（只写 localStorage）
   useEffect(() => {
     if (prevSubstepIdRef.current && prevSubstepIdRef.current !== substepId) {
       saveSubstepStateWithApi(
@@ -188,11 +188,9 @@ export default function Substep() {
     splitViewTabs,
   ]);
 
-  // 加载状态时先清空 formData，避免显示上一个项目的内容
   useEffect(() => {
     if (!substepId || !projectIdNum) return;
 
-    // 先清空
     setFormData({});
     setLastSaved(null);
 
