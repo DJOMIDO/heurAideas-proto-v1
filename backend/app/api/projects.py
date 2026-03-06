@@ -4,7 +4,7 @@ from app.schemas.stakeholder import StakeholderListResponse
 from fastapi import APIRouter, Depends, HTTPException, status  # pyright: ignore[reportMissingImports]
 from sqlalchemy.orm import Session  # pyright: ignore[reportMissingImports]
 from sqlalchemy.sql import func # pyright: ignore[reportMissingImports]
-from typing import List, Optional  # pyright: ignore[reportMissingImports]
+from typing import List, Optional, Union  # pyright: ignore[reportMissingImports]
 import re
 
 from app.database import get_db
@@ -108,26 +108,21 @@ async def save_stakeholders(
     # 5. 创建或更新前端存在的
     for name, data in stakeholders_data.items():
         unique_roles = list(dict.fromkeys(data["roles"]))[:3]
-        primary_role = unique_roles[0] if unique_roles else None
-        
+    
         existing = db.query(Stakeholder).filter(
             Stakeholder.project_id == project_id,
             Stakeholder.name == name
         ).first()
-        
+    
         if existing:
-            existing_roles = existing.roles or []
-            merged_roles = list(dict.fromkeys(existing_roles + unique_roles))[:3]
-            existing.roles = merged_roles
-            existing.primary_role = merged_roles[0] if merged_roles else None
+            existing.roles = unique_roles
+            existing.updated_at = func.now()
         else:
             stakeholder = Stakeholder(
                 project_id=project_id,
                 creator_id=user_id,
                 name=name,
                 roles=unique_roles,
-                primary_role=primary_role,
-                category="external",
                 is_global=False
             )
             db.add(stakeholder)
@@ -371,13 +366,22 @@ async def get_substep_content(
 
 # ==================== 获取项目的 Stakeholder 列表 ====================
 
-@router.get("/{project_id}/stakeholders", response_model=List[StakeholderListResponse])
+@router.get("/{project_id}/stakeholders")
 async def get_project_stakeholders(
     project_id: int,
+    response_format: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 验证项目属于当前用户（或项目成员，未来扩展）
+    """
+    获取项目中所有 stakeholder
+    
+    Query Parameters:
+    - response_format: 返回格式
+      - None 或 "full": 返回完整 stakeholder 列表（默认）
+      - "roles": 只返回去重的 roles 数组
+    """
+    # 验证项目属于当前用户
     project = db.query(Project).filter(
         Project.id == project_id,
         Project.creator_id == current_user.id
@@ -385,10 +389,22 @@ async def get_project_stakeholders(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    # 获取该项目的所有 stakeholder
+    # 获取所有 stakeholder
     stakeholders = db.query(Stakeholder).filter(
         Stakeholder.project_id == project_id
-    ).order_by(Stakeholder.created_at.desc()).all()
+    ).all()
     
-    return stakeholders
-   
+    # 根据 response_format 参数返回不同格式
+    if response_format == "roles":
+        # 收集所有 role（去重）
+        all_roles = set()
+        for s in stakeholders:
+            if s.roles:
+                for role in s.roles:
+                    all_roles.add(role)
+        
+        # 按字母排序返回
+        return sorted(list(all_roles))
+    else:
+        # 返回完整列表
+        return stakeholders

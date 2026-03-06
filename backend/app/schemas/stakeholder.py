@@ -8,9 +8,6 @@ from datetime import datetime
 class StakeholderBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
     roles: Optional[List[str]] = Field(default=None, max_items=3)
-    primary_role: Optional[str] = None
-    description: Optional[str] = None
-    category: Optional[str] = Field(default=None, max_length=50)
     is_global: bool = False
 
     @validator('roles')
@@ -40,8 +37,6 @@ class StakeholderListResponse(BaseModel):
     id: int
     name: str
     roles: Optional[List[str]]
-    primary_role: Optional[str]
-    category: Optional[str]
     created_at: datetime
 
     class Config:

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Plus, X } from "lucide-react";
+import { getStakeholderRoles } from "@/api/projects";
 
 interface Stakeholder {
   id: string;
@@ -53,7 +54,8 @@ const getInitials = (name: string) =>
     .toUpperCase()
     .slice(0, 2);
 
-const limitToThreeRoles = (roleString: string): string => {
+// 只在保存时限制 3 个 Role，输入时不限制
+const limitToThreeRolesOnSave = (roleString: string): string => {
   const roles = roleString
     .split(",")
     .map((r) => r.trim())
@@ -72,10 +74,57 @@ export default function StakeholderSection({
     role: string;
   } | null>(null);
 
-  const roleInputRef = useRef<HTMLInputElement>(null);
+  const [roleSuggestions, setRoleSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
+  const roleInputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+  const roleInputRefs = useRef<Map<number, HTMLInputElement>>(new Map());
+
+  const getProjectIdFromUrl = (): number => {
+    const path = window.location.pathname;
+    const match = path.match(/\/substep\/(\d+)\//);
+    if (match && match[1]) {
+      return Number(match[1]);
+    }
+    const parts = path.split("/");
+    return Number(parts[3]) || 0;
+  };
+
+  const projectId = getProjectIdFromUrl();
+
+  // 加载已有 roles
+  useEffect(() => {
+    if (projectId && projectId > 0) {
+      getStakeholderRoles(projectId)
+        .then((roles) => {
+          setRoleSuggestions(roles);
+        })
+        .catch((error) => {
+          console.error("[StakeholderSection] Failed to load roles:", error);
+        });
+    }
+  }, [projectId]);
+
+  // 点击外部关闭下拉列表
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // 切换 subtask 时重置
   useEffect(() => {
     setAddingStakeholder(null);
+    setShowSuggestions(false);
   }, [fieldPrefix]);
 
   const getStakeholders = (): Stakeholder[] => {
@@ -118,11 +167,12 @@ export default function StakeholderSection({
     if (addingStakeholder.role) {
       onFormDataChange(
         `${fieldPrefix}-stakeholder-role-${nextIdx}-role`,
-        limitToThreeRoles(addingStakeholder.role),
+        limitToThreeRolesOnSave(addingStakeholder.role),
       );
     }
 
     setAddingStakeholder(null);
+    setShowSuggestions(false);
   };
 
   const handleDeleteStakeholder = (index: number) => {
@@ -140,28 +190,91 @@ export default function StakeholderSection({
     }
   };
 
+  // 已添加 Stakeholder 的 Role 变化 - 输入时不限制
   const handleRoleChange = (idx: number, value: string) => {
-    const limitedValue = limitToThreeRoles(value);
+    onFormDataChange(`${fieldPrefix}-stakeholder-role-${idx}-role`, value);
+  };
+
+  // 已添加 Stakeholder 的 Role 保存时限制 3 个
+  const handleRoleBlur = (idx: number, value: string) => {
+    const limitedValue = limitToThreeRolesOnSave(value);
+    if (limitedValue !== value) {
+      onFormDataChange(
+        `${fieldPrefix}-stakeholder-role-${idx}-role`,
+        limitedValue,
+      );
+    }
+  };
+
+  // 已添加 Stakeholder 的 Role 按 Enter 保存并失去焦点
+  const handleRoleKeyDown = (idx: number, value: string) => {
+    const limitedValue = limitToThreeRolesOnSave(value);
     onFormDataChange(
       `${fieldPrefix}-stakeholder-role-${idx}-role`,
       limitedValue,
     );
+
+    // 让输入框失去焦点，给用户保存的反馈
+    const input = roleInputRefs.current.get(idx);
+    if (input) {
+      input.blur();
+    }
+  };
+
+  // 添加模式的 Role 变化处理 - 输入时不限制
+  const handleAddingRoleChange = (value: string) => {
+    setAddingStakeholder((prev) => (prev ? { ...prev, role: value } : null));
+  };
+
+  // 添加模式的 Role 选择
+  const handleAddingRoleSelect = (role: string) => {
+    const currentRole = addingStakeholder?.role || "";
+    const roles = currentRole
+      .split(",")
+      .map((r: string) => r.trim())
+      .filter((r: string) => r);
+
+    const roleIndex = roles.indexOf(role);
+    if (roleIndex > -1) {
+      roles.splice(roleIndex, 1);
+    } else {
+      roles.push(role);
+    }
+
+    const limitedRoles = roles.slice(0, 3);
+    setAddingStakeholder((prev) =>
+      prev ? { ...prev, role: limitedRoles.join(", ") } : null,
+    );
+    setShowSuggestions(false);
+    roleInputRef.current?.focus();
+  };
+
+  // 过滤建议
+  const getFilteredSuggestions = (currentRole: string) => {
+    const selectedRoles = currentRole
+      .split(",")
+      .map((r: string) => r.trim())
+      .filter((r: string) => r);
+    return roleSuggestions.filter((role) => !selectedRoles.includes(role));
   };
 
   return (
     <div className="space-y-2">
       <div>
+        {/* 标题改为斜体 */}
         <h3 className="text-sm font-semibold text-gray-800">
           4. Identify the stakeholders involved in the activity and that might
-          be concerned by the SoI use
+          be concerned by the SoI use *
         </h3>
-        <p className="text-xs text-gray-500 mt-1">
-          Enter up to 3 roles per stakeholder, separated by commas. Press Enter
-          or click outside to save. Additional roles will not be saved.
+        {/* 提示文字改为斜体 */}
+        <p className="text-xs text-gray-500 mt-1 italic">
+          * Enter up to 3 roles per stakeholder, separated by commas. Press
+          Enter or click outside to save. Additional roles will not be saved.
         </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Add Stakeholder 展开输入框 - 添加自动补全 */}
         {addingStakeholder && (
           <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border border-blue-200">
             <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
@@ -186,55 +299,89 @@ export default function StakeholderSection({
                   }
                   if (e.key === "Escape") {
                     setAddingStakeholder(null);
+                    setShowSuggestions(false);
                   }
                 }}
                 className="w-full h-7 text-sm font-medium border-0 p-0 focus-visible:ring-0 bg-transparent placeholder-gray-400"
               />
 
-              <input
-                ref={roleInputRef}
-                placeholder="Role"
-                value={addingStakeholder.role}
-                onChange={(e) =>
-                  setAddingStakeholder({
-                    ...addingStakeholder,
-                    role: e.target.value,
-                  })
-                }
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleConfirmAdd();
-                  }
-                  if (e.key === "Escape") {
-                    setAddingStakeholder(null);
-                  }
-                }}
-                onBlur={() => {
-                  if (addingStakeholder?.name) {
-                    handleConfirmAdd();
-                  }
-                }}
-                className="w-full h-5 text-xs text-gray-500 border-0 p-0 focus-visible:ring-0 bg-transparent placeholder-gray-400"
-              />
+              {/* Role 输入框 - 添加自动补全 */}
+              <div className="relative">
+                <input
+                  ref={roleInputRef}
+                  placeholder="Role"
+                  value={addingStakeholder.role}
+                  onChange={(e) => handleAddingRoleChange(e.target.value)}
+                  onFocus={() => {
+                    setShowSuggestions(true);
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowSuggestions(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleConfirmAdd();
+                    }
+                    if (e.key === "Escape") {
+                      setAddingStakeholder(null);
+                      setShowSuggestions(false);
+                    }
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setShowSuggestions(false), 200);
+                  }}
+                  className="w-full h-8 text-xs text-gray-900 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white placeholder-gray-400 cursor-text"
+                  tabIndex={0}
+                />
+
+                {/* 下拉列表 */}
+                {showSuggestions && roleSuggestions.length > 0 && (
+                  <div
+                    ref={suggestionsRef}
+                    className="absolute top-full left-0 mt-1 w-full max-h-48 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+                  >
+                    {getFilteredSuggestions(addingStakeholder.role).map(
+                      (role: string) => (
+                        <button
+                          key={role}
+                          onClick={() => handleAddingRoleSelect(role)}
+                          className="w-full px-3 py-2 text-left text-xs text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                          type="button"
+                        >
+                          {role}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <Button
               variant="ghost"
               size="sm"
               className="h-6 w-6 p-0 text-gray-400 hover:text-red-500 hover:bg-transparent shrink-0"
-              onClick={() => setAddingStakeholder(null)}
+              onClick={() => {
+                setAddingStakeholder(null);
+                setShowSuggestions(false);
+              }}
             >
               <X className="w-5 h-5" />
             </Button>
           </div>
         )}
 
+        {/* Add Button */}
         {!addingStakeholder && (
           <Button
             variant="ghost"
             className="h-auto p-4 justify-start gap-3 hover:bg-gray-50 w-full"
-            onClick={() => setAddingStakeholder({ name: "", role: "" })}
+            onClick={() => {
+              setAddingStakeholder({ name: "", role: "" });
+              setShowSuggestions(false);
+            }}
           >
             <div className="h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
               <Plus className="w-5 h-5 text-gray-400" />
@@ -245,6 +392,7 @@ export default function StakeholderSection({
           </Button>
         )}
 
+        {/* 已添加的卡片 */}
         {displayStakeholders.map((stakeholder, idx) => (
           <div
             key={stakeholder.id}
@@ -267,9 +415,27 @@ export default function StakeholderSection({
                 {stakeholder.name}
               </span>
 
+              {/* Role 输入框 - 添加 Enter 保存并失去焦点 */}
               <input
+                ref={(el) => {
+                  if (el) {
+                    roleInputRefs.current.set(idx, el);
+                  } else {
+                    roleInputRefs.current.delete(idx);
+                  }
+                }}
                 value={stakeholder.role}
                 onChange={(e) => handleRoleChange(idx, e.target.value)}
+                onBlur={() => handleRoleBlur(idx, stakeholder.role)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleRoleKeyDown(
+                      idx,
+                      (e.target as HTMLInputElement).value,
+                    );
+                  }
+                }}
                 placeholder="+ Add role"
                 className="block text-xs text-gray-500 truncate border-0 p-0 focus-visible:ring-0 bg-transparent placeholder-gray-400 w-full h-5 min-h-[1.25rem]"
               />
@@ -286,6 +452,7 @@ export default function StakeholderSection({
           </div>
         ))}
 
+        {/* Show More / Show Less */}
         {hasMore && !showAll && !addingStakeholder && (
           <Button
             variant="ghost"

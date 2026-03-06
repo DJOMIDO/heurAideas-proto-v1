@@ -38,7 +38,14 @@ export default function Substep() {
     right: string;
   }>({ left: "", right: "" });
 
-  const prevSubstepIdRef = useRef<string | undefined>(undefined);
+  // ✅ 修复 1：为每个 substep 独立存储 formData（不会被覆盖）
+  const formDataMapRef = useRef<Map<string, Record<string, any>>>(new Map());
+  // ✅ 修复 2：跟踪当前 substepId
+  const currentSubstepIdRef = useRef<string | undefined>(undefined);
+  // ✅ 修复 3：跟踪是否正在加载
+  const isLoadingRef = useRef(false);
+  // ✅ 修复 4：跟踪是否有未保存的更改
+  const hasUnsavedChangesRef = useRef(false);
 
   const step = stepsData.find((s) => s.id === Number(stepId));
   const substep = step?.substeps.find((s) => s.id === substepId);
@@ -88,11 +95,13 @@ export default function Substep() {
   const handleSave = useCallback(() => {
     if (!substepId || !projectIdNum) return;
 
+    console.log("[Substep] Manual save triggered");
     setIsSaving(true);
 
+    const currentFormData = formDataMapRef.current.get(substepId) || {};
     const stateToSave: Partial<SubstepState> = {
       activeTab: substepTabState[substepId] || "description",
-      formData,
+      formData: currentFormData,
       viewMode,
       splitView:
         viewMode === "split"
@@ -105,30 +114,38 @@ export default function Substep() {
 
     saveSubstepStateWithApi(projectIdNum, substepId, stateToSave, true)
       .then(() => {
+        console.log("[Substep] Manual save completed");
         setLastSaved(new Date().toISOString());
         setIsSaving(false);
+        hasUnsavedChangesRef.current = false;
         saveLastEditedSubstep(projectIdNum, Number(stepId), substepId);
       })
       .catch((error) => {
-        console.error("Save failed:", error);
+        console.error("[Substep] Manual save failed:", error);
         setIsSaving(false);
       });
   }, [
     substepId,
     projectIdNum,
     substepTabState,
-    formData,
     viewMode,
     splitViewTabs,
     stepId,
   ]);
 
+  // 自动保存（500ms debounce）
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (substepId && projectIdNum && Object.keys(formData).length > 0) {
+      if (isLoadingRef.current || !substepId || !projectIdNum) {
+        return;
+      }
+
+      const currentFormData = formDataMapRef.current.get(substepId) || {};
+
+      if (Object.keys(currentFormData).length > 0) {
         const stateToSave: Partial<SubstepState> = {
           activeTab: substepTabState[substepId] || "description",
-          formData,
+          formData: currentFormData,
           viewMode,
           splitView:
             viewMode === "split"
@@ -138,29 +155,89 @@ export default function Substep() {
                 }
               : undefined,
         };
-        saveSubstepStateWithApi(projectIdNum, substepId, stateToSave, false);
 
-        setLastSaved(new Date().toISOString());
+        console.log("[Substep] Auto-saving to localStorage...", substepId);
+        saveSubstepStateWithApi(projectIdNum, substepId, stateToSave, false)
+          .then(() => {
+            console.log("[Substep] Auto-save completed");
+            setLastSaved(new Date().toISOString());
+            hasUnsavedChangesRef.current = false;
+          })
+          .catch((error) => {
+            console.error("[Substep] Auto-save failed:", error);
+          });
       }
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [
-    substepId,
-    projectIdNum,
-    formData,
-    substepTabState,
-    viewMode,
-    splitViewTabs,
-  ]);
+    }, 500);
 
+    return () => clearTimeout(timer);
+  }, [substepId, projectIdNum, substepTabState, viewMode, splitViewTabs]);
+
+  // 刷新/关闭页面前保存
   useEffect(() => {
-    if (prevSubstepIdRef.current && prevSubstepIdRef.current !== substepId) {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (
+        hasUnsavedChangesRef.current &&
+        substepId &&
+        projectIdNum &&
+        !isLoadingRef.current
+      ) {
+        console.log("[Substep] Page closing, saving...");
+
+        const currentFormData = formDataMapRef.current.get(substepId) || {};
+        const stateToSave: Partial<SubstepState> = {
+          activeTab: substepTabState[substepId] || "description",
+          formData: currentFormData,
+          viewMode,
+          splitView:
+            viewMode === "split"
+              ? {
+                  leftTab: splitViewTabs.left,
+                  rightTab: splitViewTabs.right,
+                }
+              : undefined,
+        };
+
+        const data = JSON.stringify(stateToSave);
+        const blob = new Blob([data], { type: "application/json" });
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+        navigator.sendBeacon(
+          `${apiUrl}/projects/${projectIdNum}/substeps/${substepId}/state`,
+          blob,
+        );
+
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [substepId, projectIdNum, substepTabState, viewMode, splitViewTabs]);
+
+  // Substep 切换 + 加载（单个 useEffect，确保顺序）
+  useEffect(() => {
+    if (!substepId || !projectIdNum) return;
+
+    const prevSubstepId = currentSubstepIdRef.current;
+
+    // 步骤 1：检测切换，先保存旧 substep 的数据
+    if (prevSubstepId && prevSubstepId !== substepId) {
+      console.log(
+        "[Substep] Switching substep:",
+        prevSubstepId,
+        "→",
+        substepId,
+      );
+
+      // 从 formDataMapRef 获取旧 substep 的数据（不会被覆盖）
+      const prevFormData = formDataMapRef.current.get(prevSubstepId) || {};
+
       saveSubstepStateWithApi(
         projectIdNum,
-        prevSubstepIdRef.current,
+        prevSubstepId,
         {
-          activeTab: substepTabState[prevSubstepIdRef.current] || "description",
-          formData,
+          activeTab: substepTabState[prevSubstepId] || "description",
+          formData: prevFormData,
           viewMode,
           splitView:
             viewMode === "split"
@@ -171,31 +248,29 @@ export default function Substep() {
               : undefined,
         },
         false,
-      );
-      console.log(
-        "Auto-saved previous substep to localStorage:",
-        prevSubstepIdRef.current,
-      );
+      )
+        .then(() => {
+          console.log("[Substep] Immediate save completed for:", prevSubstepId);
+          hasUnsavedChangesRef.current = false;
+        })
+        .catch((error) => {
+          console.error("[Substep] Immediate save failed:", error);
+        });
     }
 
-    prevSubstepIdRef.current = substepId;
-  }, [
-    substepId,
-    projectIdNum,
-    substepTabState,
-    formData,
-    viewMode,
-    splitViewTabs,
-  ]);
+    // 步骤 2：更新 currentSubstepIdRef
+    currentSubstepIdRef.current = substepId;
 
-  useEffect(() => {
-    if (!substepId || !projectIdNum) return;
-
-    setFormData({});
-    setLastSaved(null);
+    // 步骤 3：加载新 substep 的数据
+    console.log("[Substep] Loading substep:", substepId);
+    isLoadingRef.current = true;
 
     loadSubstepStateWithApi(projectIdNum, substepId)
       .then((saved) => {
+        console.log(
+          "[Substep] Loaded saved state:",
+          saved ? "found" : "not found",
+        );
         if (saved) {
           setSubstepTabState((prev) => ({
             ...prev,
@@ -218,20 +293,39 @@ export default function Substep() {
           } else {
             setSplitViewTabs({ left: "", right: "" });
           }
+
+          // 更新 formDataMapRef
+          formDataMapRef.current.set(substepId, saved.formData || {});
         } else {
+          setFormData({});
           setViewMode("single");
           setSplitViewTabs({ left: "", right: "" });
+          formDataMapRef.current.set(substepId, {});
         }
+        hasUnsavedChangesRef.current = false;
+        isLoadingRef.current = false;
       })
       .catch((error) => {
-        console.error("Failed to load substep state:", error);
+        console.error("[Substep] Failed to load substep state:", error);
+        setFormData({});
         setViewMode("single");
         setSplitViewTabs({ left: "", right: "" });
+        formDataMapRef.current.set(substepId, {});
+        hasUnsavedChangesRef.current = false;
+        isLoadingRef.current = false;
       });
   }, [substepId, projectIdNum]);
 
+  // handleFormDataChange 更新 formDataMapRef
   const handleFormDataChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      const newFormData = { ...prev, [field]: value };
+      if (substepId) {
+        formDataMapRef.current.set(substepId, newFormData);
+      }
+      hasUnsavedChangesRef.current = true;
+      return newFormData;
+    });
   };
 
   useEffect(() => {

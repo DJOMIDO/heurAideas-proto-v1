@@ -197,14 +197,25 @@ export async function saveSubstepStateWithApi(
   saveSubstepState(projectId, substepId, state);
 }
 
+// frontend/src/utils/substepState.ts
+
 export async function loadSubstepStateWithApi(
   projectId: number,
   substepId: string,
 ): Promise<SubstepState | null> {
+  // ✅ 先从 localStorage 加载（未保存的更改优先）
+  const localState = getSubstepState(projectId, substepId);
+  if (localState && localState.formData && Object.keys(localState.formData).length > 0) {
+    console.log(`[substepState] Using localStorage state for ${substepId}`);
+    return localState;
+  }
+
+  // 如果 localStorage 没有数据，再从 API 加载
   if (import.meta.env.VITE_AUTH_MODE === "real" && isAuthenticated()) {
     try {
       const apiContent = await getSubstepContent(projectId, substepId);
       if (apiContent && apiContent.content_data) {
+        console.log(`[substepState] Using API state for ${substepId}`);
         const formData = convertToFormData(apiContent.content_data);
         const state: SubstepState = {
           activeTab: apiContent.ui_state?.activeTab || "description",
@@ -217,16 +228,12 @@ export async function loadSubstepStateWithApi(
       }
     } catch (error) {
       console.warn(
-        `[loadSubstepStateWithApi] Failed to load from API, falling back to localStorage:`,
+        `[loadSubstepStateWithApi] Failed to load from API:`,
         error,
       );
     }
   }
 
-  const localState = getSubstepState(projectId, substepId);
-  if (localState) {
-    return localState;
-  }
   return {
     activeTab: "description",
     formData: {},
