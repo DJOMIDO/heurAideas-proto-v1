@@ -53,6 +53,14 @@ const getInitials = (name: string) =>
     .toUpperCase()
     .slice(0, 2);
 
+const limitToThreeRoles = (roleString: string): string => {
+  const roles = roleString
+    .split(",")
+    .map((r) => r.trim())
+    .filter((r) => r);
+  return roles.slice(0, 3).join(", ");
+};
+
 export default function StakeholderSection({
   formData,
   onFormDataChange,
@@ -66,7 +74,7 @@ export default function StakeholderSection({
 
   const roleInputRef = useRef<HTMLInputElement>(null);
 
-   useEffect(() => {
+  useEffect(() => {
     setAddingStakeholder(null);
   }, [fieldPrefix]);
 
@@ -110,7 +118,7 @@ export default function StakeholderSection({
     if (addingStakeholder.role) {
       onFormDataChange(
         `${fieldPrefix}-stakeholder-role-${nextIdx}-role`,
-        addingStakeholder.role,
+        limitToThreeRoles(addingStakeholder.role),
       );
     }
 
@@ -132,6 +140,14 @@ export default function StakeholderSection({
     }
   };
 
+  const handleRoleChange = (idx: number, value: string) => {
+    const limitedValue = limitToThreeRoles(value);
+    onFormDataChange(
+      `${fieldPrefix}-stakeholder-role-${idx}-role`,
+      limitedValue,
+    );
+  };
+
   return (
     <div className="space-y-2">
       <div>
@@ -139,6 +155,10 @@ export default function StakeholderSection({
           4. Identify the stakeholders involved in the activity and that might
           be concerned by the SoI use
         </h3>
+        <p className="text-xs text-gray-500 mt-1">
+          Enter up to 3 roles per stakeholder, separated by commas. Press Enter
+          or click outside to save. Additional roles will not be saved.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -188,6 +208,11 @@ export default function StakeholderSection({
                   }
                   if (e.key === "Escape") {
                     setAddingStakeholder(null);
+                  }
+                }}
+                onBlur={() => {
+                  if (addingStakeholder?.name) {
+                    handleConfirmAdd();
                   }
                 }}
                 className="w-full h-5 text-xs text-gray-500 border-0 p-0 focus-visible:ring-0 bg-transparent placeholder-gray-400"
@@ -244,12 +269,7 @@ export default function StakeholderSection({
 
               <input
                 value={stakeholder.role}
-                onChange={(e) => {
-                  onFormDataChange(
-                    `${fieldPrefix}-stakeholder-role-${idx}-role`,
-                    e.target.value,
-                  );
-                }}
+                onChange={(e) => handleRoleChange(idx, e.target.value)}
                 placeholder="+ Add role"
                 className="block text-xs text-gray-500 truncate border-0 p-0 focus-visible:ring-0 bg-transparent placeholder-gray-400 w-full h-5 min-h-[1.25rem]"
               />

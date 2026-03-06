@@ -301,29 +301,33 @@ async def save_substep_content(
     if not substep:
         raise HTTPException(status_code=404, detail="Substep not found")
     
+    # 限制 stakeholder role 为最多 3 个
+    content_data = content.content_data.copy()
+    for key, value in content_data.items():
+        if key.endswith('-role') and isinstance(value, str):
+            roles = [r.strip() for r in value.split(",") if r.strip()]
+            content_data[key] = ", ".join(roles[:3])
+    
     # 使用 substep.id（整数主键）关联内容
     db_content = db.query(SubstepContent).filter(
         SubstepContent.project_substep_id == substep.id
     ).first()
     
     if db_content:
-        db_content.content_data = content.content_data
+        db_content.content_data = content_data
         db_content.ui_state = content.ui_state
         db_content.user_id = current_user.id
     else:
         db_content = SubstepContent(
             project_substep_id=substep.id,
-            content_data=content.content_data,
+            content_data=content_data,
             ui_state=content.ui_state,
             user_id=current_user.id
         )
         db.add(db_content)
     
     # 保存 Stakeholder 数据到单独表
-    await save_stakeholders(db, project_id, current_user.id, content.content_data)
-    
-    # 确认调用 save_stakeholders
-    await save_stakeholders(db, project_id, current_user.id, content.content_data)
+    await save_stakeholders(db, project_id, current_user.id, content_data)
     
     db.commit()
     db.refresh(db_content)
