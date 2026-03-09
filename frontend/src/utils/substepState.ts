@@ -176,11 +176,7 @@ export async function saveSubstepStateWithApi(
     lastSaved: new Date().toISOString(),
   };
 
-  if (
-    syncToDatabase &&
-    import.meta.env.VITE_AUTH_MODE === "real" &&
-    isAuthenticated()
-  ) {
+  if (syncToDatabase && isAuthenticated()) {
     try {
       await saveSubstepContent(projectId, substepId, {
         content_data: contentData,
@@ -197,21 +193,21 @@ export async function saveSubstepStateWithApi(
   saveSubstepState(projectId, substepId, state);
 }
 
-// frontend/src/utils/substepState.ts
-
 export async function loadSubstepStateWithApi(
   projectId: number,
   substepId: string,
 ): Promise<SubstepState | null> {
-  // ✅ 先从 localStorage 加载（未保存的更改优先）
   const localState = getSubstepState(projectId, substepId);
-  if (localState && localState.formData && Object.keys(localState.formData).length > 0) {
+  if (
+    localState &&
+    localState.formData &&
+    Object.keys(localState.formData).length > 0
+  ) {
     console.log(`[substepState] Using localStorage state for ${substepId}`);
     return localState;
   }
 
-  // 如果 localStorage 没有数据，再从 API 加载
-  if (import.meta.env.VITE_AUTH_MODE === "real" && isAuthenticated()) {
+  if (isAuthenticated()) {
     try {
       const apiContent = await getSubstepContent(projectId, substepId);
       if (apiContent && apiContent.content_data) {
@@ -227,10 +223,7 @@ export async function loadSubstepStateWithApi(
         return state;
       }
     } catch (error) {
-      console.warn(
-        `[loadSubstepStateWithApi] Failed to load from API:`,
-        error,
-      );
+      console.warn(`[loadSubstepStateWithApi] Failed to load from API:`, error);
     }
   }
 

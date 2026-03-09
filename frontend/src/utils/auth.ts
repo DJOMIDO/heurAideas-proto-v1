@@ -6,15 +6,7 @@ export interface UserInfo {
   id?: number;
 }
 
-const AUTH_MODE = import.meta.env.VITE_AUTH_MODE || "mock";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-
-function createMockToken(username: string): string {
-  const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const payload = btoa(JSON.stringify({ sub: username, user_id: 1 }));
-  const signature = "mock-signature";
-  return `${header}.${payload}.${signature}`;
-}
 
 function decodeToken(token: string): any {
   try {
@@ -24,7 +16,6 @@ function decodeToken(token: string): any {
   }
 }
 
-// 获取用户 ID
 export function getUserId(): number | null {
   const token = localStorage.getItem("token");
   if (!token) return null;
@@ -39,14 +30,6 @@ export function getUserInfo(): UserInfo | null {
 
   if (!token || !username) return null;
 
-  if (AUTH_MODE === "mock") {
-    return {
-      name: username,
-      email: localStorage.getItem("email") || "",
-      id: 1, // Mock 模式固定 ID
-    };
-  }
-
   try {
     const payload = decodeToken(token);
     return {
@@ -59,7 +42,6 @@ export function getUserInfo(): UserInfo | null {
   }
 }
 
-// signOut 清除所有用户相关的 localStorage key
 export function signOut(): void {
   const userId = getUserId();
 
@@ -67,12 +49,10 @@ export function signOut(): void {
   localStorage.removeItem("username");
   localStorage.removeItem("email");
 
-  // 清除当前用户的项目相关 key
   if (userId) {
     localStorage.removeItem(`currentProjectId-${userId}`);
     localStorage.removeItem(`overview-active-step-${userId}`);
 
-    // 清除该用户的所有 last-edited 记录
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -103,36 +83,6 @@ export async function handleAuth(
   username?: string,
   mode: "login" | "register" = "login",
 ): Promise<{ success: boolean; error?: string }> {
-  if (AUTH_MODE === "mock") {
-    await new Promise((resolve) => setTimeout(resolve, 400));
-
-    if (password.length < 6) {
-      return {
-        success: false,
-        error: "Password must be at least 6 characters",
-      };
-    }
-
-    let authUsername: string;
-    if (mode === "register" && username) {
-      authUsername = username;
-    } else {
-      authUsername =
-        username ||
-        localStorage.getItem("username") ||
-        email.split("@")[0] ||
-        "devuser";
-    }
-
-    const mockToken = createMockToken(authUsername);
-
-    localStorage.setItem("token", mockToken);
-    localStorage.setItem("username", authUsername);
-    localStorage.setItem("email", email);
-
-    return { success: true };
-  }
-
   try {
     const endpoint = mode === "login" ? "/auth/login" : "/auth/register";
     const body =
