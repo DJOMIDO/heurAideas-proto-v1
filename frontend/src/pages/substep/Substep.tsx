@@ -9,6 +9,7 @@ import {
   saveLastEditedSubstep,
   type SubstepState,
 } from "@/utils/substepState";
+import { cleanupEmptyFormDataFields } from "@/utils/formDataUtils";
 
 import AppSidebar from "../overview/AppSidebar";
 import StatusBar from "../overview/StatusBar";
@@ -38,13 +39,13 @@ export default function Substep() {
     right: string;
   }>({ left: "", right: "" });
 
-  // ✅ 修复 1：为每个 substep 独立存储 formData（不会被覆盖）
+  // 为每个 substep 独立存储 formData（不会被覆盖）
   const formDataMapRef = useRef<Map<string, Record<string, any>>>(new Map());
-  // ✅ 修复 2：跟踪当前 substepId
+  // 跟踪当前 substepId
   const currentSubstepIdRef = useRef<string | undefined>(undefined);
-  // ✅ 修复 3：跟踪是否正在加载
+  // 跟踪是否正在加载
   const isLoadingRef = useRef(false);
-  // ✅ 修复 4：跟踪是否有未保存的更改
+  // 跟踪是否有未保存的更改
   const hasUnsavedChangesRef = useRef(false);
 
   const step = stepsData.find((s) => s.id === Number(stepId));
@@ -95,7 +96,6 @@ export default function Substep() {
   const handleSave = useCallback(() => {
     if (!substepId || !projectIdNum) return;
 
-    console.log("[Substep] Manual save triggered");
     setIsSaving(true);
 
     const currentFormData = formDataMapRef.current.get(substepId) || {};
@@ -114,7 +114,6 @@ export default function Substep() {
 
     saveSubstepStateWithApi(projectIdNum, substepId, stateToSave, true)
       .then(() => {
-        console.log("[Substep] Manual save completed");
         setLastSaved(new Date().toISOString());
         setIsSaving(false);
         hasUnsavedChangesRef.current = false;
@@ -156,10 +155,8 @@ export default function Substep() {
               : undefined,
         };
 
-        console.log("[Substep] Auto-saving to localStorage...", substepId);
         saveSubstepStateWithApi(projectIdNum, substepId, stateToSave, false)
           .then(() => {
-            console.log("[Substep] Auto-save completed");
             setLastSaved(new Date().toISOString());
             hasUnsavedChangesRef.current = false;
           })
@@ -181,8 +178,6 @@ export default function Substep() {
         projectIdNum &&
         !isLoadingRef.current
       ) {
-        console.log("[Substep] Page closing, saving...");
-
         const currentFormData = formDataMapRef.current.get(substepId) || {};
         const stateToSave: Partial<SubstepState> = {
           activeTab: substepTabState[substepId] || "description",
@@ -222,13 +217,6 @@ export default function Substep() {
 
     // 步骤 1：检测切换，先保存旧 substep 的数据
     if (prevSubstepId && prevSubstepId !== substepId) {
-      console.log(
-        "[Substep] Switching substep:",
-        prevSubstepId,
-        "→",
-        substepId,
-      );
-
       // 从 formDataMapRef 获取旧 substep 的数据（不会被覆盖）
       const prevFormData = formDataMapRef.current.get(prevSubstepId) || {};
 
@@ -250,7 +238,6 @@ export default function Substep() {
         false,
       )
         .then(() => {
-          console.log("[Substep] Immediate save completed for:", prevSubstepId);
           hasUnsavedChangesRef.current = false;
         })
         .catch((error) => {
@@ -262,7 +249,6 @@ export default function Substep() {
     currentSubstepIdRef.current = substepId;
 
     // 步骤 3：加载新 substep 的数据
-    console.log("[Substep] Loading substep:", substepId);
     isLoadingRef.current = true;
 
     loadSubstepStateWithApi(projectIdNum, substepId)
@@ -319,7 +305,19 @@ export default function Substep() {
   // handleFormDataChange 更新 formDataMapRef
   const handleFormDataChange = (field: string, value: any) => {
     setFormData((prev) => {
-      const newFormData = { ...prev, [field]: value };
+      let newFormData: Record<string, any>;
+
+      // 值为空时删除该字段
+      if (value === "" || value === null || value === undefined) {
+        const { [field]: _, ...rest } = prev;
+        newFormData = rest;
+      } else {
+        newFormData = { ...prev, [field]: value };
+      }
+
+      // 定期清理所有空字段（防止遗漏）
+      newFormData = cleanupEmptyFormDataFields(newFormData);
+
       if (substepId) {
         formDataMapRef.current.set(substepId, newFormData);
       }

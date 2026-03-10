@@ -2,6 +2,7 @@
 
 import { saveSubstepContent, getSubstepContent } from "@/api/projects";
 import { isAuthenticated, getUserId } from "./auth";
+import { cleanupEmptyFormDataFields } from "@/utils/formDataUtils";
 
 export interface SubstepState {
   activeTab: string;
@@ -99,6 +100,11 @@ function convertToContentData(
         contentData[subtaskKey] = {};
       }
 
+      // 跳过 element-row-count 字段（不保存到数据库）
+      if (fieldName === "element-row-count") {
+        return;
+      }
+
       if (fieldName.startsWith("element-")) {
         const elemMatch = fieldName.match(/^element-(\d+)-(.+)$/);
         if (elemMatch) {
@@ -122,6 +128,16 @@ function convertToContentData(
       }
 
       contentData[subtaskKey][fieldName] = formData[key];
+    }
+  });
+
+  // 清理空的 subtask 对象
+  Object.keys(contentData).forEach((key) => {
+    if (
+      typeof contentData[key] === "object" &&
+      Object.keys(contentData[key]).length === 0
+    ) {
+      delete contentData[key];
     }
   });
 
@@ -168,6 +184,9 @@ export async function saveSubstepStateWithApi(
   state: Partial<SubstepState>,
   syncToDatabase: boolean = false,
 ): Promise<void> {
+  // 清理 formData 中的空字段
+  const cleanedFormData = cleanupEmptyFormDataFields(state.formData || {});
+
   const contentData = convertToContentData(state.formData || {});
   const uiState = {
     activeTab: state.activeTab || "description",
@@ -190,7 +209,11 @@ export async function saveSubstepStateWithApi(
     }
   }
 
-  saveSubstepState(projectId, substepId, state);
+  // 也清理后保存到 localStorage
+  saveSubstepState(projectId, substepId, {
+    ...state,
+    formData: cleanedFormData,
+  });
 }
 
 export async function loadSubstepStateWithApi(
