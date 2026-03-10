@@ -396,6 +396,8 @@ export default function Substep() {
             onFormDataChange={handleFormDataChange}
             lastSaved={lastSaved}
             isSaving={isSaving}
+            projectId={projectIdNum}
+            stepId={Number(stepId)}
           />
         ) : (
           <div className="flex-1 flex flex-row overflow-hidden min-h-0">
@@ -412,6 +414,8 @@ export default function Substep() {
                 lastSaved={lastSaved}
                 isSaving={isSaving}
                 isDropTarget={true}
+                projectId={projectIdNum}
+                stepId={Number(stepId)}
               />
             </div>
 
@@ -428,6 +432,8 @@ export default function Substep() {
                 lastSaved={lastSaved}
                 isSaving={isSaving}
                 isDropTarget={true}
+                projectId={projectIdNum}
+                stepId={Number(stepId)}
               />
             </div>
           </div>
