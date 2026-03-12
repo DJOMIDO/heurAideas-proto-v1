@@ -16,6 +16,7 @@ import StatusBar from "../overview/StatusBar";
 import SubstepMenu from "./SubstepMenu";
 import SubstepTabs from "./SubstepTabs";
 import SubstepContentCard from "./substep-content-card/SubstepContentCard";
+import { getUserId } from "@/utils/auth";
 
 export default function Substep() {
   const { projectId, stepId, substepId } = useParams<{
@@ -39,13 +40,14 @@ export default function Substep() {
     right: string;
   }>({ left: "", right: "" });
 
-  // 为每个 substep 独立存储 formData（不会被覆盖）
+  // ✅ 评论模式状态按 substepId + tabId 独立存储
+  const [commentModeState, setCommentModeState] = useState<
+    Record<string, boolean>
+  >({});
+
   const formDataMapRef = useRef<Map<string, Record<string, any>>>(new Map());
-  // 跟踪当前 substepId
   const currentSubstepIdRef = useRef<string | undefined>(undefined);
-  // 跟踪是否正在加载
   const isLoadingRef = useRef(false);
-  // 跟踪是否有未保存的更改
   const hasUnsavedChangesRef = useRef(false);
 
   const step = stepsData.find((s) => s.id === Number(stepId));
@@ -57,6 +59,11 @@ export default function Substep() {
     setIsSidebarCollapsed(!isSidebarCollapsed);
   };
 
+  // ✅ 生成评论模式状态的唯一 key
+  const getCommentModeKey = (substepId: string, tabId: string) =>
+    `${substepId}-${tabId}`;
+
+  // ✅ 简化：只更新 state，不保存
   const handleTabChange = (value: string) => {
     if (!substepId) return;
 
@@ -132,7 +139,53 @@ export default function Substep() {
     stepId,
   ]);
 
-  // 自动保存（500ms debounce）
+  // ✅ 新增：监听 substepTabState 变化，自动保存到 localStorage
+  useEffect(() => {
+    if (!substepId || !projectIdNum || isLoadingRef.current) return;
+
+    const currentTab = substepTabState[substepId];
+    if (!currentTab) return;
+
+    const currentFormData = formDataMapRef.current.get(substepId) || {};
+    const stateToSave: Partial<SubstepState> = {
+      activeTab: currentTab,
+      formData: currentFormData,
+      viewMode,
+      splitView:
+        viewMode === "split"
+          ? { leftTab: splitViewTabs.left, rightTab: splitViewTabs.right }
+          : undefined,
+    };
+
+    // 只保存到 localStorage，不保存到数据库
+    const STORAGE_PREFIX = "substep-state-";
+    const userId = getUserId();
+    const key = userId
+      ? `${STORAGE_PREFIX}${userId}-${projectIdNum}-${substepId}`
+      : `${STORAGE_PREFIX}${projectIdNum}-${substepId}`;
+
+    const existingData = localStorage.getItem(key);
+    const existing = existingData
+      ? JSON.parse(existingData)
+      : {
+          activeTab: "description",
+          formData: {},
+        };
+
+    const merged = {
+      ...existing,
+      ...stateToSave,
+      lastSaved: new Date().toISOString(),
+    };
+
+    localStorage.setItem(key, JSON.stringify(merged));
+    console.log(
+      `[Substep] Auto-saved tab state for ${substepId}:`,
+      merged.activeTab,
+    );
+  }, [substepTabState, substepId, projectIdNum, viewMode, splitViewTabs]);
+
+  // 自动保存（500ms debounce）- 只保存 formData
   useEffect(() => {
     const timer = setTimeout(() => {
       if (isLoadingRef.current || !substepId || !projectIdNum) {
@@ -217,7 +270,6 @@ export default function Substep() {
 
     // 步骤 1：检测切换，先保存旧 substep 的数据
     if (prevSubstepId && prevSubstepId !== substepId) {
-      // 从 formDataMapRef 获取旧 substep 的数据（不会被覆盖）
       const prevFormData = formDataMapRef.current.get(prevSubstepId) || {};
 
       saveSubstepStateWithApi(
@@ -256,6 +308,7 @@ export default function Substep() {
         console.log(
           "[Substep] Loaded saved state:",
           saved ? "found" : "not found",
+          saved?.activeTab,
         );
         if (saved) {
           setSubstepTabState((prev) => ({
@@ -280,7 +333,6 @@ export default function Substep() {
             setSplitViewTabs({ left: "", right: "" });
           }
 
-          // 更新 formDataMapRef
           formDataMapRef.current.set(substepId, saved.formData || {});
         } else {
           setFormData({});
@@ -302,12 +354,10 @@ export default function Substep() {
       });
   }, [substepId, projectIdNum]);
 
-  // handleFormDataChange 更新 formDataMapRef
   const handleFormDataChange = (field: string, value: any) => {
     setFormData((prev) => {
       let newFormData: Record<string, any>;
 
-      // 值为空时删除该字段
       if (value === "" || value === null || value === undefined) {
         const { [field]: _, ...rest } = prev;
         newFormData = rest;
@@ -315,7 +365,6 @@ export default function Substep() {
         newFormData = { ...prev, [field]: value };
       }
 
-      // 定期清理所有空字段（防止遗漏）
       newFormData = cleanupEmptyFormDataFields(newFormData);
 
       if (substepId) {
@@ -358,6 +407,21 @@ export default function Substep() {
 
   const currentTabValue = substepTabState[substep.id] || "description";
 
+  // ✅ 获取当前 substep + tab 的评论模式状态
+  const isCommentMode = substepId
+    ? commentModeState[getCommentModeKey(substep.id, currentTabValue)] || false
+    : false;
+
+  // ✅ 设置评论模式状态的函数
+  const handleSetCommentMode = (value: boolean) => {
+    if (substepId) {
+      setCommentModeState((prev) => ({
+        ...prev,
+        [getCommentModeKey(substep.id, currentTabValue)]: value,
+      }));
+    }
+  };
+
   return (
     <div className="flex h-screen w-full overflow-hidden bg-white">
       <AppSidebar
@@ -398,6 +462,8 @@ export default function Substep() {
             isSaving={isSaving}
             projectId={projectIdNum}
             stepId={Number(stepId)}
+            isCommentMode={isCommentMode}
+            setIsCommentMode={handleSetCommentMode}
           />
         ) : (
           <div className="flex-1 flex flex-row overflow-hidden min-h-0">
@@ -416,6 +482,8 @@ export default function Substep() {
                 isDropTarget={true}
                 projectId={projectIdNum}
                 stepId={Number(stepId)}
+                isCommentMode={isCommentMode}
+                setIsCommentMode={handleSetCommentMode}
               />
             </div>
 
@@ -434,6 +502,8 @@ export default function Substep() {
                 isDropTarget={true}
                 projectId={projectIdNum}
                 stepId={Number(stepId)}
+                isCommentMode={isCommentMode}
+                setIsCommentMode={handleSetCommentMode}
               />
             </div>
           </div>

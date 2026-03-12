@@ -40,6 +40,8 @@ interface SubstepContentCardProps {
   onDropZoneLeave?: () => void;
   projectId?: number;
   stepId?: number;
+  isCommentMode?: boolean;
+  setIsCommentMode?: (value: boolean) => void;
 }
 
 export default function SubstepContentCard({
@@ -54,9 +56,9 @@ export default function SubstepContentCard({
   onDropZoneLeave,
   projectId = 0,
   stepId = 0,
+  isCommentMode = false,
+  setIsCommentMode = () => {},
 }: SubstepContentCardProps) {
-  // 评论相关状态
-  const [isCommentMode, setIsCommentMode] = useState(false);
   const [comments, setComments] = useState(
     () => getCommentState(projectId, substep.id)?.comments || [],
   );
@@ -68,13 +70,21 @@ export default function SubstepContentCard({
     x: number;
     y: number;
   } | null>(null);
+  const [inputViewportPosition, setInputViewportPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [popoverViewportPosition, setPopoverViewportPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
   const cardRef = useRef<HTMLDivElement>(null);
+  const contentAreaRef = useRef<HTMLDivElement>(null);
   const currentUser = getUserInfo();
   const currentUserId = currentUser?.id || 1;
   const currentUserName = currentUser?.name || "Unknown";
 
-  // 监听评论状态变化（localStorage + substep 切换）
   useEffect(() => {
     const state = getCommentState(projectId, substep.id);
     if (state) {
@@ -84,26 +94,55 @@ export default function SubstepContentCard({
     }
   }, [projectId, substep.id]);
 
-  // 添加 activeTab 空值检查
   const handleCardClick = (e: React.MouseEvent) => {
     if (!isCommentMode || showCommentInput || selectedCommentId || !activeTab)
       return;
 
-    const rect = cardRef.current?.getBoundingClientRect();
+    const rect = contentAreaRef.current?.getBoundingClientRect();
+    // ✅ 获取滚动偏移量
+    const scrollTop = contentAreaRef.current?.scrollTop || 0;
     if (!rect) return;
 
     e.preventDefault();
     e.stopPropagation();
 
-    // 使用相对于 Card 的坐标
-    setCommentPosition({
+    // ✅ 保存相对于内容区的坐标（加上 scrollTop）
+    const contentPosition = {
       x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    });
+      y: e.clientY - rect.top + scrollTop, // ✅ 加上滚动偏移
+    };
+
+    // ✅ 视口坐标用于输入框定位（不需要 scrollTop）
+    const viewportPosition = {
+      x: e.clientX,
+      y: e.clientY,
+    };
+
+    setCommentPosition(contentPosition);
+    setInputViewportPosition(viewportPosition);
     setShowCommentInput(true);
   };
 
-  // 添加 activeTab 空值检查
+  const handleMarkerClick = (commentId: string) => {
+    setSelectedCommentId(commentId);
+
+    const comment = comments.find((c) => c.id === commentId);
+    if (!comment || !comment.position) return;
+
+    const rect = contentAreaRef.current?.getBoundingClientRect();
+    // ✅ 获取滚动偏移量
+    const scrollTop = contentAreaRef.current?.scrollTop || 0;
+    if (!rect) return;
+
+    // ✅ 计算视口坐标时减去 scrollTop
+    const viewportPosition = {
+      x: rect.left + comment.position.x,
+      y: rect.top + comment.position.y - scrollTop, // ✅ 减去滚动偏移
+    };
+
+    setPopoverViewportPosition(viewportPosition);
+  };
+
   const handleSaveComment = (content: string) => {
     if (!commentPosition || !activeTab) return;
 
@@ -122,7 +161,7 @@ export default function SubstepContentCard({
       position: commentPosition,
       content,
       authorId: currentUserId,
-      authorName: currentUserName, // 真实用户名
+      authorName: currentUserName,
       createdAt: new Date().toISOString(),
       resolved: false,
     };
@@ -131,6 +170,7 @@ export default function SubstepContentCard({
     setComments((prev) => [...prev, newComment]);
     setShowCommentInput(false);
     setCommentPosition(null);
+    setInputViewportPosition(null);
   };
 
   const handleDeleteComment = (commentId: string) => {
@@ -169,7 +209,6 @@ export default function SubstepContentCard({
     setComments((prev) => [...prev, reply]);
   };
 
-  // 添加 activeTab 空值检查
   const currentComments = activeTab
     ? getCommentsBySubtask(
         projectId,
@@ -180,7 +219,16 @@ export default function SubstepContentCard({
       )
     : [];
 
-  // 处理空 activeTab（分屏初始状态）
+  const handleUpdateCommentPosition = (
+    commentId: string,
+    newPos: { x: number; y: number },
+  ) => {
+    updateComment(projectId, substep.id, commentId, { position: newPos });
+    setComments((prev) =>
+      prev.map((c) => (c.id === commentId ? { ...c, position: newPos } : c)),
+    );
+  };
+
   if (!activeTab || activeTab === "") {
     return (
       <Card
@@ -232,7 +280,6 @@ export default function SubstepContentCard({
     );
   }
 
-  // 获取当前 Subtask
   const getCurrentSubtask = (): Subtask | null => {
     if (activeTab === "description") return null;
     const subtaskId = activeTab.replace("subtask-", "");
@@ -241,7 +288,6 @@ export default function SubstepContentCard({
 
   const subtask = getCurrentSubtask();
 
-  // Description Tab
   if (activeTab === "description") {
     return (
       <DescriptionTab
@@ -251,7 +297,6 @@ export default function SubstepContentCard({
     );
   }
 
-  // Subtask not found
   if (!subtask) {
     return (
       <Card
@@ -288,7 +333,6 @@ export default function SubstepContentCard({
     );
   }
 
-  // 辅助函数
   const fieldPrefix = `${activeTab}`;
   const updateField = (field: string, value: any) => {
     onFormDataChange?.(`${fieldPrefix}-${field}`, value);
@@ -297,7 +341,6 @@ export default function SubstepContentCard({
 
   return (
     <div className="relative flex-1 m-4">
-      {/* 评论模式切换按钮 */}
       <div className="absolute top-4 right-4 z-40">
         <CommentModeToggle
           isEnabled={isCommentMode}
@@ -332,13 +375,34 @@ export default function SubstepContentCard({
           onDropZoneLeave?.();
         }}
       >
-        {/* 标题 */}
         <SubtaskHeader subtaskId={subtask.id} title={subtask.title} />
 
-        {/* 可滑动内容区 */}
         <CardContent className="px-6">
-          <div className="min-h-[400px] max-h-[calc(100vh-300px)] overflow-y-auto pr-2 space-y-6">
-            {/* 只读信息块 */}
+          <div
+            ref={contentAreaRef}
+            className="relative min-h-[400px] max-h-[calc(100vh-300px)] overflow-y-auto pr-2 space-y-6"
+          >
+            <div
+              className="relative"
+              style={{ height: 0, overflow: "visible" }}
+            >
+              {currentComments.map(
+                (comment) =>
+                  comment.position && (
+                    <CommentMarker
+                      key={comment.id}
+                      comment={comment}
+                      position={comment.position}
+                      onClick={() => handleMarkerClick(comment.id)}
+                      isSelected={selectedCommentId === comment.id}
+                      onPositionChange={(newPos) =>
+                        handleUpdateCommentPosition(comment.id, newPos)
+                      }
+                    />
+                  ),
+              )}
+            </div>
+
             <InfoSection label="Objective" content={subtask.objective} />
             <InfoSection label="Actions" content={subtask.actions} />
             <InfoSection
@@ -346,10 +410,8 @@ export default function SubstepContentCard({
               content={subtask.recommendedDocumentation}
             />
 
-            {/* 分隔线 */}
             <div className="my-6 border-t border-gray-200" />
 
-            {/* 1. Activity Name */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-gray-800">
                 1. Register the activity of interest*
@@ -369,7 +431,6 @@ export default function SubstepContentCard({
               />
             </div>
 
-            {/* 2. Activity Definition */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-gray-800">
                 2. Propose a short definition of this activity
@@ -384,21 +445,18 @@ export default function SubstepContentCard({
               />
             </div>
 
-            {/* 3. Primary Elements Table */}
             <PrimaryElementsTable
               formData={formData}
               onFormDataChange={onFormDataChange!}
               fieldPrefix={fieldPrefix}
             />
 
-            {/* 4. Stakeholders Section */}
             <StakeholderSection
               formData={formData}
               onFormDataChange={onFormDataChange!}
               fieldPrefix={fieldPrefix}
             />
 
-            {/* 5. Additional Stakeholders */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-gray-800">
                 5. Identify the stakeholders involved in the activity and that
@@ -414,40 +472,25 @@ export default function SubstepContentCard({
               />
             </div>
 
-            {/* Save Status */}
             <SaveStatus lastSaved={lastSaved} isSaving={isSaving} />
           </div>
         </CardContent>
       </Card>
 
-      {/* 评论标记 */}
-      {currentComments.map(
-        (comment) =>
-          comment.position && (
-            <CommentMarker
-              key={comment.id}
-              comment={comment}
-              position={comment.position}
-              onClick={() => setSelectedCommentId(comment.id)}
-              isSelected={selectedCommentId === comment.id}
-            />
-          ),
-      )}
-
-      {/* 评论输入框 */}
-      {showCommentInput && commentPosition && (
+      {showCommentInput && inputViewportPosition && (
         <CommentInput
-          position={commentPosition}
+          position={inputViewportPosition}
           onSave={handleSaveComment}
           onCancel={() => {
             setShowCommentInput(false);
             setCommentPosition(null);
+            setInputViewportPosition(null);
           }}
         />
       )}
 
-      {/* 评论详情弹窗 */}
       {selectedCommentId &&
+        popoverViewportPosition &&
         (() => {
           const comment = comments.find((c) => c.id === selectedCommentId);
           if (!comment || !comment.position) return null;
@@ -459,8 +502,11 @@ export default function SubstepContentCard({
           return (
             <CommentPopover
               comment={comment}
-              position={comment.position}
-              onClose={() => setSelectedCommentId(null)}
+              position={popoverViewportPosition}
+              onClose={() => {
+                setSelectedCommentId(null);
+                setPopoverViewportPosition(null);
+              }}
               onDelete={() => handleDeleteComment(selectedCommentId)}
               onResolve={() => handleResolveComment(selectedCommentId)}
               onReply={(content) =>

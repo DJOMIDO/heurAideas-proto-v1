@@ -100,7 +100,6 @@ function convertToContentData(
         contentData[subtaskKey] = {};
       }
 
-      // 跳过 element-row-count 字段（不保存到数据库）
       if (fieldName === "element-row-count") {
         return;
       }
@@ -131,7 +130,6 @@ function convertToContentData(
     }
   });
 
-  // 清理空的 subtask 对象
   Object.keys(contentData).forEach((key) => {
     if (
       typeof contentData[key] === "object" &&
@@ -184,10 +182,9 @@ export async function saveSubstepStateWithApi(
   state: Partial<SubstepState>,
   syncToDatabase: boolean = false,
 ): Promise<void> {
-  // 清理 formData 中的空字段
   const cleanedFormData = cleanupEmptyFormDataFields(state.formData || {});
 
-  const contentData = convertToContentData(state.formData || {});
+  const contentData = convertToContentData(cleanedFormData);
   const uiState = {
     activeTab: state.activeTab || "description",
     viewMode: state.viewMode || "single",
@@ -209,9 +206,9 @@ export async function saveSubstepStateWithApi(
     }
   }
 
-  // 也清理后保存到 localStorage
   saveSubstepState(projectId, substepId, {
     ...state,
+    activeTab: state.activeTab || "description",
     formData: cleanedFormData,
   });
 }
@@ -221,21 +218,24 @@ export async function loadSubstepStateWithApi(
   substepId: string,
 ): Promise<SubstepState | null> {
   const localState = getSubstepState(projectId, substepId);
-  if (
-    localState &&
-    localState.formData &&
-    Object.keys(localState.formData).length > 0
-  ) {
-    console.log(`[substepState] Using localStorage state for ${substepId}`);
+
+  // ✅ 修复：只要有 localStorage 状态就加载（不管 formData 是否为空）
+  if (localState) {
+    console.log(
+      `[substepState] Using localStorage state for ${substepId}`,
+      localState,
+    );
     return localState;
   }
 
   if (isAuthenticated()) {
     try {
       const apiContent = await getSubstepContent(projectId, substepId);
-      if (apiContent && apiContent.content_data) {
+      if (apiContent) {
         console.log(`[substepState] Using API state for ${substepId}`);
-        const formData = convertToFormData(apiContent.content_data);
+        const formData = apiContent.content_data
+          ? convertToFormData(apiContent.content_data)
+          : {};
         const state: SubstepState = {
           activeTab: apiContent.ui_state?.activeTab || "description",
           formData,
@@ -250,6 +250,7 @@ export async function loadSubstepStateWithApi(
     }
   }
 
+  // 默认状态
   return {
     activeTab: "description",
     formData: {},
@@ -270,10 +271,10 @@ export function getSubstepState(
   try {
     const parsed = JSON.parse(data);
     return {
-      activeTab: parsed.activeTab ?? "description",
+      activeTab: parsed.activeTab || "description", // ✅ 确保有默认值
       formData: parsed.formData ?? {},
       lastSaved: parsed.lastSaved,
-      viewMode: parsed.viewMode,
+      viewMode: parsed.viewMode || "single",
       splitView: parsed.splitView,
     };
   } catch (error) {
@@ -287,20 +288,23 @@ export function saveSubstepState(
   substepId: string,
   state: Partial<SubstepState>,
 ): void {
-  const existing = getSubstepState(projectId, substepId) || {
-    activeTab: "description",
-    formData: {},
-  };
+  const existing = getSubstepState(projectId, substepId);
 
-  const merged = {
-    ...existing,
-    ...state,
+  // ✅ 确保 activeTab 始终被保存
+  const merged: SubstepState = {
+    activeTab: state.activeTab || existing?.activeTab || "description",
+    formData:
+      state.formData !== undefined ? state.formData : existing?.formData || {},
     lastSaved: new Date().toISOString(),
+    viewMode: state.viewMode || existing?.viewMode || "single",
+    splitView:
+      state.splitView !== undefined ? state.splitView : existing?.splitView,
   };
 
   try {
     const key = getStorageKey(projectId, substepId);
     localStorage.setItem(key, JSON.stringify(merged));
+    console.log(`[substepState] Saved state for ${substepId}:`, merged);
   } catch (error) {
     console.warn(`Failed to save substep state for ${substepId}:`, error);
   }

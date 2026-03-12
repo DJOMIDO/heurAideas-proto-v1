@@ -27,7 +27,7 @@ export default function CommentInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && e.metaKey) {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
       handleSave();
     } else if (e.key === "Escape") {
       onCancel();
@@ -40,7 +40,8 @@ export default function CommentInput({
       style={{
         left: position.x,
         top: position.y,
-        transform: "translate(-50%, 16px)",
+        transform: "translate(-50%, -100%)",
+        marginTop: "-40px",
       }}
     >
       <Card className="w-80 shadow-xl border-gray-200">

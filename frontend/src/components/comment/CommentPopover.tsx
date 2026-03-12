@@ -84,12 +84,12 @@ export default function CommentPopover({
       style={{
         left: position.x,
         top: position.y,
-        transform: "translate(-50%, 16px)",
+        transform: "translate(-50%, -100%)",
+        marginTop: "-40px",
       }}
     >
       <Card className="w-96 shadow-xl border-gray-200">
         <div className="p-4 space-y-3">
-          {/* 头部：作者信息 */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Avatar className="h-8 w-8">
@@ -108,7 +108,6 @@ export default function CommentPopover({
             </div>
 
             <div className="flex items-center gap-1">
-              {/* 解决按钮 */}
               {!comment.resolved && (
                 <Button
                   variant="ghost"
@@ -121,7 +120,6 @@ export default function CommentPopover({
                 </Button>
               )}
 
-              {/* 更多操作 */}
               {comment.authorId === currentUserId && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -145,7 +143,6 @@ export default function CommentPopover({
                 </DropdownMenu>
               )}
 
-              {/* 关闭按钮 */}
               <Button
                 variant="ghost"
                 size="sm"
@@ -157,12 +154,10 @@ export default function CommentPopover({
             </div>
           </div>
 
-          {/* 评论内容 */}
           <div className="text-sm text-gray-800 whitespace-pre-wrap">
             {comment.content}
           </div>
 
-          {/* 回复列表 */}
           {replies.length > 0 && (
             <ScrollArea className="max-h-48 border-t border-gray-100 pt-3">
               <div className="space-y-3">
@@ -197,7 +192,6 @@ export default function CommentPopover({
             </ScrollArea>
           )}
 
-          {/* 回复输入框 */}
           {showReplyInput ? (
             <div className="space-y-2 border-t border-gray-100 pt-3">
               <Textarea
