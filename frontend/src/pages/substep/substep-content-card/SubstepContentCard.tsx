@@ -1,25 +1,12 @@
 // src/pages/substep/substep-content-card/SubstepContentCard.tsx
 
-import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { type Substep, type Subtask } from "@/data/steps";
-import { getUserInfo } from "@/utils/auth";
 
-import {
-  CommentModeToggle,
-  CommentMarker,
-  CommentInput,
-  CommentPopover,
-} from "@/components/comment";
-import {
-  getCommentState,
-  addComment,
-  deleteComment,
-  updateComment,
-  getCommentsBySubtask,
-} from "@/utils/commentState";
+import { CommentModeToggle, CommentOverlay } from "@/components/comment";
+import { useComment } from "@/hooks/useComment";
 
 import DescriptionTab from "./DescriptionTab";
 import SubtaskHeader from "./SubtaskHeader";
@@ -59,176 +46,42 @@ export default function SubstepContentCard({
   isCommentMode = false,
   setIsCommentMode = () => {},
 }: SubstepContentCardProps) {
-  const [comments, setComments] = useState(
-    () => getCommentState(projectId, substep.id)?.comments || [],
-  );
-  const [selectedCommentId, setSelectedCommentId] = useState<string | null>(
-    null,
-  );
-  const [showCommentInput, setShowCommentInput] = useState(false);
-  const [commentPosition, setCommentPosition] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-  const [inputViewportPosition, setInputViewportPosition] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-  const [popoverViewportPosition, setPopoverViewportPosition] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
+  const {
+    comments,
+    selectedCommentId,
+    showCommentInput,
+    inputViewportPosition,
+    popoverViewportPosition,
+    currentComments,
+    currentUserId,
+    contentAreaRef,
+    setShowCommentInput,
+    setCommentPosition,
+    setInputViewportPosition,
+    handleMarkerClick,
+    handleSaveComment,
+    handleDeleteComment,
+    handleResolveComment,
+    handleReplyComment,
+    handleUpdateCommentPosition,
+    handleClosePopover,
+    handleCloseInput,
+  } = useComment({
+    projectId,
+    substepId: substep.id,
+    stepId,
+    activeTab,
+    isCommentMode,
+    setIsCommentMode,
+  });
 
-  const cardRef = useRef<HTMLDivElement>(null);
-  const contentAreaRef = useRef<HTMLDivElement>(null);
-  const currentUser = getUserInfo();
-  const currentUserId = currentUser?.id || 1;
-  const currentUserName = currentUser?.name || "Unknown";
-
-  useEffect(() => {
-    const state = getCommentState(projectId, substep.id);
-    if (state) {
-      setComments(state.comments);
-    } else {
-      setComments([]);
-    }
-  }, [projectId, substep.id]);
-
-  const handleCardClick = (e: React.MouseEvent) => {
-    if (!isCommentMode || showCommentInput || selectedCommentId || !activeTab)
-      return;
-
-    const rect = contentAreaRef.current?.getBoundingClientRect();
-    // ✅ 获取滚动偏移量
-    const scrollTop = contentAreaRef.current?.scrollTop || 0;
-    if (!rect) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    // ✅ 保存相对于内容区的坐标（加上 scrollTop）
-    const contentPosition = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top + scrollTop, // ✅ 加上滚动偏移
-    };
-
-    // ✅ 视口坐标用于输入框定位（不需要 scrollTop）
-    const viewportPosition = {
-      x: e.clientX,
-      y: e.clientY,
-    };
-
-    setCommentPosition(contentPosition);
-    setInputViewportPosition(viewportPosition);
-    setShowCommentInput(true);
+  const fieldPrefix = `${activeTab}`;
+  const updateField = (field: string, value: any) => {
+    onFormDataChange?.(`${fieldPrefix}-${field}`, value);
   };
+  const getField = (field: string) => formData[`${fieldPrefix}-${field}`] || "";
 
-  const handleMarkerClick = (commentId: string) => {
-    setSelectedCommentId(commentId);
-
-    const comment = comments.find((c) => c.id === commentId);
-    if (!comment || !comment.position) return;
-
-    const rect = contentAreaRef.current?.getBoundingClientRect();
-    // ✅ 获取滚动偏移量
-    const scrollTop = contentAreaRef.current?.scrollTop || 0;
-    if (!rect) return;
-
-    // ✅ 计算视口坐标时减去 scrollTop
-    const viewportPosition = {
-      x: rect.left + comment.position.x,
-      y: rect.top + comment.position.y - scrollTop, // ✅ 减去滚动偏移
-    };
-
-    setPopoverViewportPosition(viewportPosition);
-  };
-
-  const handleSaveComment = (content: string) => {
-    if (!commentPosition || !activeTab) return;
-
-    const subtaskId =
-      activeTab === "description"
-        ? undefined
-        : activeTab.replace("subtask-", "");
-
-    const newComment: import("@/types/comment").Comment = {
-      id: `comment-${Date.now()}`,
-      projectId,
-      stepId,
-      substepId: substep.id,
-      subtaskId,
-      anchorType: "free",
-      position: commentPosition,
-      content,
-      authorId: currentUserId,
-      authorName: currentUserName,
-      createdAt: new Date().toISOString(),
-      resolved: false,
-    };
-
-    addComment(projectId, substep.id, newComment);
-    setComments((prev) => [...prev, newComment]);
-    setShowCommentInput(false);
-    setCommentPosition(null);
-    setInputViewportPosition(null);
-  };
-
-  const handleDeleteComment = (commentId: string) => {
-    deleteComment(projectId, substep.id, commentId);
-    setComments((prev) => prev.filter((c) => c.id !== commentId));
-    setSelectedCommentId(null);
-  };
-
-  const handleResolveComment = (commentId: string) => {
-    updateComment(projectId, substep.id, commentId, {
-      resolved: true,
-    });
-    setComments((prev) =>
-      prev.map((c) => (c.id === commentId ? { ...c, resolved: true } : c)),
-    );
-  };
-
-  const handleReplyComment = (parentId: string, content: string) => {
-    const parentComment = comments.find((c) => c.id === parentId);
-    const reply: import("@/types/comment").Comment = {
-      id: `comment-${Date.now()}`,
-      projectId,
-      stepId,
-      substepId: substep.id,
-      subtaskId: parentComment?.subtaskId,
-      parentId,
-      anchorType: "free",
-      content,
-      authorId: currentUserId,
-      authorName: currentUserName,
-      createdAt: new Date().toISOString(),
-      resolved: false,
-    };
-
-    addComment(projectId, substep.id, reply);
-    setComments((prev) => [...prev, reply]);
-  };
-
-  const currentComments = activeTab
-    ? getCommentsBySubtask(
-        projectId,
-        substep.id,
-        activeTab === "description"
-          ? undefined
-          : activeTab.replace("subtask-", ""),
-      )
-    : [];
-
-  const handleUpdateCommentPosition = (
-    commentId: string,
-    newPos: { x: number; y: number },
-  ) => {
-    updateComment(projectId, substep.id, commentId, { position: newPos });
-    setComments((prev) =>
-      prev.map((c) => (c.id === commentId ? { ...c, position: newPos } : c)),
-    );
-  };
-
+  // 处理空 activeTab
   if (!activeTab || activeTab === "") {
     return (
       <Card
@@ -333,28 +186,51 @@ export default function SubstepContentCard({
     );
   }
 
-  const fieldPrefix = `${activeTab}`;
-  const updateField = (field: string, value: any) => {
-    onFormDataChange?.(`${fieldPrefix}-${field}`, value);
+  // 在组件内部实现 handleCardClick
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (!isCommentMode || showCommentInput || selectedCommentId || !activeTab)
+      return;
+
+    const rect = contentAreaRef.current?.getBoundingClientRect();
+    const scrollTop = contentAreaRef.current?.scrollTop || 0;
+    if (!rect) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const contentPosition = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top + scrollTop,
+    };
+
+    const viewportPosition = {
+      x: e.clientX,
+      y: e.clientY,
+    };
+
+    setCommentPosition(contentPosition);
+    setInputViewportPosition(viewportPosition);
+    setShowCommentInput(true);
   };
-  const getField = (field: string) => formData[`${fieldPrefix}-${field}`] || "";
+
+  const handleToggleCommentMode = () => {
+    setIsCommentMode(!isCommentMode);
+    handleClosePopover();
+    handleCloseInput();
+  };
 
   return (
     <div className="relative flex-1 m-4">
+      {/* 评论模式切换按钮 */}
       <div className="absolute top-4 right-4 z-40">
         <CommentModeToggle
           isEnabled={isCommentMode}
-          onToggle={() => {
-            setIsCommentMode(!isCommentMode);
-            setSelectedCommentId(null);
-            setShowCommentInput(false);
-          }}
+          onToggle={handleToggleCommentMode}
           commentCount={currentComments.length}
         />
       </div>
 
       <Card
-        ref={cardRef}
         className={`
           border border-gray-200 shadow-sm transition-all duration-200
           ${isCommentMode ? "cursor-crosshair" : ""}
@@ -378,31 +254,36 @@ export default function SubstepContentCard({
         <SubtaskHeader subtaskId={subtask.id} title={subtask.title} />
 
         <CardContent className="px-6">
+          {/* 内容区 */}
           <div
             ref={contentAreaRef}
             className="relative min-h-[400px] max-h-[calc(100vh-300px)] overflow-y-auto pr-2 space-y-6"
           >
+            {/* 评论 Overlay */}
             <div
               className="relative"
               style={{ height: 0, overflow: "visible" }}
             >
-              {currentComments.map(
-                (comment) =>
-                  comment.position && (
-                    <CommentMarker
-                      key={comment.id}
-                      comment={comment}
-                      position={comment.position}
-                      onClick={() => handleMarkerClick(comment.id)}
-                      isSelected={selectedCommentId === comment.id}
-                      onPositionChange={(newPos) =>
-                        handleUpdateCommentPosition(comment.id, newPos)
-                      }
-                    />
-                  ),
-              )}
+              <CommentOverlay
+                showCommentInput={showCommentInput}
+                inputViewportPosition={inputViewportPosition}
+                selectedCommentId={selectedCommentId}
+                popoverViewportPosition={popoverViewportPosition}
+                comments={comments}
+                currentComments={currentComments}
+                currentUserId={currentUserId}
+                handleMarkerClick={handleMarkerClick}
+                handleSaveComment={handleSaveComment}
+                handleCloseInput={handleCloseInput}
+                handleClosePopover={handleClosePopover}
+                handleDeleteComment={handleDeleteComment}
+                handleResolveComment={handleResolveComment}
+                handleReplyComment={handleReplyComment}
+                handleUpdateCommentPosition={handleUpdateCommentPosition}
+              />
             </div>
 
+            {/* 表单内容 */}
             <InfoSection label="Objective" content={subtask.objective} />
             <InfoSection label="Actions" content={subtask.actions} />
             <InfoSection
@@ -476,47 +357,6 @@ export default function SubstepContentCard({
           </div>
         </CardContent>
       </Card>
-
-      {showCommentInput && inputViewportPosition && (
-        <CommentInput
-          position={inputViewportPosition}
-          onSave={handleSaveComment}
-          onCancel={() => {
-            setShowCommentInput(false);
-            setCommentPosition(null);
-            setInputViewportPosition(null);
-          }}
-        />
-      )}
-
-      {selectedCommentId &&
-        popoverViewportPosition &&
-        (() => {
-          const comment = comments.find((c) => c.id === selectedCommentId);
-          if (!comment || !comment.position) return null;
-
-          const replies = comments.filter(
-            (c) => c.parentId === selectedCommentId,
-          );
-
-          return (
-            <CommentPopover
-              comment={comment}
-              position={popoverViewportPosition}
-              onClose={() => {
-                setSelectedCommentId(null);
-                setPopoverViewportPosition(null);
-              }}
-              onDelete={() => handleDeleteComment(selectedCommentId)}
-              onResolve={() => handleResolveComment(selectedCommentId)}
-              onReply={(content) =>
-                handleReplyComment(selectedCommentId, content)
-              }
-              replies={replies}
-              currentUserId={currentUserId}
-            />
-          );
-        })()}
     </div>
   );
 }

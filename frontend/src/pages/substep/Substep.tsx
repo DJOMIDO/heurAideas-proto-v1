@@ -40,7 +40,6 @@ export default function Substep() {
     right: string;
   }>({ left: "", right: "" });
 
-  // ✅ 评论模式状态按 substepId + tabId 独立存储
   const [commentModeState, setCommentModeState] = useState<
     Record<string, boolean>
   >({});
@@ -59,11 +58,10 @@ export default function Substep() {
     setIsSidebarCollapsed(!isSidebarCollapsed);
   };
 
-  // ✅ 生成评论模式状态的唯一 key
+  // 生成评论模式状态的唯一 key
   const getCommentModeKey = (substepId: string, tabId: string) =>
     `${substepId}-${tabId}`;
 
-  // ✅ 简化：只更新 state，不保存
   const handleTabChange = (value: string) => {
     if (!substepId) return;
 
@@ -139,7 +137,7 @@ export default function Substep() {
     stepId,
   ]);
 
-  // ✅ 新增：监听 substepTabState 变化，自动保存到 localStorage
+  // 监听 substepTabState 变化，自动保存到 localStorage
   useEffect(() => {
     if (!substepId || !projectIdNum || isLoadingRef.current) return;
 
@@ -157,7 +155,6 @@ export default function Substep() {
           : undefined,
     };
 
-    // 只保存到 localStorage，不保存到数据库
     const STORAGE_PREFIX = "substep-state-";
     const userId = getUserId();
     const key = userId
@@ -262,13 +259,12 @@ export default function Substep() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [substepId, projectIdNum, substepTabState, viewMode, splitViewTabs]);
 
-  // Substep 切换 + 加载（单个 useEffect，确保顺序）
+  // Substep 切换 + 加载
   useEffect(() => {
     if (!substepId || !projectIdNum) return;
 
     const prevSubstepId = currentSubstepIdRef.current;
 
-    // 步骤 1：检测切换，先保存旧 substep 的数据
     if (prevSubstepId && prevSubstepId !== substepId) {
       const prevFormData = formDataMapRef.current.get(prevSubstepId) || {};
 
@@ -297,10 +293,7 @@ export default function Substep() {
         });
     }
 
-    // 步骤 2：更新 currentSubstepIdRef
     currentSubstepIdRef.current = substepId;
-
-    // 步骤 3：加载新 substep 的数据
     isLoadingRef.current = true;
 
     loadSubstepStateWithApi(projectIdNum, substepId)
@@ -407,20 +400,26 @@ export default function Substep() {
 
   const currentTabValue = substepTabState[substep.id] || "description";
 
-  // ✅ 获取当前 substep + tab 的评论模式状态
-  const isCommentMode = substepId
-    ? commentModeState[getCommentModeKey(substep.id, currentTabValue)] || false
-    : false;
+  // 获取当前 substep + tab 的评论模式状态
+  const isCommentMode =
+    substepId && substep
+      ? commentModeState[getCommentModeKey(substep.id, currentTabValue)] ||
+        false
+      : false;
 
-  // ✅ 设置评论模式状态的函数
-  const handleSetCommentMode = (value: boolean) => {
-    if (substepId) {
-      setCommentModeState((prev) => ({
-        ...prev,
-        [getCommentModeKey(substep.id, currentTabValue)]: value,
-      }));
-    }
-  };
+  // 使用 useCallback 确保函数稳定，并使用函数式更新
+  const handleSetCommentMode = useCallback(
+    (value: boolean) => {
+      if (substepId && substep) {
+        const currentTab = substepTabState[substepId] || "description";
+        setCommentModeState((prev) => ({
+          ...prev,
+          [`${substep.id}-${currentTab}`]: value,
+        }));
+      }
+    },
+    [substepId, substep, substepTabState],
+  );
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-white">
