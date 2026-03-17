@@ -59,14 +59,18 @@ export function signOut(): void {
       if (
         key &&
         (key.startsWith(`substep-state-${userId}-`) ||
-          key.startsWith(`last-edited-${userId}-`))
+          key.startsWith(`last-edited-${userId}-`) ||
+          key.startsWith(`overview-selected-substep-${userId}-`) ||
+          key.startsWith(`substep-comments-${userId}-`))
       ) {
         keysToRemove.push(key);
       }
     }
     keysToRemove.forEach((key) => localStorage.removeItem(key));
   }
+
   localStorage.removeItem("overview-active-step");
+  localStorage.removeItem("currentProjectId");
 }
 
 export function isAuthenticated(): boolean {

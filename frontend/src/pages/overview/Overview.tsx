@@ -21,6 +21,13 @@ const getActiveStepStorageKey = (): string => {
   return userId ? `overview-active-step-${userId}` : "overview-active-step";
 };
 
+const getSelectedSubstepStorageKey = (stepId: number): string => {
+  const userId = getUserId();
+  return userId
+    ? `overview-selected-substep-${userId}-step-${stepId}`
+    : `overview-selected-substep-step-${stepId}`;
+};
+
 export default function Overview() {
   const navigate = useNavigate();
 
@@ -37,19 +44,56 @@ export default function Overview() {
     return stored ? Number(stored) : 1;
   });
 
-  const [selectedSubstep, setSelectedSubstep] = useState<Substep | null>(null);
+  const [selectedSubstep, setSelectedSubstep] = useState<Substep | null>(() => {
+    const stored = localStorage.getItem(getSelectedSubstepStorageKey(1));
+    if (stored) {
+      const substepId = stored;
+      const step1 = stepsData.find((s) => s.id === 1);
+      return step1?.substeps.find((s) => s.id === substepId) || null;
+    }
+    return null;
+  });
 
   const activeStep =
     stepsData.find((step) => step.id === activeStepId) || stepsData[0];
 
   const handleStepChange = (id: number) => {
+    if (selectedSubstep) {
+      localStorage.setItem(
+        getSelectedSubstepStorageKey(activeStepId),
+        selectedSubstep.id,
+      );
+    }
+
     setActiveStepId(id);
-    setSelectedSubstep(null);
     localStorage.setItem(getActiveStepStorageKey(), String(id));
+
+    const stored = localStorage.getItem(getSelectedSubstepStorageKey(id));
+    if (stored) {
+      const newStep = stepsData.find((s) => s.id === id);
+      const substep = newStep?.substeps.find((s) => s.id === stored);
+      if (substep) {
+        setSelectedSubstep(substep);
+      } else {
+        setSelectedSubstep(null);
+      }
+    } else {
+      setSelectedSubstep(null);
+    }
   };
 
   const handleSubstepSelect = (substep: Substep) => {
-    setSelectedSubstep((prev) => (prev?.id === substep.id ? null : substep));
+    const newSelected = selectedSubstep?.id === substep.id ? null : substep;
+    setSelectedSubstep(newSelected);
+
+    if (newSelected) {
+      localStorage.setItem(
+        getSelectedSubstepStorageKey(activeStepId),
+        newSelected.id,
+      );
+    } else {
+      localStorage.removeItem(getSelectedSubstepStorageKey(activeStepId));
+    }
   };
 
   const toggleSidebar = () => {
@@ -80,7 +124,10 @@ export default function Overview() {
 
         <ResizablePanel defaultSize="85" minSize="50">
           <div className="flex flex-col h-full overflow-hidden">
-            <StatusBar step={activeStep} />
+            <StatusBar
+              step={activeStep}
+              substep={selectedSubstep || undefined}
+            />
 
             <ResizablePanelGroup
               orientation="horizontal"
