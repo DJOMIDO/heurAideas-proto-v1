@@ -20,7 +20,8 @@ class UserResponse(BaseModel):
 
 # 用户登录
 class UserLogin(BaseModel):
-    email: EmailStr
+    email: Optional[EmailStr] = None
+    username: Optional[str] = None
     password: str
 
 # Token 响应
