@@ -8,13 +8,12 @@ import type {
   CommentCountResponse,
 } from "@/types/comment";
 
-// 复用现有的 request 函数（与 projects.ts 一致）
+// 修复 request 函数 - 处理 204 No Content
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-
   const token = getToken();
 
   const response = await fetch(url, {
@@ -31,22 +30,24 @@ async function request<T>(
     throw new Error(error.detail || `HTTP ${response.status}`);
   }
 
+  // 修复 204 No Content
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json();
 }
 
 // ==================== 评论列表 ====================
 
-/**
- * 获取项目的所有评论
- */
 export async function getProjectComments(
   projectId: number,
   substepId?: string,
   subtaskId?: string,
-  includeResolved: boolean = true, // 现在在 URL 参数中使用
+  includeResolved: boolean = true,
 ): Promise<CommentListResponse> {
   const params = new URLSearchParams({
-    include_resolved: String(includeResolved), // 使用这个参数
+    include_resolved: String(includeResolved),
   });
 
   if (substepId) params.append("substep_id", substepId);
@@ -57,21 +58,18 @@ export async function getProjectComments(
   );
 }
 
-/**
- * 获取指定子步骤的所有评论
- */
 export async function getSubstepComments(
   substepId: string,
   projectId: number,
   includeResolved: boolean = true,
 ): Promise<CommentListResponse> {
   const params = new URLSearchParams({
-    project_id: String(projectId), // 通过 params 传递
+    project_id: String(projectId),
     include_resolved: String(includeResolved),
   });
 
   return request<CommentListResponse>(
-    `${API_ENDPOINTS.COMMENTS_BY_SUBSTEP(substepId)}?${params}`, // 只传 substepId
+    `${API_ENDPOINTS.COMMENTS_BY_SUBSTEP(substepId)}?${params}`,
   );
 }
 
@@ -81,7 +79,7 @@ export interface CreateCommentInput {
   projectId: number;
   projectSubstepId: number;
   projectStepId?: number;
-  projectSubtaskId?: number;
+  projectSubtaskCode?: string;
   content: string;
   positionX?: number;
   positionY?: number;
@@ -90,9 +88,6 @@ export interface CreateCommentInput {
   parentId?: number;
 }
 
-/**
- * 创建新评论或回复
- */
 export async function createComment(
   input: CreateCommentInput,
 ): Promise<Comment> {
@@ -102,10 +97,10 @@ export async function createComment(
       project_id: input.projectId,
       project_substep_id: input.projectSubstepId,
       project_step_id: input.projectStepId,
-      project_subtask_id: input.projectSubtaskId,
+      project_subtask_code: input.projectSubtaskCode,
       content: input.content,
-      position_x: input.positionX,
-      position_y: input.positionY,
+      position_x: input.positionX ? Math.round(input.positionX) : undefined,
+      position_y: input.positionY ? Math.round(input.positionY) : undefined,
       anchor_type: input.anchorType || "free",
       anchor_id: input.anchorId,
       parent_id: input.parentId,
@@ -122,9 +117,6 @@ export interface UpdateCommentInput {
   isResolved?: boolean;
 }
 
-/**
- * 更新评论（仅作者可更新）
- */
 export async function updateComment(
   commentId: number,
   updates: UpdateCommentInput,
@@ -142,29 +134,27 @@ export async function updateComment(
 
 // ==================== 删除评论 ====================
 
-/**
- * 软删除评论（仅作者可删除）
- */
 export async function deleteComment(commentId: number): Promise<void> {
-  await request<void>(API_ENDPOINTS.COMMENT_DETAIL(commentId), {
-    method: "DELETE",
-  });
+  const url = API_ENDPOINTS.COMMENT_DETAIL(commentId);
+
+  try {
+    await request<void>(url, {
+      method: "DELETE",
+    });
+  } catch (error) {
+    console.error("[api/comments] deleteComment failed:", error);
+    throw error;
+  }
 }
 
 // ==================== 标记为解决/未解决 ====================
 
-/**
- * 标记评论为已解决
- */
 export async function resolveComment(commentId: number): Promise<Comment> {
   return request<Comment>(API_ENDPOINTS.COMMENT_RESOLVE(commentId), {
     method: "POST",
   });
 }
 
-/**
- * 标记评论为未解决
- */
 export async function unresolveComment(commentId: number): Promise<Comment> {
   return request<Comment>(API_ENDPOINTS.COMMENT_UNRESOLVE(commentId), {
     method: "POST",
@@ -173,9 +163,6 @@ export async function unresolveComment(commentId: number): Promise<Comment> {
 
 // ==================== 获取评论统计 ====================
 
-/**
- * 获取项目评论统计
- */
 export async function getCommentCount(
   projectId: number,
 ): Promise<CommentCountResponse> {

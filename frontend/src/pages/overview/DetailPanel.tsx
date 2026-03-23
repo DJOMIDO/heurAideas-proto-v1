@@ -13,7 +13,7 @@ import {
 import { FileText, MessageSquare } from "lucide-react";
 import { type Substep } from "@/data/steps";
 import { getUserId } from "@/utils/auth";
-import { getCommentState } from "@/utils/commentState";
+import { getCommentState, syncCommentsFromApi } from "@/utils/commentState";
 
 interface DetailPanelProps {
   substep: Substep | null;
@@ -21,30 +21,105 @@ interface DetailPanelProps {
 
 export default function DetailPanel({ substep }: DetailPanelProps) {
   const [commentCount, setCommentCount] = useState(0);
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  // 获取当前项目 ID
   const userId = getUserId();
   const storageKey = userId ? `currentProjectId-${userId}` : "currentProjectId";
   const projectId = Number(localStorage.getItem(storageKey) || "1");
 
-  // 监听 substep 变化，加载评论数量
+  // 监听 substep 变化 + 同步 API 数据
   useEffect(() => {
     if (!substep?.id) {
       setCommentCount(0);
       return;
     }
 
-    const state = getCommentState(projectId, substep.id);
-    const count = state?.comments?.length || 0;
-    setCommentCount(count);
+    const syncAndCount = async () => {
+      setIsSyncing(true);
+
+      // 先同步 API 数据到 localStorage
+      const projectSubstepId = await getProjectSubstepId(
+        projectId,
+        substep.id!,
+      );
+      if (projectSubstepId) {
+        await syncCommentsFromApi(projectId, substep.id!, projectSubstepId);
+      }
+
+      // 然后计数
+      updateCount();
+      setIsSyncing(false);
+    };
+
+    const updateCount = () => {
+      const state = getCommentState(projectId, substep.id!);
+      if (!state) {
+        setCommentCount(0);
+        return;
+      }
+
+      const count = state.comments.filter((c) => {
+        // 排除回复
+        if (
+          c.parentId !== null &&
+          c.parentId !== undefined &&
+          c.parentId !== ""
+        ) {
+          return false;
+        }
+        // 排除已删除
+        if (c.deleted === true || c.is_deleted === true) {
+          return false;
+        }
+        return true;
+      }).length;
+
+      setCommentCount(count);
+    };
+
+    syncAndCount();
+
+    // 监听 localStorage 变化
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key?.includes(`substep-comments-${projectId}-${substep.id}`)) {
+        updateCount();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    // 定期刷新（5 秒）
+    const interval = setInterval(updateCount, 5000);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
   }, [projectId, substep?.id]);
 
-  // 处理点击跳转到评论页面
+  // 获取 projectSubstepId 的辅助函数
+  const getProjectSubstepId = async (
+    projectId: number,
+    substepCode: string,
+  ): Promise<number | null> => {
+    try {
+      const { getProjectDetail } = await import("@/api/projects");
+      const detail = await getProjectDetail(projectId);
+      for (const step of detail.steps) {
+        for (const substep of step.substeps) {
+          if (substep.code === substepCode) {
+            return substep.id;
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[DetailPanel] Failed to get projectSubstepId:", error);
+    }
+    return null;
+  };
+
   const handleViewComments = () => {
     if (!substep?.id) return;
-    // TODO: 后续实现评论详情页面路由
-    // navigate(`/substep/${projectId}/${stepId}/${substep.id}/comments`);
-    console.log("View comments for substep:", substep.id);
   };
 
   return (
@@ -62,6 +137,7 @@ export default function DetailPanel({ substep }: DetailPanelProps) {
                   variant="outline"
                   size="sm"
                   onClick={handleViewComments}
+                  disabled={isSyncing}
                   className={`
                     flex items-center gap-1.5 px-3 py-1.5 h-auto font-medium transition-all
                     ${
@@ -75,9 +151,11 @@ export default function DetailPanel({ substep }: DetailPanelProps) {
                     className={`w-4 h-4 ${commentCount > 0 ? "fill-blue-700" : "fill-gray-400"}`}
                   />
                   <span>
-                    {commentCount > 0
-                      ? `${commentCount} ${commentCount === 1 ? "Comment" : "Comments"}`
-                      : "No Comments"}
+                    {isSyncing
+                      ? "Loading..."
+                      : commentCount > 0
+                        ? `${commentCount} ${commentCount === 1 ? "Comment" : "Comments"}`
+                        : "No Comments"}
                   </span>
                 </Button>
               </div>

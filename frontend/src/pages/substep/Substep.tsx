@@ -17,6 +17,11 @@ import SubstepMenu from "./SubstepMenu";
 import SubstepTabs from "./SubstepTabs";
 import SubstepContentCard from "./substep-content-card/SubstepContentCard";
 import { getUserId } from "@/utils/auth";
+import { getProjectDetail } from "@/api/projects";
+import {
+  syncCommentsFromApi,
+  syncUnsyncedCommentsToApi,
+} from "@/utils/commentState";
 
 export default function Substep() {
   const { projectId, stepId, substepId } = useParams<{
@@ -44,6 +49,13 @@ export default function Substep() {
     Record<string, boolean>
   >({});
 
+  const commentRefreshRef = useRef<number>(0);
+
+  // projectSubstepId 映射
+  const [projectSubstepIdMap, setProjectSubstepIdMap] = useState<
+    Record<string, number>
+  >({});
+
   const formDataMapRef = useRef<Map<string, Record<string, any>>>(new Map());
   const currentSubstepIdRef = useRef<string | undefined>(undefined);
   const isLoadingRef = useRef(false);
@@ -58,7 +70,6 @@ export default function Substep() {
     setIsSidebarCollapsed(!isSidebarCollapsed);
   };
 
-  // 生成评论模式状态的唯一 key
   const getCommentModeKey = (substepId: string, tabId: string) =>
     `${substepId}-${tabId}`;
 
@@ -98,7 +109,7 @@ export default function Substep() {
     });
   };
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!substepId || !projectIdNum) return;
 
     setIsSaving(true);
@@ -117,17 +128,33 @@ export default function Substep() {
           : undefined,
     };
 
-    saveSubstepStateWithApi(projectIdNum, substepId, stateToSave, true)
-      .then(() => {
-        setLastSaved(new Date().toISOString());
-        setIsSaving(false);
-        hasUnsavedChangesRef.current = false;
-        saveLastEditedSubstep(projectIdNum, Number(stepId), substepId);
-      })
-      .catch((error) => {
-        console.error("[Substep] Manual save failed:", error);
-        setIsSaving(false);
-      });
+    try {
+      await saveSubstepStateWithApi(projectIdNum, substepId, stateToSave, true);
+
+      const projectSubstepId = projectSubstepIdMap[substepId];
+
+      if (projectSubstepId) {
+        const count = await syncUnsyncedCommentsToApi(
+          projectIdNum,
+          substepId,
+          projectSubstepId,
+        );
+
+        // 关键：同步后重新加载评论并触发刷新
+        if (count > 0) {
+          await syncCommentsFromApi(projectIdNum, substepId, projectSubstepId);
+          commentRefreshRef.current += 1; // 触发 useComment 刷新
+        }
+      }
+
+      setLastSaved(new Date().toISOString());
+      setIsSaving(false);
+      hasUnsavedChangesRef.current = false;
+      saveLastEditedSubstep(projectIdNum, Number(stepId), substepId);
+    } catch (error) {
+      console.error("[Substep] Manual save failed:", error);
+      setIsSaving(false);
+    }
   }, [
     substepId,
     projectIdNum,
@@ -135,6 +162,7 @@ export default function Substep() {
     viewMode,
     splitViewTabs,
     stepId,
+    projectSubstepIdMap,
   ]);
 
   // 监听 substepTabState 变化，自动保存到 localStorage
@@ -176,10 +204,6 @@ export default function Substep() {
     };
 
     localStorage.setItem(key, JSON.stringify(merged));
-    console.log(
-      `[Substep] Auto-saved tab state for ${substepId}:`,
-      merged.activeTab,
-    );
   }, [substepTabState, substepId, projectIdNum, viewMode, splitViewTabs]);
 
   // 自动保存（500ms debounce）- 只保存 formData
@@ -347,6 +371,25 @@ export default function Substep() {
       });
   }, [substepId, projectIdNum]);
 
+  // 获取项目结构，建立 substepId 映射
+  useEffect(() => {
+    if (!projectIdNum) return;
+
+    getProjectDetail(projectIdNum)
+      .then((detail) => {
+        const map: Record<string, number> = {};
+        detail.steps.forEach((step) => {
+          step.substeps.forEach((substep) => {
+            map[substep.code] = substep.id;
+          });
+        });
+        setProjectSubstepIdMap(map);
+      })
+      .catch((error) => {
+        console.error("[Substep] Failed to load project detail:", error);
+      });
+  }, [projectIdNum]);
+
   const handleFormDataChange = (field: string, value: any) => {
     setFormData((prev) => {
       let newFormData: Record<string, any>;
@@ -400,14 +443,12 @@ export default function Substep() {
 
   const currentTabValue = substepTabState[substep.id] || "description";
 
-  // 获取当前 substep + tab 的评论模式状态
   const isCommentMode =
     substepId && substep
       ? commentModeState[getCommentModeKey(substep.id, currentTabValue)] ||
         false
       : false;
 
-  // 使用 useCallback 确保函数稳定，并使用函数式更新
   const handleSetCommentMode = useCallback(
     (value: boolean) => {
       if (substepId && substep) {
@@ -463,6 +504,8 @@ export default function Substep() {
             stepId={Number(stepId)}
             isCommentMode={isCommentMode}
             setIsCommentMode={handleSetCommentMode}
+            projectSubstepId={projectSubstepIdMap[substep.id]}
+            commentRefreshKey={commentRefreshRef.current}
           />
         ) : (
           <div className="flex-1 flex flex-row overflow-hidden min-h-0">
@@ -483,6 +526,8 @@ export default function Substep() {
                 stepId={Number(stepId)}
                 isCommentMode={isCommentMode}
                 setIsCommentMode={handleSetCommentMode}
+                projectSubstepId={projectSubstepIdMap[substep.id]}
+                commentRefreshKey={commentRefreshRef.current}
               />
             </div>
 
@@ -503,6 +548,8 @@ export default function Substep() {
                 stepId={Number(stepId)}
                 isCommentMode={isCommentMode}
                 setIsCommentMode={handleSetCommentMode}
+                projectSubstepId={projectSubstepIdMap[substep.id]}
+                commentRefreshKey={commentRefreshRef.current}
               />
             </div>
           </div>

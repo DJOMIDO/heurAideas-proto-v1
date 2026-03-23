@@ -11,22 +11,22 @@ interface CommentOverlayProps {
   // 状态
   showCommentInput: boolean;
   inputViewportPosition: { x: number; y: number } | null;
-  selectedCommentId: string | null;
+  selectedCommentId: string | number | null; // ✅ 改为 string | number
   popoverViewportPosition: { x: number; y: number } | null;
   comments: Comment[];
   currentComments: Comment[];
   currentUserId: number;
 
-  // 操作函数
-  handleMarkerClick: (commentId: string) => void;
+  // 操作函数 ✅ 全部改为 string | number
+  handleMarkerClick: (commentId: string | number) => void;
   handleSaveComment: (content: string) => void;
   handleCloseInput: () => void;
   handleClosePopover: () => void;
-  handleDeleteComment: (commentId: string) => void;
-  handleResolveComment: (commentId: string) => void;
-  handleReplyComment: (parentId: string, content: string) => void;
+  handleDeleteComment: (commentId: string | number) => void;
+  handleResolveComment: (commentId: string | number) => void;
+  handleReplyComment: (parentId: string | number, content: string) => void;
   handleUpdateCommentPosition: (
-    commentId: string,
+    commentId: string | number,
     newPos: { x: number; y: number },
   ) => void;
 }

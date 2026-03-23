@@ -13,7 +13,7 @@ class CommentBase(BaseModel):
     position_y: Optional[int] = Field(default=None, description="Marker Y position")
     anchor_type: str = Field(default="free", description="free, element, stakeholder, section")
     anchor_id: Optional[str] = Field(default=None, description="Anchor element ID")
-    project_subtask_id: Optional[int] = Field(default=None, description="Subtask ID")
+    project_subtask_code: Optional[str] = Field(default=None, description="Subtask code like 'a', 'b', 'c'")
 
     @validator('anchor_type')
     def validate_anchor_type(cls, v):
@@ -46,7 +46,7 @@ class CommentResponse(CommentBase):
     project_step_id: Optional[int]
     project_substep_id: int
     project_subtask_id: Optional[int]
-    parent_id: Optional[int]
+    project_subtask_code: Optional[str] = None
     author_id: int
     author_name: Optional[str]
     is_resolved: bool

@@ -13,7 +13,7 @@ export const API_ENDPOINTS = {
   // Comments
   COMMENTS: "/comments",
   COMMENTS_BY_PROJECT: (projectId: number) => `/comments/project/${projectId}`,
-  COMMENTS_BY_SUBSTEP: (substepId: string) => `/comments/substep/${substepId}`, // 只接受 substepId
+  COMMENTS_BY_SUBSTEP: (substepId: string) => `/comments/substep/${substepId}`,
   COMMENT_DETAIL: (commentId: number) => `/comments/${commentId}`,
   COMMENT_RESOLVE: (commentId: number) => `/comments/${commentId}/resolve`,
   COMMENT_UNRESOLVE: (commentId: number) => `/comments/${commentId}/unresolve`,

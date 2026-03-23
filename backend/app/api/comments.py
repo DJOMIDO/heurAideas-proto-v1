@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query  # pyright: ignore[reportMissingImports]
 from sqlalchemy.orm import Session  # pyright: ignore[reportMissingImports]
 from sqlalchemy import func  # pyright: ignore[reportMissingImports]
+from sqlalchemy.orm import joinedload # pyright: ignore[reportMissingImports]
 from typing import List, Optional
 
 from app.database import get_db
@@ -80,6 +81,42 @@ async def get_project_comments(
     # 只获取顶级评论（parent_id 为 NULL）
     comments = query.filter(Comment.parent_id == None).order_by(Comment.created_at.desc()).all()
     
+    # 手动添加 project_subtask_code 到每个评论
+    comments_with_code = []
+    for comment in comments:
+        comment_dict = {
+            "id": comment.id,
+            "content": comment.content,
+            "position_x": comment.position_x,
+            "position_y": comment.position_y,
+            "anchor_type": comment.anchor_type,
+            "anchor_id": comment.anchor_id,
+            "project_id": comment.project_id,
+            "project_step_id": comment.project_step_id,
+            "project_substep_id": comment.project_substep_id,
+            "project_subtask_id": comment.project_subtask_id,
+            "project_subtask_code": None,
+            "parent_id": comment.parent_id,
+            "author_id": comment.author_id,
+            "author_name": comment.author_name,
+            "is_resolved": comment.is_resolved,
+            "is_deleted": comment.is_deleted,
+            "is_edited": comment.is_edited,
+            "created_at": comment.created_at,
+            "updated_at": comment.updated_at,
+            "replies": [],
+        }
+        
+        # 查找 subtask code
+        if comment.project_subtask_id:
+            subtask = db.query(ProjectSubtask).filter(
+                ProjectSubtask.id == comment.project_subtask_id
+            ).first()
+            if subtask:
+                comment_dict["project_subtask_code"] = subtask.code
+        
+        comments_with_code.append(comment_dict)
+    
     # 统计
     total = query.count()
     resolved_count = query.filter(Comment.is_resolved == True).count()
@@ -87,7 +124,7 @@ async def get_project_comments(
     
     return CommentListResponse(
         total=total,
-        comments=comments,
+        comments=comments_with_code,
         resolved_count=resolved_count,
         unresolved_count=unresolved_count
     )
@@ -132,14 +169,88 @@ async def get_substep_comments(
     if not include_resolved:
         query = query.filter(Comment.is_resolved == False)
     
-    comments = query.order_by(Comment.created_at.desc()).all()
+    # 使用 joinedload 预加载回复
+    comments = query.options(
+        joinedload(Comment.replies)
+    ).order_by(Comment.created_at.desc()).all()
+    
+    # 手动添加 project_subtask_code 到每个评论（包含回复）
+    comments_with_code = []
+    for comment in comments:
+        comment_dict = {
+            "id": comment.id,
+            "content": comment.content,
+            "position_x": comment.position_x,
+            "position_y": comment.position_y,
+            "anchor_type": comment.anchor_type,
+            "anchor_id": comment.anchor_id,
+            "project_id": comment.project_id,
+            "project_step_id": comment.project_step_id,
+            "project_substep_id": comment.project_substep_id,
+            "project_subtask_id": comment.project_subtask_id,
+            "project_subtask_code": None,
+            "parent_id": comment.parent_id,
+            "author_id": comment.author_id,
+            "author_name": comment.author_name,
+            "is_resolved": comment.is_resolved,
+            "is_deleted": comment.is_deleted,
+            "is_edited": comment.is_edited,
+            "created_at": comment.created_at,
+            "updated_at": comment.updated_at,
+            "replies": [],  # 初始化回复数组
+        }
+        
+        # 查找 subtask code
+        if comment.project_subtask_id:
+            subtask = db.query(ProjectSubtask).filter(
+                ProjectSubtask.id == comment.project_subtask_id
+            ).first()
+            if subtask:
+                comment_dict["project_subtask_code"] = subtask.code
+
+        # 添加回复（如果有）
+        if comment.replies:
+            for reply in comment.replies:
+                reply_dict = {
+                    "id": reply.id,
+                    "content": reply.content,
+                    "position_x": reply.position_x,
+                    "position_y": reply.position_y,
+                    "anchor_type": reply.anchor_type,
+                    "anchor_id": reply.anchor_id,
+                    "project_id": reply.project_id,
+                    "project_step_id": reply.project_step_id,
+                    "project_substep_id": reply.project_substep_id,
+                    "project_subtask_id": reply.project_subtask_id,
+                    "project_subtask_code": None,
+                    "parent_id": comment.id,  # 必须是 comment.id（父评论 ID）
+                    "author_id": reply.author_id,
+                    "author_name": reply.author_name,
+                    "is_resolved": reply.is_resolved,
+                    "is_deleted": reply.is_deleted,
+                    "is_edited": reply.is_edited,
+                    "created_at": reply.created_at,
+                    "updated_at": reply.updated_at,
+                    "replies": [],
+                }
+                
+                if reply.project_subtask_id:
+                    subtask = db.query(ProjectSubtask).filter(
+                        ProjectSubtask.id == reply.project_subtask_id
+                    ).first()
+                    if subtask:
+                        reply_dict["project_subtask_code"] = subtask.code
+                
+                comment_dict["replies"].append(reply_dict)
+        
+        comments_with_code.append(comment_dict)
     
     total = query.count()
     resolved_count = query.filter(Comment.is_resolved == True).count()
     
     return CommentListResponse(
         total=total,
-        comments=comments,
+        comments=comments_with_code,
         resolved_count=resolved_count,
         unresolved_count=total - resolved_count
     )
@@ -169,6 +280,16 @@ async def create_comment(
     if not substep:
         raise HTTPException(status_code=404, detail="Substep not found")
     
+    # 根据 project_subtask_code 查找 subtask ID
+    project_subtask_id = None
+    if comment.project_subtask_code:
+        subtask = db.query(ProjectSubtask).filter(
+            ProjectSubtask.code == comment.project_subtask_code,
+            ProjectSubtask.project_substep_id == comment.project_substep_id
+        ).first()
+        if subtask:
+            project_subtask_id = subtask.id
+    
     # 验证 parent 评论存在（如果是回复）
     if comment.parent_id:
         parent_comment = db.query(Comment).filter(
@@ -183,7 +304,7 @@ async def create_comment(
         project_id=comment.project_id,
         project_step_id=comment.project_step_id,
         project_substep_id=comment.project_substep_id,
-        project_subtask_id=comment.project_subtask_id,
+        project_subtask_id=project_subtask_id,
         position_x=comment.position_x,
         position_y=comment.position_y,
         anchor_type=comment.anchor_type,
@@ -229,7 +350,38 @@ async def get_comment(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    return comment
+    # 手动添加 project_subtask_code
+    comment_dict = {
+        "id": comment.id,
+        "content": comment.content,
+        "position_x": comment.position_x,
+        "position_y": comment.position_y,
+        "anchor_type": comment.anchor_type,
+        "anchor_id": comment.anchor_id,
+        "project_id": comment.project_id,
+        "project_step_id": comment.project_step_id,
+        "project_substep_id": comment.project_substep_id,
+        "project_subtask_id": comment.project_subtask_id,
+        "project_subtask_code": None,
+        "parent_id": comment.parent_id,
+        "author_id": comment.author_id,
+        "author_name": comment.author_name,
+        "is_resolved": comment.is_resolved,
+        "is_deleted": comment.is_deleted,
+        "is_edited": comment.is_edited,
+        "created_at": comment.created_at,
+        "updated_at": comment.updated_at,
+        "replies": [],
+    }
+    
+    if comment.project_subtask_id:
+        subtask = db.query(ProjectSubtask).filter(
+            ProjectSubtask.id == comment.project_subtask_id
+        ).first()
+        if subtask:
+            comment_dict["project_subtask_code"] = subtask.code
+    
+    return comment_dict
 
 
 # ==================== 更新评论 ====================
@@ -283,7 +435,6 @@ async def delete_comment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """软删除评论（仅作者可删除）"""
     comment = db.query(Comment).filter(
         Comment.id == comment_id,
         Comment.is_deleted == False
@@ -292,7 +443,6 @@ async def delete_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
     
-    # 验证权限（只有作者可以删除）
     if comment.author_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -303,7 +453,7 @@ async def delete_comment(
     comment.is_deleted = True
     comment.deleted_at = func.now()
     
-    db.commit()
+    db.commit()  # 确保提交
 
 
 # ==================== 标记为已解决 ====================

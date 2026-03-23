@@ -1,4 +1,4 @@
-// src/pages/substep/substep-content-card/SubstepContentCard.tsx
+// frontend/src/pages/substep/substep-content-card/SubstepContentCard.tsx
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,9 @@ interface SubstepContentCardProps {
   stepId?: number;
   isCommentMode?: boolean;
   setIsCommentMode?: (value: boolean) => void;
+  projectSubstepId?: number;
+  commentCount?: number;
+  commentRefreshKey?: number;
 }
 
 export default function SubstepContentCard({
@@ -45,6 +48,8 @@ export default function SubstepContentCard({
   stepId = 0,
   isCommentMode = false,
   setIsCommentMode = () => {},
+  projectSubstepId,
+  commentRefreshKey = 0,
 }: SubstepContentCardProps) {
   const {
     comments,
@@ -70,9 +75,11 @@ export default function SubstepContentCard({
     projectId,
     substepId: substep.id,
     stepId,
+    projectSubstepId,
     activeTab,
     isCommentMode,
     setIsCommentMode,
+    commentRefreshKey,
   });
 
   const fieldPrefix = `${activeTab}`;
@@ -186,7 +193,6 @@ export default function SubstepContentCard({
     );
   }
 
-  // 在组件内部实现 handleCardClick
   const handleCardClick = (e: React.MouseEvent) => {
     if (!isCommentMode || showCommentInput || selectedCommentId || !activeTab)
       return;
