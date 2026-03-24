@@ -140,11 +140,12 @@ export default function Substep() {
           projectSubstepId,
         );
 
-        // 关键：同步后重新加载评论并触发刷新
         if (count > 0) {
           await syncCommentsFromApi(projectIdNum, substepId, projectSubstepId);
-          commentRefreshRef.current += 1; // 触发 useComment 刷新
+          commentRefreshRef.current += 1;
         }
+      } else {
+        console.error("[Substep] projectSubstepId is undefined!");
       }
 
       setLastSaved(new Date().toISOString());

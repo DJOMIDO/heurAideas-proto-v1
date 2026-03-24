@@ -271,16 +271,19 @@ async def get_project_detail(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
+    # 获取所有 steps
     steps = db.query(ProjectStep).filter(
         ProjectStep.project_id == project_id
     ).order_by(ProjectStep.order).all()
     
+    # 为每个 step 加载 substeps
     for step in steps:
         substeps = db.query(ProjectSubstep).filter(
             ProjectSubstep.project_step_id == step.id
         ).order_by(ProjectSubstep.order).all()
         step.substeps = substeps
         
+        # 为每个 substep 加载 subtasks
         for substep in substeps:
             subtasks = db.query(ProjectSubtask).filter(
                 ProjectSubtask.project_substep_id == substep.id

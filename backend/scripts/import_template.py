@@ -4,15 +4,15 @@ import json
 import sys
 from pathlib import Path
 
-# 添加项目根目录到 Python 路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy.orm import Session # pyright: ignore[reportMissingImports]
 from app.database import SessionLocal, engine, Base
 from app.models.template import ProjectTemplate, TemplateStep, TemplateSubstep, TemplateSubtask
 
-# 模板数据
+# 完整的 6 个 Steps 模板数据
 TEMPLATE_DATA = [
+    # Step 1
     {
         "id": 1,
         "title": "Prerequisite",
@@ -25,42 +25,10 @@ TEMPLATE_DATA = [
                 "description": "",
                 "status": "todo",
                 "subtasks": [
-                    {
-                        "id": "a",
-                        "title": "Activity definition",
-                        "description": "To be completed...",
-                        "objective": "",
-                        "actions": "",
-                        "recommendedDocumentation": "",
-                        "status": "todo"
-                    },
-                    {
-                        "id": "b",
-                        "title": "System of Interest definition",
-                        "description": "To be completed...",
-                        "objective": "",
-                        "actions": "",
-                        "recommendedDocumentation": "",
-                        "status": "todo"
-                    },
-                    {
-                        "id": "c",
-                        "title": "SoIs value definition",
-                        "description": "To be completed...",
-                        "objective": "",
-                        "actions": "",
-                        "recommendedDocumentation": "",
-                        "status": "todo"
-                    },
-                    {
-                        "id": "d",
-                        "title": "Stakeholders needs definition",
-                        "description": "To be completed...",
-                        "objective": "",
-                        "actions": "",
-                        "recommendedDocumentation": "",
-                        "status": "todo"
-                    }
+                    {"id": "a", "title": "Activity definition", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "b", "title": "System of Interest definition", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "c", "title": "SoIs value definition", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "d", "title": "Stakeholders needs definition", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"}
                 ]
             },
             {
@@ -76,24 +44,8 @@ TEMPLATE_DATA = [
                 "description": "",
                 "status": "todo",
                 "subtasks": [
-                    {
-                        "id": "a",
-                        "title": "Definition of the HE motivation",
-                        "description": "To be completed...",
-                        "objective": "",
-                        "actions": "",
-                        "recommendedDocumentation": "",
-                        "status": "todo"
-                    },
-                    {
-                        "id": "b",
-                        "title": "HE timeline",
-                        "description": "To be completed...",
-                        "objective": "",
-                        "actions": "",
-                        "recommendedDocumentation": "",
-                        "status": "todo"
-                    }
+                    {"id": "a", "title": "Definition of the HE motivation", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "b", "title": "HE timeline", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"}
                 ]
             },
             {
@@ -102,25 +54,181 @@ TEMPLATE_DATA = [
                 "description": "",
                 "status": "todo",
                 "subtasks": [
-                    {
-                        "id": "a",
-                        "title": "Individual Degree of Freedom",
-                        "description": "To be completed...",
-                        "objective": "",
-                        "actions": "",
-                        "recommendedDocumentation": "",
-                        "status": "todo"
-                    },
-                    {
-                        "id": "b",
-                        "title": "External Degree of Freedom",
-                        "description": "To be completed...",
-                        "objective": "",
-                        "actions": "",
-                        "recommendedDocumentation": "",
-                        "status": "todo"
-                    }
+                    {"id": "a", "title": "Individual Degree of Freedom", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "b", "title": "External Degree of Freedom", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"}
                 ]
+            },
+            {
+                "id": "1.5",
+                "title": "Inspection protocol validation",
+                "description": "",
+                "status": "todo",
+                "subtasks": []
+            }
+        ]
+    },
+    # Step 2
+    {
+        "id": 2,
+        "title": "Activity analysis",
+        "description": "To be completed...",
+        "status": "todo",
+        "substeps": [
+            {
+                "id": "2.1",
+                "title": "Activity analysis \"frame\" selection",
+                "description": "",
+                "status": "todo",
+                "subtasks": [
+                    {"id": "a", "title": "Analytical orientation definition", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "b", "title": "Theoretical reference selection", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "c", "title": "Validation of the analysis frame", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "d", "title": "Selection of the representation format", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"}
+                ]
+            },
+            {
+                "id": "2.2",
+                "title": "Selection of the data collection method selection",
+                "description": "",
+                "status": "todo",
+                "subtasks": [
+                    {"id": "a", "title": "Data source identification", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "b", "title": "Data collection method identification", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "c", "title": "Data collection method selection", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"}
+                ]
+            },
+            {
+                "id": "2.3",
+                "title": "Activity analysis application",
+                "description": "",
+                "status": "todo",
+                "subtasks": [
+                    {"id": "a", "title": "Activity decomposition", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "b", "title": "Activity characterization", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"}
+                ]
+            }
+        ]
+    },
+    # Step 3
+    {
+        "id": 3,
+        "title": "Definition of the heuristic's knowledge domain (KD)",
+        "description": "To be completed...",
+        "status": "todo",
+        "substeps": [
+            {
+                "id": "3.1",
+                "title": "KD conceptualization",
+                "description": "",
+                "status": "todo",
+                "subtasks": [
+                    {"id": "a", "title": "KD documentation", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "b", "title": "KD concepts identification", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "c", "title": "KD concepts selection", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "d", "title": "KD conceptual card definition", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"}
+                ]
+            },
+            {
+                "id": "3.2",
+                "title": "KD's concepts correlation",
+                "description": "",
+                "status": "todo",
+                "subtasks": [
+                    {"id": "a", "title": "KD's concepts mapping", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "b", "title": "KD's correlation with activity characteristics", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"}
+                ]
+            }
+        ]
+    },
+    # Step 4
+    {
+        "id": 4,
+        "title": "Interaction analysis",
+        "description": "To be completed...",
+        "status": "todo",
+        "substeps": [
+            {
+                "id": "4.1",
+                "title": "Interaction analytical frame development",
+                "description": "",
+                "status": "todo",
+                "subtasks": [
+                    {"id": "a", "title": "Interaction theory selection", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "b", "title": "Interaction analytical frame validation", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "c", "title": "Interaction questionnaire development", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"}
+                ]
+            },
+            {
+                "id": "4.2",
+                "title": "Interaction definition",
+                "description": "",
+                "status": "todo",
+                "subtasks": [
+                    {"id": "a", "title": "AS-IS interaction context definition", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "b", "title": "TO-BE interaction context definition", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "c", "title": "Interaction criticality analysis", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "d", "title": "Interaction demension weigthing", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"}
+                ]
+            }
+        ]
+    },
+    # Step 5
+    {
+        "id": 5,
+        "title": "Design rationales analysis",
+        "description": "To be completed...",
+        "status": "todo",
+        "substeps": [
+            {
+                "id": "5.1",
+                "title": "Corpus definition",
+                "description": "",
+                "status": "todo",
+                "subtasks": [
+                    {"id": "a", "title": "Design corpus development", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "b", "title": "Design corpus selection", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "c", "title": "Design corpus metadata definition", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"}
+                ]
+            },
+            {
+                "id": "5.2",
+                "title": "System's design rationales analysis",
+                "description": "",
+                "status": "todo",
+                "subtasks": [
+                    {"id": "a", "title": "Design corpus review", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"},
+                    {"id": "b", "title": "Design corpus analysis", "description": "To be completed...", "objective": "", "actions": "", "recommendedDocumentation": "", "status": "todo"}
+                ]
+            }
+        ]
+    },
+    # Step 6
+    {
+        "id": 6,
+        "title": "Heuristics and guidelines definition",
+        "description": "To be completed...",
+        "status": "todo",
+        "substeps": [
+            {
+                "id": "6.1",
+                "title": "Data correlation",
+                "description": "",
+                "status": "todo",
+                "subtasks": []
+            },
+            {
+                "id": "6.2",
+                "title": "Heuristic writting",
+                "description": "",
+                "status": "todo",
+                "subtasks": []
+            },
+            {
+                "id": "6.3",
+                "title": "Guideline's writting",
+                "description": "",
+                "status": "todo",
+                "subtasks": []
             }
         ]
     }
@@ -130,7 +238,16 @@ TEMPLATE_DATA = [
 def import_template(db: Session):
     """导入模板数据"""
     
-    # 1. 创建模板主记录
+    # 1. 清理旧数据
+    print("🗑️  清理旧模板数据...")
+    db.query(TemplateSubtask).delete()
+    db.query(TemplateSubstep).delete()
+    db.query(TemplateStep).delete()
+    db.query(ProjectTemplate).delete()
+    db.commit()
+    print("✅ 旧数据已清理")
+    
+    # 2. 创建模板主记录
     template = ProjectTemplate(
         name="Heuristic Evaluation",
         version="v1.0",
@@ -142,9 +259,12 @@ def import_template(db: Session):
     db.commit()
     db.refresh(template)
     
-    print(f"创建模板：{template.name} (ID={template.id})")
+    print(f"\n✅ 创建模板：{template.name} (ID={template.id})")
     
-    # 2. 遍历步骤数据
+    # 3. 遍历步骤数据
+    total_substeps = 0
+    total_subtasks = 0
+    
     for step_data in TEMPLATE_DATA:
         step = TemplateStep(
             template_id=template.id,
@@ -157,9 +277,9 @@ def import_template(db: Session):
         db.commit()
         db.refresh(step)
         
-        print(f"创建步骤：{step.code} - {step.title}")
+        print(f"\n📌 步骤 {step.code}: {step.title}")
         
-        # 3. 遍历子步骤数据
+        # 4. 遍历子步骤数据
         for substep_idx, substep_data in enumerate(step_data.get("substeps", [])):
             substep = TemplateSubstep(
                 template_step_id=step.id,
@@ -172,11 +292,11 @@ def import_template(db: Session):
             db.commit()
             db.refresh(substep)
             
-            print(f"创建子步骤：{substep.code} - {substep.title}")
+            total_substeps += 1
+            print(f"   └─ 子步骤 {substep.code}: {substep.title}")
             
-            # 4. 遍历子任务数据
+            # 5. 遍历子任务数据
             for subtask_idx, subtask_data in enumerate(substep_data.get("subtasks", [])):
-                # 构建 field_config（根据子任务字段）
                 field_config = {
                     "fields": [
                         {"name": "activityName", "type": "input", "label": "Activity Name", "required": True},
@@ -204,12 +324,18 @@ def import_template(db: Session):
                 db.commit()
                 db.refresh(subtask)
                 
-                print(f"创建子任务：{subtask.code} - {subtask.title}")
+                total_subtasks += 1
     
-    print(f"\n模板导入完成！")
+    print(f"\n{'='*60}")
+    print(f"✅ 模板导入完成！")
     print(f"   模板 ID: {template.id}")
     print(f"   模板名称：{template.name}")
     print(f"   版本：{template.version}")
+    print(f"   步骤数：{len(TEMPLATE_DATA)}")
+    print(f"   子步骤数：{total_substeps}")
+    print(f"   子任务数：{total_subtasks}")
+    print(f"{'='*60}")
+
 
 def main():
     """主函数"""
@@ -217,11 +343,12 @@ def main():
     try:
         import_template(db)
     except Exception as e:
-        print(f"导入失败：{e}")
+        print(f"❌ 导入失败：{e}")
         db.rollback()
         raise
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     main()
