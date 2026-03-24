@@ -398,6 +398,12 @@ export function getUnsyncedComments(
  * 同步所有未同步的评论到 API
  * @returns 同步成功的评论数量
  */
+// frontend/src/utils/commentState.ts
+
+/**
+ * 同步所有未同步的评论到 API
+ * @returns 同步成功的评论数量
+ */
 export async function syncUnsyncedCommentsToApi(
   projectId: number,
   substepId: string,
@@ -421,6 +427,7 @@ export async function syncUnsyncedCommentsToApi(
   }
 
   let successCount = 0;
+  const updatedComments = new Map<string, Comment>(); // 收集所有更新
 
   for (const comment of unsyncedComments) {
     const result = await createComment({
@@ -445,25 +452,32 @@ export async function syncUnsyncedCommentsToApi(
     if (result) {
       successCount++;
 
-      // 立即替换 localStorage 中的 ID
-      const filteredComments = state.comments.filter(
-        (c) => c.id !== comment.id,
-      );
-      filteredComments.push({
+      // 收集更新，不立即写入 localStorage
+      updatedComments.set(String(comment.id), {
+        // 转换为 string
         ...comment,
         id: result.id,
         updatedAt: result.updatedAt,
         subtaskId: result.project_subtask_code || comment.subtaskId,
       });
-
-      localStorage.setItem(
-        key,
-        JSON.stringify({
-          comments: filteredComments,
-          lastUpdated: new Date().toISOString(),
-        }),
-      );
     }
+  }
+
+  // 一次性更新所有评论
+  if (updatedComments.size > 0) {
+    const finalComments = state.comments.map((c) =>
+      updatedComments.has(String(c.id)) // 转换为 string
+        ? updatedComments.get(String(c.id))!
+        : c,
+    );
+
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        comments: finalComments,
+        lastUpdated: new Date().toISOString(),
+      }),
+    );
   }
 
   return successCount;
