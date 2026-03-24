@@ -30,9 +30,18 @@ export default function DetailPanel({ substep, stepId }: DetailPanelProps) {
   const storageKey = userId ? `currentProjectId-${userId}` : "currentProjectId";
   const projectId = Number(localStorage.getItem(storageKey) || "1");
 
+  // 判断是否需要显示计数器（有 subtasks 才显示）
+  const hasSubtasks = substep?.subtasks && substep.subtasks.length > 0;
+
   // 监听 substep 变化 + 同步 API 数据
   useEffect(() => {
     if (!substep?.id) {
+      setCommentCount(0);
+      return;
+    }
+
+    // 如果没有 subtasks，不需要同步评论
+    if (!hasSubtasks) {
       setCommentCount(0);
       return;
     }
@@ -92,7 +101,7 @@ export default function DetailPanel({ substep, stepId }: DetailPanelProps) {
       window.removeEventListener("storage", handleStorageChange);
       clearInterval(interval);
     };
-  }, [projectId, substep?.id]);
+  }, [projectId, substep?.id, hasSubtasks]); // 添加 hasSubtasks 到依赖
 
   const getProjectSubstepId = async (
     projectId: number,
@@ -117,7 +126,6 @@ export default function DetailPanel({ substep, stepId }: DetailPanelProps) {
   const handleViewComments = () => {
     if (!substep?.id) return;
 
-    // 如果没有传入 stepId，尝试从 activeStepId 获取
     const currentStepId =
       stepId || Number(localStorage.getItem("overview-active-step") || "1");
 
@@ -135,31 +143,34 @@ export default function DetailPanel({ substep, stepId }: DetailPanelProps) {
                   {substep.title}
                 </CardTitle>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleViewComments}
-                  disabled={isSyncing}
-                  className={`
-                    flex items-center gap-1.5 px-3 py-1.5 h-auto font-medium transition-all
-                    ${
-                      commentCount > 0
-                        ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300"
-                        : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100 hover:border-gray-300"
-                    }
-                  `}
-                >
-                  <MessageSquare
-                    className={`w-4 h-4 ${commentCount > 0 ? "fill-blue-700" : "fill-gray-400"}`}
-                  />
-                  <span>
-                    {isSyncing
-                      ? "Loading..."
-                      : commentCount > 0
-                        ? `${commentCount} ${commentCount === 1 ? "Comment" : "Comments"}`
-                        : "No Comments"}
-                  </span>
-                </Button>
+                {/* 只有有 subtasks 时才显示计数器按钮 */}
+                {hasSubtasks && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleViewComments}
+                    disabled={isSyncing}
+                    className={`
+                      flex items-center gap-1.5 px-3 py-1.5 h-auto font-medium transition-all
+                      ${
+                        commentCount > 0
+                          ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300"
+                          : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100 hover:border-gray-300"
+                      }
+                    `}
+                  >
+                    <MessageSquare
+                      className={`w-4 h-4 ${commentCount > 0 ? "fill-blue-700" : "fill-gray-400"}`}
+                    />
+                    <span>
+                      {isSyncing
+                        ? "Loading..."
+                        : commentCount > 0
+                          ? `${commentCount} ${commentCount === 1 ? "Comment" : "Comments"}`
+                          : "No Comments"}
+                    </span>
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
