@@ -9,6 +9,7 @@ import {
   getCommentsBySubtask,
   syncCommentsFromApi,
   deleteCommentWithApi,
+  resolveCommentWithApi,
 } from "@/utils/commentState";
 import { type Comment } from "@/types/comment";
 import { getUserInfo } from "@/utils/auth";
@@ -239,15 +240,43 @@ export function useComment({
   );
 
   const handleResolveComment = useCallback(
-    (commentId: string | number) => {
+    async (commentId: string | number) => {
+      const comment = comments.find((c) => c.id === commentId);
+      if (!comment) return;
+
+      // 1. 立即更新 localStorage 和 UI（乐观更新）
       updateComment(projectId, substepId, String(commentId), {
         resolved: true,
       });
       setComments((prev) =>
         prev.map((c) => (c.id === commentId ? { ...c, resolved: true } : c)),
       );
+
+      // 2. 同步到 API
+      try {
+        await resolveCommentWithApi(projectId, substepId, commentId);
+
+        // 3. 重新加载评论确保一致性
+        if (projectSubstepId) {
+          const synced = await syncCommentsFromApi(
+            projectId,
+            substepId,
+            projectSubstepId,
+          );
+          setComments(synced);
+        }
+      } catch (error) {
+        console.error("[handleResolveComment] Failed to resolve:", error);
+        // 4. 如果 API 失败，回滚本地状态
+        updateComment(projectId, substepId, String(commentId), {
+          resolved: false,
+        });
+        setComments((prev) =>
+          prev.map((c) => (c.id === commentId ? { ...c, resolved: false } : c)),
+        );
+      }
     },
-    [projectId, substepId],
+    [projectId, substepId, projectSubstepId, comments],
   );
 
   const handleReplyComment = useCallback(

@@ -364,14 +364,22 @@ export async function resolveCommentWithApi(
   substepId: string,
   commentId: string | number,
 ): Promise<void> {
-  // 转为 string
-  updateComment(projectId, substepId, String(commentId), { resolved: true });
-  if (typeof commentId === "number") {
-    try {
-      await resolveComment(commentId);
-    } catch (error) {
-      console.error("[resolveCommentWithApi] Failed:", error);
-    }
+  // 1. 只处理已同步的评论（number ID）
+  if (typeof commentId !== "number") {
+    // 如果是临时 ID，只更新 localStorage
+    updateComment(projectId, substepId, String(commentId), { resolved: true });
+    return;
+  }
+
+  try {
+    // 2. 先调用 API
+    await resolveComment(commentId);
+
+    // 3. API 成功后再更新 localStorage
+    updateComment(projectId, substepId, String(commentId), { resolved: true });
+  } catch (error) {
+    console.error("[resolveCommentWithApi] Failed:", error);
+    throw error; // 抛出错误让调用方处理回滚
   }
 }
 

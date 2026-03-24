@@ -80,7 +80,9 @@ export default function SubstepCommentsPage() {
     <div className="flex flex-col h-screen bg-gray-50">
       <CommentHeader
         substepId={substepId || ""}
-        totalComments={filteredComments.length}
+        totalComments={comments.length}
+        filteredComments={filteredComments.length}
+        filter={filter}
         onBack={() => navigate(-1)}
       />
 
