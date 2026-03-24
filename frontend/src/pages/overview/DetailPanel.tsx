@@ -1,6 +1,7 @@
 // src/pages/overview/DetailPanel.tsx
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { ResizablePanel } from "@/components/ui/resizable";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,9 +18,11 @@ import { getCommentState, syncCommentsFromApi } from "@/utils/commentState";
 
 interface DetailPanelProps {
   substep: Substep | null;
+  stepId?: number;
 }
 
-export default function DetailPanel({ substep }: DetailPanelProps) {
+export default function DetailPanel({ substep, stepId }: DetailPanelProps) {
+  const navigate = useNavigate();
   const [commentCount, setCommentCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -37,7 +40,6 @@ export default function DetailPanel({ substep }: DetailPanelProps) {
     const syncAndCount = async () => {
       setIsSyncing(true);
 
-      // 先同步 API 数据到 localStorage
       const projectSubstepId = await getProjectSubstepId(
         projectId,
         substep.id!,
@@ -46,7 +48,6 @@ export default function DetailPanel({ substep }: DetailPanelProps) {
         await syncCommentsFromApi(projectId, substep.id!, projectSubstepId);
       }
 
-      // 然后计数
       updateCount();
       setIsSyncing(false);
     };
@@ -59,7 +60,6 @@ export default function DetailPanel({ substep }: DetailPanelProps) {
       }
 
       const count = state.comments.filter((c) => {
-        // 排除回复
         if (
           c.parentId !== null &&
           c.parentId !== undefined &&
@@ -67,7 +67,6 @@ export default function DetailPanel({ substep }: DetailPanelProps) {
         ) {
           return false;
         }
-        // 排除已删除
         if (c.deleted === true || c.is_deleted === true) {
           return false;
         }
@@ -79,7 +78,6 @@ export default function DetailPanel({ substep }: DetailPanelProps) {
 
     syncAndCount();
 
-    // 监听 localStorage 变化
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key?.includes(`substep-comments-${projectId}-${substep.id}`)) {
         updateCount();
@@ -88,7 +86,6 @@ export default function DetailPanel({ substep }: DetailPanelProps) {
 
     window.addEventListener("storage", handleStorageChange);
 
-    // 定期刷新（5 秒）
     const interval = setInterval(updateCount, 5000);
 
     return () => {
@@ -97,7 +94,6 @@ export default function DetailPanel({ substep }: DetailPanelProps) {
     };
   }, [projectId, substep?.id]);
 
-  // 获取 projectSubstepId 的辅助函数
   const getProjectSubstepId = async (
     projectId: number,
     substepCode: string,
@@ -120,6 +116,12 @@ export default function DetailPanel({ substep }: DetailPanelProps) {
 
   const handleViewComments = () => {
     if (!substep?.id) return;
+
+    // 如果没有传入 stepId，尝试从 activeStepId 获取
+    const currentStepId =
+      stepId || Number(localStorage.getItem("overview-active-step") || "1");
+
+    navigate(`/substep/${projectId}/${currentStepId}/${substep.id}/comments`);
   };
 
   return (

@@ -152,7 +152,7 @@ export default function Overview() {
                 className="w-2 bg-gray-200 hover:bg-gray-300 transition-colors z-10 cursor-col-resize"
               />
 
-              <DetailPanel substep={selectedSubstep} />
+              <DetailPanel substep={selectedSubstep} stepId={activeStepId} />
             </ResizablePanelGroup>
           </div>
         </ResizablePanel>
