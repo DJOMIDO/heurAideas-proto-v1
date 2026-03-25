@@ -91,6 +91,8 @@ export function useComment({
   const currentUserId = currentUser?.id || 1;
   const currentUserName = currentUser?.name || "Unknown";
 
+  const scrollHandlerRef = useRef<(() => void) | null>(null);
+
   const isCommentMode =
     externalIsCommentMode !== undefined
       ? externalIsCommentMode
@@ -127,6 +129,41 @@ export function useComment({
       }
     }
   }, [projectId, substepId, commentRefreshKey]);
+
+  useEffect(() => {
+    if (!contentAreaRef.current) return;
+
+    const contentArea = contentAreaRef.current;
+
+    // 定义滚动处理函数
+    scrollHandlerRef.current = () => {
+      if (selectedCommentId === null || !popoverViewportPosition) return;
+
+      const comment = comments.find((c) => c.id === selectedCommentId);
+      if (!comment || !comment.position) return;
+
+      const rect = contentArea.getBoundingClientRect();
+      const scrollTop = contentArea.scrollTop || 0;
+
+      // 重新计算 popover 位置
+      const newViewportPosition = {
+        x: rect.left + comment.position.x,
+        y: rect.top + comment.position.y - scrollTop,
+      };
+
+      setPopoverViewportPosition(newViewportPosition);
+    };
+
+    // 监听滚动事件
+    contentArea.addEventListener("scroll", scrollHandlerRef.current);
+
+    // 清理
+    return () => {
+      if (scrollHandlerRef.current) {
+        contentArea.removeEventListener("scroll", scrollHandlerRef.current);
+      }
+    };
+  }, [selectedCommentId, popoverViewportPosition, comments]);
 
   const currentComments = activeTab
     ? getCommentsBySubtask(

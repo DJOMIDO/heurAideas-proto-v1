@@ -11,13 +11,13 @@ interface CommentOverlayProps {
   // 状态
   showCommentInput: boolean;
   inputViewportPosition: { x: number; y: number } | null;
-  selectedCommentId: string | number | null; // ✅ 改为 string | number
+  selectedCommentId: string | number | null;
   popoverViewportPosition: { x: number; y: number } | null;
   comments: Comment[];
   currentComments: Comment[];
   currentUserId: number;
 
-  // 操作函数 ✅ 全部改为 string | number
+  // 操作函数 全部改为 string | number
   handleMarkerClick: (commentId: string | number) => void;
   handleSaveComment: (content: string) => void;
   handleCloseInput: () => void;
