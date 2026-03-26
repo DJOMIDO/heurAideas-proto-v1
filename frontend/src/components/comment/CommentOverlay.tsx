@@ -8,7 +8,6 @@ import {
 import { type Comment } from "@/types/comment";
 
 interface CommentOverlayProps {
-  // 状态
   showCommentInput: boolean;
   inputViewportPosition: { x: number; y: number } | null;
   selectedCommentId: string | number | null;
@@ -16,8 +15,6 @@ interface CommentOverlayProps {
   comments: Comment[];
   currentComments: Comment[];
   currentUserId: number;
-
-  // 操作函数 全部改为 string | number
   handleMarkerClick: (commentId: string | number) => void;
   handleSaveComment: (content: string) => void;
   handleCloseInput: () => void;
@@ -48,9 +45,22 @@ export default function CommentOverlay({
   handleReplyComment,
   handleUpdateCommentPosition,
 }: CommentOverlayProps) {
+  // 递归查找所有层级的回复
+  const findAllReplies = (
+    parentId: string | number,
+    allComments: Comment[],
+  ): Comment[] => {
+    const directReplies = allComments.filter((c) => c.parentId === parentId);
+
+    const nestedReplies = directReplies.flatMap((reply) =>
+      findAllReplies(reply.id, allComments),
+    );
+
+    return [...directReplies, ...nestedReplies];
+  };
+
   return (
     <>
-      {/* 评论标记 */}
       {currentComments.map(
         (comment) =>
           comment.position && (
@@ -67,7 +77,6 @@ export default function CommentOverlay({
           ),
       )}
 
-      {/* 评论输入框 */}
       {showCommentInput && inputViewportPosition && (
         <CommentInput
           position={inputViewportPosition}
@@ -76,16 +85,14 @@ export default function CommentOverlay({
         />
       )}
 
-      {/* 评论详情弹窗 */}
       {selectedCommentId &&
         popoverViewportPosition &&
         (() => {
           const comment = comments.find((c) => c.id === selectedCommentId);
           if (!comment) return null;
 
-          const replies = comments.filter(
-            (c) => c.parentId === selectedCommentId,
-          );
+          // 使用递归函数查找所有层级回复
+          const allReplies = findAllReplies(selectedCommentId, comments);
 
           return (
             <CommentPopover
@@ -94,10 +101,9 @@ export default function CommentOverlay({
               onClose={handleClosePopover}
               onDelete={() => handleDeleteComment(selectedCommentId)}
               onResolve={() => handleResolveComment(selectedCommentId)}
-              onReply={(content) =>
-                handleReplyComment(selectedCommentId, content)
-              }
-              replies={replies}
+              // 修复：传递 handleReplyComment，让 Popover 调用时传入 parentId
+              onReply={handleReplyComment}
+              replies={allReplies}
               currentUserId={currentUserId}
             />
           );

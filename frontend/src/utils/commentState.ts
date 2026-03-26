@@ -113,6 +113,59 @@ export function getCommentsBySubtask(
   });
 }
 
+// 添加递归展开回复的辅助函数
+function flattenReplies(
+  comment: any,
+  allComments: Comment[],
+  substepCode: string,
+): void {
+  if (comment.replies && comment.replies.length > 0) {
+    comment.replies.forEach((reply: any) => {
+      const replySubtaskId = reply.project_subtask_code
+        ? String(reply.project_subtask_code)
+        : reply.subtaskId
+          ? String(reply.subtaskId)
+          : undefined;
+
+      allComments.push({
+        id: reply.id,
+        projectId: reply.project_id || reply.projectId,
+        stepId: reply.project_step_id || reply.stepId,
+        substepId: reply.project_substep_id || reply.substepId || substepCode,
+        subtaskId: replySubtaskId,
+        anchorType: reply.anchor_type || reply.anchorType || "free",
+        anchorId: reply.anchor_id || reply.anchorId,
+        position:
+          reply.position_x !== null && reply.position_y !== null
+            ? { x: reply.position_x || 0, y: reply.position_y || 0 }
+            : undefined,
+        content: reply.content,
+        authorId: reply.author_id || reply.authorId,
+        authorName: reply.author_name || reply.authorName,
+        createdAt: reply.created_at || reply.createdAt,
+        updatedAt: reply.updated_at || reply.updatedAt,
+        resolved:
+          reply.is_resolved !== undefined
+            ? reply.is_resolved
+            : reply.resolved || false,
+        deleted:
+          reply.is_deleted !== undefined
+            ? reply.is_deleted
+            : reply.deleted || false,
+        edited:
+          reply.is_edited !== undefined
+            ? reply.is_edited
+            : reply.edited || false,
+        parentId: reply.parent_id || comment.id,
+        replies: [],
+      });
+
+      // 递归展开更深层的回复
+      flattenReplies(reply, allComments, substepCode);
+    });
+  }
+}
+
 // ==================== API 同步函数 ====================
 
 export async function syncCommentsFromApi(
@@ -127,7 +180,6 @@ export async function syncCommentsFromApi(
   try {
     const response = await getSubstepComments(substepCode, projectId, true);
 
-    // 映射 API 评论（包括回复作为 flat 数组）
     const apiComments: Comment[] = [];
     const apiCommentIds = new Set<number>();
 
@@ -150,10 +202,7 @@ export async function syncCommentsFromApi(
         anchorId: comment.anchor_id || comment.anchorId,
         position:
           comment.position_x !== null && comment.position_y !== null
-            ? {
-                x: comment.position_x || 0,
-                y: comment.position_y || 0,
-              }
+            ? { x: comment.position_x || 0, y: comment.position_y || 0 }
             : undefined,
         content: comment.content,
         authorId: comment.author_id || comment.authorId,
@@ -178,54 +227,21 @@ export async function syncCommentsFromApi(
 
       apiCommentIds.add(comment.id);
 
-      // 添加回复到 flat 数组
-      if (comment.replies && comment.replies.length > 0) {
-        comment.replies.forEach((reply: any) => {
-          const replySubtaskId = reply.project_subtask_code
-            ? String(reply.project_subtask_code)
-            : reply.subtaskId
-              ? String(reply.subtaskId)
-              : undefined;
+      // 使用递归函数展开所有层级的回复
+      flattenReplies(comment, apiComments, substepCode);
 
-          apiComments.push({
-            id: reply.id,
-            projectId: reply.project_id || reply.projectId,
-            stepId: reply.project_step_id || reply.stepId,
-            substepId:
-              reply.project_substep_id || reply.substepId || substepCode,
-            subtaskId: replySubtaskId,
-            anchorType: reply.anchor_type || reply.anchorType || "free",
-            anchorId: reply.anchor_id || reply.anchorId,
-            position:
-              reply.position_x !== null && reply.position_y !== null
-                ? {
-                    x: reply.position_x || 0,
-                    y: reply.position_y || 0,
-                  }
-                : undefined,
-            content: reply.content,
-            authorId: reply.author_id || reply.authorId,
-            authorName: reply.author_name || reply.authorName,
-            createdAt: reply.created_at || reply.createdAt,
-            updatedAt: reply.updated_at || reply.updatedAt,
-            resolved:
-              reply.is_resolved !== undefined
-                ? reply.is_resolved
-                : reply.resolved || false,
-            deleted:
-              reply.is_deleted !== undefined
-                ? reply.is_deleted
-                : reply.deleted || false,
-            edited:
-              reply.is_edited !== undefined
-                ? reply.is_edited
-                : reply.edited || false,
-            parentId: reply.parent_id || comment.id, // 关键：确保有值
-            replies: [],
-          });
-
+      // 收集所有回复的 ID（包括嵌套的）
+      const collectIds = (replies: any[]) => {
+        replies.forEach((reply: any) => {
           apiCommentIds.add(reply.id);
+          if (reply.replies && reply.replies.length > 0) {
+            collectIds(reply.replies);
+          }
         });
+      };
+
+      if (comment.replies && comment.replies.length > 0) {
+        collectIds(comment.replies);
       }
     });
 

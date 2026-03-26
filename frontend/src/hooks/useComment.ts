@@ -13,6 +13,7 @@ import {
 } from "@/utils/commentState";
 import { type Comment } from "@/types/comment";
 import { getUserInfo } from "@/utils/auth";
+import { createComment } from "@/api/comments";
 
 interface UseCommentOptions {
   projectId: number;
@@ -317,8 +318,17 @@ export function useComment({
   );
 
   const handleReplyComment = useCallback(
-    (parentId: string | number, content: string) => {
+    async (parentId: string | number, content: string) => {
       const parentComment = comments.find((c) => c.id === parentId);
+      if (!parentComment || !projectId || !substepId) {
+        console.error("[handleReplyComment] Missing required data:", {
+          parentComment: !!parentComment,
+          projectId,
+          substepId,
+        });
+        return;
+      }
+
       const tempId = `comment-${Date.now()}`;
       const reply: Comment = {
         id: tempId,
@@ -326,7 +336,7 @@ export function useComment({
         stepId,
         substepId,
         subtaskId: parentComment?.subtaskId,
-        parentId: typeof parentId === "number" ? parentId : undefined, // 确保是 number 或 undefined
+        parentId: parentId,
         anchorType: "free",
         content,
         authorId: currentUserId,
@@ -335,10 +345,79 @@ export function useComment({
         resolved: false,
       };
 
+      // 1. 先添加到本地
       addComment(projectId, substepId, reply);
       setComments((prev) => [...prev, reply]);
+
+      console.log("[handleReplyComment] Reply created locally:", {
+        parentId,
+        parentIdType: typeof parentId,
+        parentCommentId: parentComment.id,
+      });
+
+      // 2. 保存到 API
+      if (projectSubstepId) {
+        try {
+          let apiParentId: number | undefined = undefined;
+          if (typeof parentId === "number") {
+            apiParentId = parentId;
+          } else if (
+            typeof parentId === "string" &&
+            !parentId.startsWith("comment-")
+          ) {
+            apiParentId = Number(parentId);
+          }
+
+          console.log("[handleReplyComment] Calling API:", {
+            apiParentId,
+            apiParentIdType: typeof apiParentId,
+          });
+
+          const result = await createComment({
+            projectId,
+            projectSubstepId,
+            projectStepId: stepId ? Number(stepId) : undefined,
+            projectSubtaskCode: reply.subtaskId
+              ? String(reply.subtaskId)
+              : undefined,
+            content: reply.content,
+            parentId: apiParentId,
+          });
+
+          console.log("[handleReplyComment] API response:", {
+            id: result.id,
+            parent_id: (result as any).parent_id, // 使用类型断言
+          });
+
+          // 3. 更新 localStorage
+          updateComment(projectId, substepId, tempId, {
+            id: result.id,
+            updatedAt: result.updatedAt,
+            subtaskId: (result as any).project_subtask_code || reply.subtaskId,
+            parentId: (result as any).parent_id || parentId,
+          });
+
+          // 4. 重新加载评论
+          const synced = await syncCommentsFromApi(
+            projectId,
+            substepId,
+            projectSubstepId,
+          );
+          setComments(synced);
+        } catch (error) {
+          console.error("[handleReplyComment] API save failed:", error);
+        }
+      }
     },
-    [comments, projectId, stepId, substepId, currentUserId, currentUserName],
+    [
+      comments,
+      projectId,
+      stepId,
+      substepId,
+      currentUserId,
+      currentUserName,
+      projectSubstepId,
+    ],
   );
 
   const handleUpdateCommentPosition = useCallback(

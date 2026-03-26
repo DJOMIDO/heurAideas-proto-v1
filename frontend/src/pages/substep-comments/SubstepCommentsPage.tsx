@@ -1,9 +1,10 @@
 // src/pages/substep-comments/SubstepCommentsPage.tsx
 
 import { useParams, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getSubstepComments } from "@/api/comments";
 import { getProjectDetail } from "@/api/projects";
+import { createComment } from "@/api/comments";
 import type { ProjectDetail } from "@/types/project";
 
 import CommentHeader from "./CommentHeader";
@@ -27,6 +28,11 @@ export default function SubstepCommentsPage() {
   const [subtasks, setSubtasks] = useState<
     { id: string; code: string; title: string }[]
   >([]);
+
+  // 回复相关状态
+  const [replyingTo, setReplyingTo] = useState<string | number | null>(null);
+  const [replyContent, setReplyContent] = useState("");
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
   useEffect(() => {
     if (!projectId || !substepId) return;
@@ -76,6 +82,73 @@ export default function SubstepCommentsPage() {
     return true;
   });
 
+  // 处理回复
+  const handleReply = useCallback(
+    async (parentId: string | number, content: string) => {
+      if (!projectId || !substepId) return;
+
+      setIsSubmittingReply(true);
+
+      try {
+        const projectSubstepId = await getProjectSubstepId(
+          Number(projectId),
+          substepId,
+        );
+
+        if (!projectSubstepId) {
+          console.error("Project substep ID not found");
+          setIsSubmittingReply(false);
+          return;
+        }
+
+        // 调用 API 创建回复
+        await createComment({
+          projectId: Number(projectId),
+          projectSubstepId,
+          projectStepId: Number(stepId),
+          content,
+          parentId: typeof parentId === "number" ? parentId : undefined,
+        });
+
+        // 重新加载评论
+        const response = await getSubstepComments(substepId, Number(projectId));
+        setComments(response.comments);
+
+        // 重置状态
+        setReplyingTo(null);
+        setReplyContent("");
+      } catch (error) {
+        console.error("Failed to submit reply:", error);
+      } finally {
+        setIsSubmittingReply(false);
+      }
+    },
+    [projectId, stepId, substepId],
+  );
+
+  // 获取 projectSubstepId
+  const getProjectSubstepId = async (
+    projectId: number,
+    substepCode: string,
+  ): Promise<number | null> => {
+    try {
+      const detail = await getProjectDetail(projectId);
+      for (const step of detail.steps) {
+        for (const substep of step.substeps) {
+          if (substep.code === substepCode) {
+            return substep.id;
+          }
+        }
+      }
+    } catch (error) {
+      console.error(
+        "[SubstepCommentsPage] Failed to get projectSubstepId:",
+        error,
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <CommentHeader
@@ -103,7 +176,15 @@ export default function SubstepCommentsPage() {
               ) : filteredComments.length === 0 ? (
                 <EmptyState />
               ) : (
-                <CommentList comments={filteredComments} />
+                <CommentList
+                  comments={filteredComments}
+                  replyingTo={replyingTo}
+                  setReplyingTo={setReplyingTo}
+                  replyContent={replyContent}
+                  setReplyContent={setReplyContent}
+                  onReply={handleReply}
+                  isSubmittingReply={isSubmittingReply}
+                />
               )}
             </CardContent>
           </Card>

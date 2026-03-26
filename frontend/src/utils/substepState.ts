@@ -219,7 +219,7 @@ export async function loadSubstepStateWithApi(
 ): Promise<SubstepState | null> {
   const localState = getSubstepState(projectId, substepId);
 
-  // ✅ 修复：只要有 localStorage 状态就加载（不管 formData 是否为空）
+  // 只要有 localStorage 状态就加载（不管 formData 是否为空）
   if (localState) {
     console.log(
       `[substepState] Using localStorage state for ${substepId}`,
@@ -271,7 +271,7 @@ export function getSubstepState(
   try {
     const parsed = JSON.parse(data);
     return {
-      activeTab: parsed.activeTab || "description", // ✅ 确保有默认值
+      activeTab: parsed.activeTab || "description", // 确保有默认值
       formData: parsed.formData ?? {},
       lastSaved: parsed.lastSaved,
       viewMode: parsed.viewMode || "single",
@@ -290,7 +290,7 @@ export function saveSubstepState(
 ): void {
   const existing = getSubstepState(projectId, substepId);
 
-  // ✅ 确保 activeTab 始终被保存
+  // 确保 activeTab 始终被保存
   const merged: SubstepState = {
     activeTab: state.activeTab || existing?.activeTab || "description",
     formData:

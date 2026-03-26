@@ -62,7 +62,7 @@ export default function CommentMarker({
     const parentRect = parentElement?.getBoundingClientRect();
 
     if (parentRect) {
-      // ✅ 计算相对于父容器的坐标
+      // 计算相对于父容器的坐标
       setLocalPosition({
         x: e.clientX - parentRect.left,
         y: e.clientY - parentRect.top,
