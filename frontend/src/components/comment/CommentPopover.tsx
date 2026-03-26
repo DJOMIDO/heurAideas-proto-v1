@@ -56,7 +56,6 @@ export default function CommentPopover({
 
   const handleSubmitReply = (parentId: string | number) => {
     if (replyContent.trim() && replyingTo === parentId && onReply) {
-      // 传递 parentId 和 content
       onReply(parentId, replyContent.trim());
       setReplyContent("");
       setShowReplyInput(false);
@@ -234,7 +233,6 @@ export default function CommentPopover({
       }}
     >
       <Card className="w-96 shadow-xl border-gray-200">
-        {/* 使用 flex 布局，让 ScrollArea 正确计算高度 */}
         <div className="flex flex-col max-h-[70vh]">
           {/* 头部和内容区 - 可滚动部分之上 */}
           <div className="p-4 space-y-3 flex-shrink-0">
@@ -309,13 +307,21 @@ export default function CommentPopover({
             </div>
           </div>
 
-          {/* 回复区域 ScrollArea - 使用 flex-1 和 min-h-0 */}
+          {/* 回复区域 ScrollArea - 固定高度 */}
           {replyTree.length > 0 && (
-            <ScrollArea className="border-t border-gray-100 max-h-64">
-              <div className="p-4 space-y-3">
-                {replyTree.map((reply) => renderReply(reply, 1))}
-              </div>
-            </ScrollArea>
+            <div
+              className="border-t border-gray-100"
+              style={{ maxHeight: "300px", overflow: "hidden" }}
+            >
+              <ScrollArea className="h-full">
+                <div
+                  className="p-4 space-y-3"
+                  style={{ maxHeight: "300px", overflowY: "auto" }}
+                >
+                  {replyTree.map((reply) => renderReply(reply, 1))}
+                </div>
+              </ScrollArea>
+            </div>
           )}
 
           {/* 底部回复输入框和按钮 - 可滚动部分之下 */}

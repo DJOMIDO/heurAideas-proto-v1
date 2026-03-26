@@ -131,6 +131,15 @@ export function useComment({
     }
   }, [projectId, substepId, commentRefreshKey]);
 
+  // 监听 activeTab 变化，切换时关闭 popover
+  useEffect(() => {
+    if (selectedCommentId !== null) {
+      console.log("[useComment] Tab changed, closing popover");
+      setSelectedCommentId(null);
+      setPopoverViewportPosition(null);
+    }
+  }, [activeTab]);
+
   useEffect(() => {
     if (!contentAreaRef.current) return;
 
@@ -191,7 +200,8 @@ export function useComment({
   };
 
   const handleSaveComment = useCallback(
-    (content: string) => {
+    async (content: string) => {
+      // ✅ 改为 async
       if (!commentPosition || !activeTab) return;
 
       const subtaskId =
@@ -214,8 +224,48 @@ export function useComment({
         resolved: false,
       };
 
+      // 1. 先保存到 localStorage（现有逻辑，保持 UI 立即响应）
       addComment(projectId, substepId, newComment);
       setComments((prev) => [...prev, newComment]);
+
+      // 2. 如果有 projectSubstepId，直接保存到 API
+      if (projectSubstepId) {
+        try {
+          const result = await createComment({
+            projectId,
+            projectSubstepId,
+            projectStepId: stepId ? Number(stepId) : undefined,
+            projectSubtaskCode: subtaskId ? String(subtaskId) : undefined,
+            content: newComment.content,
+            positionX: newComment.position?.x
+              ? Math.round(newComment.position.x)
+              : undefined,
+            positionY: newComment.position?.y
+              ? Math.round(newComment.position.y)
+              : undefined,
+            anchorType: newComment.anchorType,
+            anchorId: newComment.anchorId,
+            parentId: undefined, // 新评论没有 parentId
+          });
+
+          // 3. 更新 localStorage 中的 ID（从临时 ID 到真实 ID）
+          updateComment(projectId, substepId, tempId, {
+            id: result.id,
+            updatedAt: result.updatedAt,
+            subtaskId: (result as any).project_subtask_code || subtaskId,
+          });
+
+          // 4. 更新本地 comments 状态
+          setComments((prev) =>
+            prev.map((c) => (c.id === tempId ? { ...c, id: result.id } : c)),
+          );
+
+          console.log("[handleSaveComment] Comment saved to API:", result.id);
+        } catch (error) {
+          console.error("[handleSaveComment] API save failed:", error);
+          // API 失败不影响本地显示，主 Save 按钮会同步
+        }
+      }
 
       setShowCommentInput(false);
       setCommentPosition(null);
@@ -229,6 +279,7 @@ export function useComment({
       substepId,
       currentUserId,
       currentUserName,
+      projectSubstepId, // 添加依赖
     ],
   );
 
@@ -317,6 +368,7 @@ export function useComment({
     [projectId, substepId, projectSubstepId, comments],
   );
 
+  // 禁止回复未保存的评论（临时 ID）
   const handleReplyComment = useCallback(
     async (parentId: string | number, content: string) => {
       const parentComment = comments.find((c) => c.id === parentId);
@@ -326,6 +378,13 @@ export function useComment({
           projectId,
           substepId,
         });
+        return;
+      }
+
+      // 检查父评论是否是临时 ID（未保存）
+      if (typeof parentId === "string" && parentId.startsWith("comment-")) {
+        console.warn("[handleReplyComment] Parent comment not saved yet");
+        alert("Please save the comment before replying");
         return;
       }
 
@@ -386,7 +445,7 @@ export function useComment({
 
           console.log("[handleReplyComment] API response:", {
             id: result.id,
-            parent_id: (result as any).parent_id, // 使用类型断言
+            parent_id: (result as any).parent_id,
           });
 
           // 3. 更新 localStorage
