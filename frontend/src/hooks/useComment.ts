@@ -118,7 +118,6 @@ export function useComment({
     if (projectSubstepId) {
       syncCommentsFromApi(projectId, substepId, projectSubstepId).then(
         (syncedComments) => {
-          console.log("[useComment] Synced comments:", syncedComments.length);
           setComments(syncedComments);
         },
       );
@@ -130,7 +129,6 @@ export function useComment({
       const state = getCommentState(projectId, substepId);
       if (state) {
         setComments(state.comments);
-        console.log("[useComment] Refreshed comments:", state.comments.length);
       }
     }
   }, [projectId, substepId, commentRefreshKey]);
@@ -138,7 +136,6 @@ export function useComment({
   // 监听 activeTab 变化，切换时关闭 popover
   useEffect(() => {
     if (selectedCommentId !== null) {
-      console.log("[useComment] Tab changed, closing popover");
       setSelectedCommentId(null);
       setPopoverViewportPosition(null);
     }
@@ -264,7 +261,6 @@ export function useComment({
             prev.map((c) => (c.id === tempId ? { ...c, id: result.id } : c)),
           );
 
-          console.log("[handleSaveComment] Comment saved to API:", result.id);
         } catch (error) {
           console.error("[handleSaveComment] API save failed:", error);
           // API 失败不影响本地显示，主 Save 按钮会同步
@@ -461,11 +457,6 @@ export function useComment({
             apiParentId = Number(parentId);
           }
 
-          console.log("[handleReplyComment] Calling API:", {
-            apiParentId,
-            apiParentIdType: typeof apiParentId,
-          });
-
           const result = await createComment({
             projectId,
             projectSubstepId,
@@ -475,11 +466,6 @@ export function useComment({
               : undefined,
             content: reply.content,
             parentId: apiParentId,
-          });
-
-          console.log("[handleReplyComment] API response:", {
-            id: result.id,
-            parent_id: (result as any).parent_id,
           });
 
           // 3. 更新 localStorage
@@ -532,7 +518,6 @@ export function useComment({
         ),
       );
 
-      console.log("[handleEditComment] Comment updated locally:", commentId);
 
       // 2. 同步到 API（只有已同步的评论）
       if (typeof commentId === "number" && projectSubstepId) {
@@ -540,8 +525,6 @@ export function useComment({
           await updateCommentApi(commentId, {
             content: newContent,
           });
-
-          console.log("[handleEditComment] Comment updated to API:", commentId);
 
           // 3. 重新加载评论确保一致性
           const synced = await syncCommentsFromApi(

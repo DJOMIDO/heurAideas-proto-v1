@@ -49,16 +49,29 @@ export default function CommentListItem({
   isSubmittingReply,
   currentUserId,
 }: CommentListItemProps) {
-  const initials =
-    comment.author_name
-      ?.split(" ")
-      .map((n: string) => n[0])
+  // 兼容 snake_case 和 camelCase 字段名
+  const authorName = comment.author_name ?? comment.authorName ?? "Unknown";
+  const createdAt =
+    comment.created_at ?? comment.createdAt ?? new Date().toISOString();
+  const authorId = comment.author_id ?? comment.authorId;
+  const isEdited = comment.is_edited ?? comment.edited ?? false;
+
+  // 处理头像首字母（兼容两种字段名）
+  const getInitials = (name: string) => {
+    if (!name || name === "Unknown") return "?";
+    return name
+      .split(" ")
+      .map((n) => n[0])
       .join("")
       .toUpperCase()
-      .slice(0, 2) || "?";
+      .slice(0, 2);
+  };
 
-  const isResolved = comment.is_resolved;
-  const isDeleted = comment.is_deleted;
+  const initials = getInitials(authorName);
+
+  // 兼容 resolved/deleted 字段
+  const isResolved = comment.is_resolved ?? comment.resolved ?? false;
+  const isDeleted = comment.is_deleted ?? comment.deleted ?? false;
 
   // 编辑状态
   const [isEditing, setIsEditing] = useState(false);
@@ -68,8 +81,25 @@ export default function CommentListItem({
     return null;
   }
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  // 修复日期解析（兼容多种格式）
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return "Unknown";
+
+    // 尝试解析日期
+    let date: Date;
+    try {
+      date = new Date(dateString);
+      if (isNaN(date.getTime())) {
+        // 如果解析失败，尝试添加 'Z' 后缀（UTC 时间）
+        date = new Date(dateString + "Z");
+      }
+      if (isNaN(date.getTime())) {
+        return "Invalid Date";
+      }
+    } catch (e) {
+      return "Invalid Date";
+    }
+
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
@@ -135,7 +165,7 @@ export default function CommentListItem({
     backgroundColor: depth > 0 && depth % 2 === 1 ? "#f9fafb" : "transparent",
   };
 
-  const isMainComment = depth === 0; // 判断是否是主评论
+  const isMainComment = depth === 0;
 
   return (
     <div className={`p-4 ${depth === 0 ? "" : "py-3"}`} style={depthStyles}>
@@ -154,9 +184,7 @@ export default function CommentListItem({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-medium text-gray-900">
-              {comment.author_name}
-            </span>
+            <span className="font-medium text-gray-900">{authorName}</span>
 
             {isResolved && (
               <Badge
@@ -174,7 +202,7 @@ export default function CommentListItem({
             )}
 
             <span className="text-xs text-gray-500">
-              {formatDate(comment.created_at)}
+              {formatDate(createdAt)}
             </span>
 
             {/* 显示回复层级 */}
@@ -185,12 +213,12 @@ export default function CommentListItem({
             )}
 
             {/* 编辑标识 */}
-            {comment.is_edited && (
+            {isEdited && (
               <span className="text-xs text-gray-400 italic">(edited)</span>
             )}
 
             {/* 编辑/删除按钮（只有作者可见） */}
-            {currentUserId && comment.author_id === currentUserId && (
+            {currentUserId && authorId === currentUserId && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button

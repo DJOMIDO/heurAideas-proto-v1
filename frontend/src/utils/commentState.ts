@@ -127,6 +127,10 @@ function flattenReplies(
           ? String(reply.subtaskId)
           : undefined;
 
+      // 使用 ?? 代替 ||，确保 null 不会回退到 comment.id
+      // 同时优先使用 reply.parent_id，如果没有则使用当前 comment.id（直接父级）
+      const parentId = reply.parent_id ?? comment.id;
+
       allComments.push({
         id: reply.id,
         projectId: reply.project_id || reply.projectId,
@@ -156,11 +160,11 @@ function flattenReplies(
           reply.is_edited !== undefined
             ? reply.is_edited
             : reply.edited || false,
-        parentId: reply.parent_id || comment.id,
+        parentId: parentId, // 使用修复后的 parentId
         replies: [],
       });
 
-      // 递归展开更深层的回复
+      // 递归展开更深层的回复（传递 reply 作为新的 parent）
       flattenReplies(reply, allComments, substepCode);
     });
   }
@@ -189,6 +193,9 @@ export async function syncCommentsFromApi(
         : comment.subtaskId
           ? String(comment.subtaskId)
           : undefined;
+
+      // 主评论的 parentId 应该是 null
+      const mainCommentParentId = comment.parent_id ?? comment.parentId ?? null;
 
       // 添加主评论
       apiComments.push({
@@ -221,7 +228,7 @@ export async function syncCommentsFromApi(
           comment.is_edited !== undefined
             ? comment.is_edited
             : comment.edited || false,
-        parentId: comment.parent_id || comment.parentId,
+        parentId: mainCommentParentId, // 使用修复后的 parentId
         replies: [],
       });
 

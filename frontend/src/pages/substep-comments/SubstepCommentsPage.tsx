@@ -48,13 +48,47 @@ export default function SubstepCommentsPage() {
   // 存储 projectSubstepId
   const projectSubstepIdRef = useRef<number | null>(null);
 
+  // 辅助函数：将扁平数组转换为树形结构
+  const buildCommentTree = (flatComments: any[]): any[] => {
+    const commentMap = new Map();
+    const rootComments: any[] = [];
+
+    // 1. 创建所有评论的映射
+    flatComments.forEach((comment) => {
+      commentMap.set(comment.id, {
+        ...comment,
+        replies: [],
+      });
+    });
+
+    // 2. 构建树形结构
+    flatComments.forEach((comment) => {
+      const node = commentMap.get(comment.id);
+      const parentId = comment.parent_id ?? comment.parentId;
+
+      if (parentId === null || parentId === undefined || parentId === "") {
+        // 顶级评论
+        rootComments.push(node);
+      } else {
+        // 回复：添加到父评论的 replies 数组
+        const parent = commentMap.get(parentId);
+        if (parent) {
+          parent.replies.push(node);
+        } else {
+          // 父评论不存在（可能被删除），提升为顶级评论
+          rootComments.push(node);
+        }
+      }
+    });
+
+    return rootComments;
+  };
+
   useEffect(() => {
     if (!projectId || !substepId) return;
 
-    // 使用 syncCommentsFromApi 加载评论（确保 parentId 正确设置）
     const loadComments = async () => {
       try {
-        // 1. 先获取 projectSubstepId
         const projectSubstepId = await getProjectSubstepId(
           Number(projectId),
           substepId,
@@ -62,19 +96,23 @@ export default function SubstepCommentsPage() {
 
         if (projectSubstepId) {
           projectSubstepIdRef.current = projectSubstepId;
-          // 2. 使用 syncCommentsFromApi（会展平树形结构并设置 parentId）
           const syncedComments = await syncCommentsFromApi(
             Number(projectId),
             substepId,
             projectSubstepId,
           );
-          setComments(syncedComments);
-          console.log(
-            "[SubstepCommentsPage] Loaded comments with syncCommentsFromApi:",
-            syncedComments.length,
-          );
+
+          // 确保 parentId 正确设置
+          const fixedComments = syncedComments.map((c: any) => ({
+            ...c,
+            parentId: c.parent_id ?? c.parentId ?? null,
+          }));
+
+          // 转换为树形结构
+          const treeComments = buildCommentTree(fixedComments);
+
+          setComments(treeComments);
         } else {
-          // 3. 降级方案：如果没有 projectSubstepId，使用原始 API
           const response = await getSubstepComments(
             substepId,
             Number(projectId),
@@ -215,42 +253,44 @@ export default function SubstepCommentsPage() {
     [projectId, substepId],
   );
 
-  // 辅助函数：收集所有子回复 ID（递归）
+  // 辅助函数：收集所有子回复 ID（递归，支持树形结构）
   const collectReplyIds = (
     commentId: string | number,
-    allComments: any[],
+    allComments: any[], // 这可能是树形结构
   ): (string | number)[] => {
     const replyIds: (string | number)[] = [];
 
-    console.log(
-      "[collectReplyIds] Start - commentId:",
-      commentId,
-      "total comments:",
-      allComments.length,
-    );
+    // 先展平树形结构
+    const flattenTree = (comments: any[]): any[] => {
+      const flat: any[] = [];
+      const traverse = (list: any[]) => {
+        for (const comment of list) {
+          const { replies, ...commentWithoutReplies } = comment;
+          flat.push(commentWithoutReplies);
+          if (comment.replies && comment.replies.length > 0) {
+            traverse(comment.replies);
+          }
+        }
+      };
+      traverse(comments);
+      return flat;
+    };
+
+    const flatComments = flattenTree(allComments);
 
     const findReplies = (parentId: string | number) => {
-      const replies = allComments.filter((c) => {
+      const replies = flatComments.filter((c) => {
         const cParentId = c.parent_id ?? c.parentId;
-        return cParentId == parentId; // 使用 == 进行类型转换比较
+        return cParentId == parentId;
       });
-
-      console.log(
-        "[collectReplyIds] Found replies for parent",
-        parentId,
-        ":",
-        replies.map((r) => r.id),
-      );
 
       replies.forEach((reply) => {
         replyIds.push(reply.id);
-        findReplies(reply.id); // 递归查找更深层
+        findReplies(reply.id);
       });
     };
 
     findReplies(commentId);
-
-    console.log("[collectReplyIds] Total replyIds to delete:", replyIds);
 
     return replyIds;
   };
@@ -275,21 +315,10 @@ export default function SubstepCommentsPage() {
             substepId,
             projectSubstepId,
           );
-          console.log(
-            "[SubstepCommentsPage] Fetched fresh comments for delete:",
-            freshComments.length,
-          );
         }
 
         // 3. 使用最新数据收集子回复 ID
         const replyIds = collectReplyIds(commentId, freshComments);
-
-        console.log(
-          "[SubstepCommentsPage] Deleting comment:",
-          commentId,
-          "and replies:",
-          replyIds,
-        );
 
         // 4. 执行删除
         if (typeof commentId === "number") {
@@ -297,7 +326,6 @@ export default function SubstepCommentsPage() {
 
           for (const replyId of replyIds) {
             if (typeof replyId === "number") {
-              console.log("[SubstepCommentsPage] Deleting reply:", replyId);
               await deleteCommentApi(replyId).catch(() => {
                 console.warn(
                   "[SubstepCommentsPage] Failed to delete reply:",
@@ -352,8 +380,6 @@ export default function SubstepCommentsPage() {
       if (typeof commentId === "number") {
         try {
           await resolveComment(commentId);
-
-          console.log("[SubstepCommentsPage] Comment resolved:", commentId);
 
           // 4. 重新加载评论确保一致性
           const response = await getSubstepComments(
