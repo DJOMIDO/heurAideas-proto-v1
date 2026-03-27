@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
@@ -18,6 +17,7 @@ import {
   CheckCircle,
   MessageSquare,
   X,
+  Edit,
 } from "lucide-react";
 import { type Comment } from "@/types/comment";
 
@@ -28,6 +28,7 @@ interface CommentPopoverProps {
   onDelete: () => void;
   onResolve: () => void;
   onReply?: (parentId: string | number, content: string) => void;
+  onEdit?: (commentId: string | number, content: string) => void;
   replies?: Comment[];
   currentUserId: number;
 }
@@ -39,6 +40,7 @@ export default function CommentPopover({
   onDelete,
   onResolve,
   onReply,
+  onEdit,
   replies = [],
   currentUserId,
 }: CommentPopoverProps) {
@@ -53,6 +55,10 @@ export default function CommentPopover({
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyContent, setReplyContent] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | number | null>(null);
+
+  // 编辑状态
+  const [editingId, setEditingId] = useState<string | number | null>(null);
+  const [editContent, setEditContent] = useState("");
 
   const handleSubmitReply = (parentId: string | number) => {
     if (replyContent.trim() && replyingTo === parentId && onReply) {
@@ -73,6 +79,25 @@ export default function CommentPopover({
     setReplyingTo(commentId);
     setReplyContent("");
     setShowReplyInput(true);
+  };
+
+  // 编辑相关函数
+  const handleStartEdit = (commentId: string | number, content: string) => {
+    setEditingId(commentId);
+    setEditContent(content);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditContent("");
+  };
+
+  const handleSaveEdit = (commentId: string | number) => {
+    if (editContent.trim() && onEdit) {
+      onEdit(commentId, editContent.trim());
+      setEditingId(null);
+      setEditContent("");
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -144,10 +169,85 @@ export default function CommentPopover({
               {depth > 1 && (
                 <span className="text-xs text-gray-400">L{depth}</span>
               )}
+
+              {/* 添加编辑/删除按钮（只有作者可见） */}
+              {reply.authorId === currentUserId && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 w-5 p-0 text-gray-400 hover:text-gray-600"
+                    >
+                      <MoreVertical className="w-3 h-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => handleStartEdit(reply.id, reply.content)}
+                      className="text-blue-600 hover:text-blue-700"
+                    >
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        // 删除回复功能，后续开发
+                        console.log("Delete reply:", reply.id);
+                      }}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
-            <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">
-              {reply.content}
-            </p>
+
+            {/* 回复内容 - 可编辑 */}
+            {editingId === reply.id ? (
+              <div className="space-y-2 mt-1">
+                <Textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                      handleSaveEdit(reply.id);
+                    } else if (e.key === "Escape") {
+                      handleCancelEdit();
+                    }
+                  }}
+                  autoFocus
+                  className="min-h-[80px] text-sm"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCancelEdit}
+                    className="h-7 text-xs"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleSaveEdit(reply.id)}
+                    disabled={!editContent.trim()}
+                    className="h-7 text-xs"
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">
+                {reply.content}
+                {reply.edited && (
+                  <span className="text-xs text-gray-400 ml-2">(edited)</span>
+                )}
+              </p>
+            )}
 
             <div className="mt-2 flex items-center gap-2">
               {canReply && replyingTo === reply.id ? (
@@ -233,8 +333,12 @@ export default function CommentPopover({
       }}
     >
       <Card className="w-96 shadow-xl border-gray-200">
-        <div className="flex flex-col max-h-[70vh]">
-          {/* 头部和内容区 - 可滚动部分之上 */}
+        {/* 外层容器必须有 max-h-[70vh] + overflow: 'hidden' */}
+        <div
+          className="flex flex-col"
+          style={{ maxHeight: "70vh", overflow: "hidden" }}
+        >
+          {/* 头部 - flex-shrink-0 */}
           <div className="p-4 space-y-3 flex-shrink-0">
             {/* 主评论头部 */}
             <div className="flex items-center justify-between">
@@ -280,6 +384,15 @@ export default function CommentPopover({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem
+                        onClick={() =>
+                          handleStartEdit(comment.id, comment.content)
+                        }
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
                         onClick={onDelete}
                         className="text-red-600 hover:text-red-700"
                       >
@@ -301,30 +414,58 @@ export default function CommentPopover({
               </div>
             </div>
 
-            {/* 主评论内容 */}
-            <div className="text-sm text-gray-800 whitespace-pre-wrap">
-              {comment.content}
-            </div>
+            {/* 主评论内容 - 可编辑 */}
+            {editingId === comment.id ? (
+              <div className="space-y-2">
+                <Textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                      handleSaveEdit(comment.id);
+                    } else if (e.key === "Escape") {
+                      handleCancelEdit();
+                    }
+                  }}
+                  autoFocus
+                  className="min-h-[100px] text-sm"
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleSaveEdit(comment.id)}
+                    disabled={!editContent.trim()}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-800 whitespace-pre-wrap">
+                {comment.content}
+                {comment.edited && (
+                  <span className="text-xs text-gray-400 ml-2">(edited)</span>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* 回复区域 ScrollArea - 固定高度 */}
+          {/* 回复区域 - 移除 ScrollArea，用原生滚动 */}
           {replyTree.length > 0 && (
             <div
-              className="border-t border-gray-100"
-              style={{ maxHeight: "300px", overflow: "hidden" }}
+              className="border-t border-gray-100 flex-shrink-0"
+              style={{ maxHeight: "300px", overflowY: "auto" }}
             >
-              <ScrollArea className="h-full">
-                <div
-                  className="p-4 space-y-3"
-                  style={{ maxHeight: "300px", overflowY: "auto" }}
-                >
-                  {replyTree.map((reply) => renderReply(reply, 1))}
-                </div>
-              </ScrollArea>
+              <div className="p-4 space-y-3">
+                {replyTree.map((reply) => renderReply(reply, 1))}
+              </div>
             </div>
           )}
 
-          {/* 底部回复输入框和按钮 - 可滚动部分之下 */}
+          {/* 底部 - flex-shrink-0 */}
           <div className="p-4 space-y-3 flex-shrink-0 border-t border-gray-100">
             {showReplyInput && replyingTo === comment.id && (
               <div className="space-y-2">

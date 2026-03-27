@@ -71,6 +71,7 @@ export default function SubstepContentCard({
     handleUpdateCommentPosition,
     handleClosePopover,
     handleCloseInput,
+    handleEditComment,
   } = useComment({
     projectId,
     substepId: substep.id,
@@ -286,6 +287,7 @@ export default function SubstepContentCard({
                 handleResolveComment={handleResolveComment}
                 handleReplyComment={handleReplyComment}
                 handleUpdateCommentPosition={handleUpdateCommentPosition}
+                handleEditComment={handleEditComment}
               />
             </div>
 

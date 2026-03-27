@@ -10,7 +10,9 @@ interface CommentListProps {
   replyContent: string;
   setReplyContent: (content: string) => void;
   onReply: (parentId: string | number, content: string) => void;
+  onEdit?: (commentId: string | number, content: string) => void;
   isSubmittingReply: boolean;
+  currentUserId?: number;
 }
 
 export default function CommentList({
@@ -20,7 +22,9 @@ export default function CommentList({
   replyContent,
   setReplyContent,
   onReply,
+  onEdit,
   isSubmittingReply,
+  currentUserId,
 }: CommentListProps) {
   // 递归渲染评论和回复
   const renderComment = (comment: any, depth: number = 0) => {
@@ -32,13 +36,15 @@ export default function CommentList({
         <CommentListItem
           comment={comment}
           isParent={isParent}
-          depth={depth} // 传递深度
+          depth={depth}
           replyingTo={replyingTo}
           setReplyingTo={setReplyingTo}
           replyContent={replyContent}
           setReplyContent={setReplyContent}
           onReply={onReply}
+          onEdit={onEdit} // 传递 onEdit
           isSubmittingReply={isSubmittingReply}
+          currentUserId={currentUserId} // 传递 currentUserId
         />
 
         {/* 递归渲染回复 */}
@@ -46,7 +52,7 @@ export default function CommentList({
           <div
             className="space-y-3"
             style={{
-              paddingLeft: depth === 0 ? "3rem" : "1.5rem", // 根据深度调整缩进
+              paddingLeft: depth === 0 ? "3rem" : "1.5rem",
               marginLeft: depth > 0 ? "1rem" : "0",
               borderLeft: depth > 0 ? "2px solid #e5e7eb" : "none",
             }}

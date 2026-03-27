@@ -13,7 +13,10 @@ import {
 } from "@/utils/commentState";
 import { type Comment } from "@/types/comment";
 import { getUserInfo } from "@/utils/auth";
-import { createComment } from "@/api/comments";
+import {
+  createComment,
+  updateComment as updateCommentApi,
+} from "@/api/comments";
 
 interface UseCommentOptions {
   projectId: number;
@@ -45,6 +48,7 @@ interface UseCommentReturn {
   handleDeleteComment: (commentId: string | number) => void;
   handleResolveComment: (commentId: string | number) => void;
   handleReplyComment: (parentId: string | number, content: string) => void;
+  handleEditComment: (commentId: string | number, content: string) => void;
   handleUpdateCommentPosition: (
     commentId: string | number,
     newPos: { x: number; y: number },
@@ -201,7 +205,7 @@ export function useComment({
 
   const handleSaveComment = useCallback(
     async (content: string) => {
-      // ✅ 改为 async
+      // 改为 async
       if (!commentPosition || !activeTab) return;
 
       const subtaskId =
@@ -479,6 +483,63 @@ export function useComment({
     ],
   );
 
+  const handleEditComment = useCallback(
+    async (commentId: string | number, newContent: string) => {
+      const comment = comments.find((c) => c.id === commentId);
+      if (!comment || !projectId || !substepId) {
+        console.error("[handleEditComment] Missing required data");
+        return;
+      }
+
+      // 1. 立即更新 localStorage 和 UI（乐观更新）
+      updateComment(projectId, substepId, String(commentId), {
+        content: newContent,
+        edited: true,
+      });
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId ? { ...c, content: newContent, edited: true } : c,
+        ),
+      );
+
+      console.log("[handleEditComment] Comment updated locally:", commentId);
+
+      // 2. 同步到 API（只有已同步的评论）
+      if (typeof commentId === "number" && projectSubstepId) {
+        try {
+          await updateCommentApi(commentId, {
+            content: newContent,
+          });
+
+          console.log("[handleEditComment] Comment updated to API:", commentId);
+
+          // 3. 重新加载评论确保一致性
+          const synced = await syncCommentsFromApi(
+            projectId,
+            substepId,
+            projectSubstepId,
+          );
+          setComments(synced);
+        } catch (error) {
+          console.error("[handleEditComment] API update failed:", error);
+          // 4. API 失败回滚
+          updateComment(projectId, substepId, String(commentId), {
+            content: comment.content,
+            edited: comment.edited,
+          });
+          setComments((prev) =>
+            prev.map((c) =>
+              c.id === commentId
+                ? { ...c, content: comment.content, edited: comment.edited }
+                : c,
+            ),
+          );
+        }
+      }
+    },
+    [comments, projectId, substepId, projectSubstepId],
+  );
+
   const handleUpdateCommentPosition = useCallback(
     (commentId: string | number, newPos: { x: number; y: number }) => {
       updateComment(projectId, substepId, String(commentId), {
@@ -521,6 +582,7 @@ export function useComment({
     handleDeleteComment,
     handleResolveComment,
     handleReplyComment,
+    handleEditComment, 
     handleUpdateCommentPosition,
     handleClosePopover,
     handleCloseInput,

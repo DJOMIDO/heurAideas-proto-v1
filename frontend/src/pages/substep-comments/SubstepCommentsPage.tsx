@@ -2,10 +2,14 @@
 
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback } from "react";
-import { getSubstepComments } from "@/api/comments";
+import {
+  getSubstepComments,
+  createComment,
+  updateComment as updateCommentApi,
+} from "@/api/comments";
 import { getProjectDetail } from "@/api/projects";
-import { createComment } from "@/api/comments";
 import type { ProjectDetail } from "@/types/project";
+import { getUserInfo } from "@/utils/auth";
 
 import CommentHeader from "./CommentHeader";
 import CommentFilters from "./CommentFilters";
@@ -33,6 +37,10 @@ export default function SubstepCommentsPage() {
   const [replyingTo, setReplyingTo] = useState<string | number | null>(null);
   const [replyContent, setReplyContent] = useState("");
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
+
+  // ✅ 获取当前用户信息
+  const currentUser = getUserInfo();
+  const currentUserId = currentUser?.id || 1;
 
   useEffect(() => {
     if (!projectId || !substepId) return;
@@ -126,6 +134,51 @@ export default function SubstepCommentsPage() {
     [projectId, stepId, substepId],
   );
 
+  // 处理编辑评论
+  const handleEdit = useCallback(
+    async (commentId: string | number, newContent: string) => {
+      if (!projectId || !substepId) return;
+
+      // 1. 立即更新本地状态（乐观更新）
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId
+            ? { ...c, content: newContent, is_edited: true }
+            : c,
+        ),
+      );
+
+      // 2. 同步到 API（只有已同步的评论）
+      if (typeof commentId === "number") {
+        try {
+          await updateCommentApi(commentId, {
+            content: newContent,
+          });
+
+          console.log("[SubstepCommentsPage] Comment updated:", commentId);
+
+          // 3. 重新加载评论确保一致性
+          const response = await getSubstepComments(
+            substepId,
+            Number(projectId),
+          );
+          setComments(response.comments);
+        } catch (error) {
+          console.error("[SubstepCommentsPage] Edit failed:", error);
+          // 4. API 失败回滚
+          setComments((prev) =>
+            prev.map((c) =>
+              c.id === commentId
+                ? { ...c, content: c.content, is_edited: c.is_edited }
+                : c,
+            ),
+          );
+        }
+      }
+    },
+    [projectId, substepId],
+  );
+
   // 获取 projectSubstepId
   const getProjectSubstepId = async (
     projectId: number,
@@ -183,7 +236,9 @@ export default function SubstepCommentsPage() {
                   replyContent={replyContent}
                   setReplyContent={setReplyContent}
                   onReply={handleReply}
+                  onEdit={handleEdit}
                   isSubmittingReply={isSubmittingReply}
+                  currentUserId={currentUserId}
                 />
               )}
             </CardContent>

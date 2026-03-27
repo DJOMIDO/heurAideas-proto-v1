@@ -22,6 +22,7 @@ interface CommentOverlayProps {
   handleDeleteComment: (commentId: string | number) => void;
   handleResolveComment: (commentId: string | number) => void;
   handleReplyComment: (parentId: string | number, content: string) => void;
+  handleEditComment: (commentId: string | number, content: string) => void;
   handleUpdateCommentPosition: (
     commentId: string | number,
     newPos: { x: number; y: number },
@@ -43,6 +44,7 @@ export default function CommentOverlay({
   handleDeleteComment,
   handleResolveComment,
   handleReplyComment,
+  handleEditComment,
   handleUpdateCommentPosition,
 }: CommentOverlayProps) {
   // 递归查找所有层级的回复
@@ -103,6 +105,7 @@ export default function CommentOverlay({
               onResolve={() => handleResolveComment(selectedCommentId)}
               // 修复：传递 handleReplyComment，让 Popover 调用时传入 parentId
               onReply={handleReplyComment}
+              onEdit={handleEditComment}
               replies={allReplies}
               currentUserId={currentUserId}
             />
