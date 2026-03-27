@@ -24,6 +24,7 @@ import { type Comment } from "@/types/comment";
 interface CommentPopoverProps {
   comment: Comment;
   position: { x: number; y: number };
+  align?: "bottom" | "top" | "right" | "left";
   onClose: () => void;
   onDelete: (commentId: string | number) => void;
   onResolve: (commentId: string | number) => void;
@@ -36,6 +37,7 @@ interface CommentPopoverProps {
 export default function CommentPopover({
   comment,
   position,
+  align = "bottom",
   onClose,
   onDelete,
   onResolve,
@@ -51,6 +53,34 @@ export default function CommentPopover({
   ) {
     return null;
   }
+
+  const getPositionStyles = () => {
+    switch (align) {
+      case "top":
+        return {
+          transform: "translate(-50%, -100%)",
+          marginTop: "-10px",
+        };
+      case "right":
+        return {
+          transform: "translate(0, -50%)",
+          marginTop: "0",
+        };
+      case "left":
+        return {
+          transform: "translate(-100%, -50%)",
+          marginTop: "0",
+        };
+      case "bottom":
+      default:
+        return {
+          transform: "translate(-50%, 0)",
+          marginTop: "0",
+        };
+    }
+  };
+
+  const positionStyles = getPositionStyles();
 
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyContent, setReplyContent] = useState("");
@@ -327,12 +357,12 @@ export default function CommentPopover({
 
   return (
     <div
-      className="fixed z-50 animate-in fade-in slide-in-from-bottom-2 duration-200"
+      // slide-in-from-top-2（从上方滑入）
+      className="fixed z-50 animate-in fade-in slide-in-from-top-2 duration-200"
       style={{
         left: position.x,
         top: position.y,
-        transform: "translate(-50%, -100%)",
-        marginTop: "-40px",
+        ...positionStyles,
       }}
     >
       <Card className="w-96 shadow-xl border-gray-200">

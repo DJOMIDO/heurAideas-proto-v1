@@ -1,7 +1,7 @@
 // src/pages/substep-comments/SubstepCommentsPage.tsx
 
 import { useParams, useNavigate } from "react-router-dom";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   getSubstepComments,
   createComment,
@@ -49,7 +49,7 @@ export default function SubstepCommentsPage() {
   const projectSubstepIdRef = useRef<number | null>(null);
 
   // 辅助函数：将扁平数组转换为树形结构
-  const buildCommentTree = (flatComments: any[]): any[] => {
+  const buildCommentTree = useCallback((flatComments: any[]): any[] => {
     const commentMap = new Map();
     const rootComments: any[] = [];
 
@@ -82,7 +82,7 @@ export default function SubstepCommentsPage() {
     });
 
     return rootComments;
-  };
+  }, []);
 
   useEffect(() => {
     if (!projectId || !substepId) return;
@@ -150,19 +150,46 @@ export default function SubstepCommentsPage() {
       .catch((error: Error) => {
         console.error("Failed to load subtasks:", error);
       });
-  }, [projectId, stepId, substepId]);
+  }, [projectId, stepId, substepId, buildCommentTree]);
 
-  const filteredComments = comments.filter((comment) => {
-    if (filter === "resolved" && !comment.is_resolved) return false;
-    if (filter === "unresolved" && comment.is_resolved) return false;
-    if (
-      subtaskFilter !== "all" &&
-      comment.project_subtask_code !== subtaskFilter
-    ) {
-      return false;
-    }
-    return true;
-  });
+  // 筛选逻辑（使用 useMemo，依赖 comments, filter, subtaskFilter）
+  const filteredComments = useMemo(() => {
+    // 递归筛选树形结构
+    const filterTree = (comments: any[]): any[] => {
+      return comments
+        .filter((comment) => {
+          // 兼容字段名
+          const isResolved = comment.is_resolved ?? comment.resolved ?? false;
+          const subtaskCode =
+            comment.project_subtask_code ?? comment.subtaskId ?? "";
+
+          // 状态筛选
+          if (filter === "resolved" && !isResolved) return false;
+          if (filter === "unresolved" && isResolved) return false;
+
+          // 子任务筛选（只筛选主评论）
+          if (
+            subtaskFilter !== "all" &&
+            String(subtaskCode) !== String(subtaskFilter)
+          ) {
+            return false;
+          }
+
+          return true;
+        })
+        .map((comment) => ({
+          ...comment,
+          // 递归筛选回复
+          replies: filterTree(comment.replies || []),
+        }));
+    };
+
+    return filterTree(comments);
+  }, [comments, filter, subtaskFilter]);
+
+  // 计算筛选后的评论数量（只计主评论）
+  const filteredCount = filteredComments.length;
+  const totalCount = comments.length;
 
   // 处理回复
   const handleReply = useCallback(
@@ -229,8 +256,6 @@ export default function SubstepCommentsPage() {
             content: newContent,
           });
 
-          console.log("[SubstepCommentsPage] Comment updated:", commentId);
-
           // 3. 重新加载评论确保一致性
           const response = await getSubstepComments(
             substepId,
@@ -254,46 +279,46 @@ export default function SubstepCommentsPage() {
   );
 
   // 辅助函数：收集所有子回复 ID（递归，支持树形结构）
-  const collectReplyIds = (
-    commentId: string | number,
-    allComments: any[], // 这可能是树形结构
-  ): (string | number)[] => {
-    const replyIds: (string | number)[] = [];
+  const collectReplyIds = useCallback(
+    (commentId: string | number, allComments: any[]): (string | number)[] => {
+      const replyIds: (string | number)[] = [];
 
-    // 先展平树形结构
-    const flattenTree = (comments: any[]): any[] => {
-      const flat: any[] = [];
-      const traverse = (list: any[]) => {
-        for (const comment of list) {
-          const { replies, ...commentWithoutReplies } = comment;
-          flat.push(commentWithoutReplies);
-          if (comment.replies && comment.replies.length > 0) {
-            traverse(comment.replies);
+      // 先展平树形结构
+      const flattenTree = (comments: any[]): any[] => {
+        const flat: any[] = [];
+        const traverse = (list: any[]) => {
+          for (const comment of list) {
+            const { replies, ...commentWithoutReplies } = comment;
+            flat.push(commentWithoutReplies);
+            if (comment.replies && comment.replies.length > 0) {
+              traverse(comment.replies);
+            }
           }
-        }
+        };
+        traverse(comments);
+        return flat;
       };
-      traverse(comments);
-      return flat;
-    };
 
-    const flatComments = flattenTree(allComments);
+      const flatComments = flattenTree(allComments);
 
-    const findReplies = (parentId: string | number) => {
-      const replies = flatComments.filter((c) => {
-        const cParentId = c.parent_id ?? c.parentId;
-        return cParentId == parentId;
-      });
+      const findReplies = (parentId: string | number) => {
+        const replies = flatComments.filter((c) => {
+          const cParentId = c.parent_id ?? c.parentId;
+          return cParentId == parentId;
+        });
 
-      replies.forEach((reply) => {
-        replyIds.push(reply.id);
-        findReplies(reply.id);
-      });
-    };
+        replies.forEach((reply) => {
+          replyIds.push(reply.id);
+          findReplies(reply.id);
+        });
+      };
 
-    findReplies(commentId);
+      findReplies(commentId);
 
-    return replyIds;
-  };
+      return replyIds;
+    },
+    [],
+  );
 
   // 处理删除评论（删除前强制获取最新数据）
   const handleDelete = useCallback(
@@ -355,7 +380,7 @@ export default function SubstepCommentsPage() {
         console.error("[SubstepCommentsPage] Delete failed:", error);
       }
     },
-    [projectId, substepId, comments],
+    [projectId, substepId, comments, collectReplyIds],
   );
 
   // 处理 Resolve 评论
@@ -404,34 +429,34 @@ export default function SubstepCommentsPage() {
   );
 
   // 获取 projectSubstepId
-  const getProjectSubstepId = async (
-    projectId: number,
-    substepCode: string,
-  ): Promise<number | null> => {
-    try {
-      const detail = await getProjectDetail(projectId);
-      for (const step of detail.steps) {
-        for (const substep of step.substeps) {
-          if (substep.code === substepCode) {
-            return substep.id;
+  const getProjectSubstepId = useCallback(
+    async (projectId: number, substepCode: string): Promise<number | null> => {
+      try {
+        const detail = await getProjectDetail(projectId);
+        for (const step of detail.steps) {
+          for (const substep of step.substeps) {
+            if (substep.code === substepCode) {
+              return substep.id;
+            }
           }
         }
+      } catch (error) {
+        console.error(
+          "[SubstepCommentsPage] Failed to get projectSubstepId:",
+          error,
+        );
       }
-    } catch (error) {
-      console.error(
-        "[SubstepCommentsPage] Failed to get projectSubstepId:",
-        error,
-      );
-    }
-    return null;
-  };
+      return null;
+    },
+    [],
+  );
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <CommentHeader
         substepId={substepId || ""}
-        totalComments={comments.length}
-        filteredComments={filteredComments.length}
+        totalComments={totalCount}
+        filteredComments={filteredCount}
         filter={filter}
         onBack={() => navigate(-1)}
       />

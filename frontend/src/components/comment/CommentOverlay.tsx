@@ -27,6 +27,7 @@ interface CommentOverlayProps {
     commentId: string | number,
     newPos: { x: number; y: number },
   ) => void;
+  popoverAlign?: 'bottom' | 'top' | 'right' | 'left';
 }
 
 export default function CommentOverlay({
@@ -34,6 +35,7 @@ export default function CommentOverlay({
   inputViewportPosition,
   selectedCommentId,
   popoverViewportPosition,
+  popoverAlign = 'bottom',
   comments,
   currentComments,
   currentUserId,
@@ -100,6 +102,7 @@ export default function CommentOverlay({
             <CommentPopover
               comment={comment}
               position={popoverViewportPosition}
+              align={popoverAlign}
               onClose={handleClosePopover}
               onDelete={(commentId) => handleDeleteComment(commentId)}
               onResolve={() => handleResolveComment(selectedCommentId)}
