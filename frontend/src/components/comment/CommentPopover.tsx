@@ -25,8 +25,8 @@ interface CommentPopoverProps {
   comment: Comment;
   position: { x: number; y: number };
   onClose: () => void;
-  onDelete: () => void;
-  onResolve: () => void;
+  onDelete: (commentId: string | number) => void;
+  onResolve: (commentId: string | number) => void;
   onReply?: (parentId: string | number, content: string) => void;
   onEdit?: (commentId: string | number, content: string) => void;
   replies?: Comment[];
@@ -192,8 +192,11 @@ export default function CommentPopover({
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => {
-                        // 删除回复功能，后续开发
-                        console.log("Delete reply:", reply.id);
+                        if (
+                          confirm("Are you sure you want to delete this reply?")
+                        ) {
+                          onDelete(reply.id);
+                        }
                       }}
                       className="text-red-600 hover:text-red-700"
                     >
@@ -363,7 +366,7 @@ export default function CommentPopover({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={onResolve}
+                    onClick={() => onResolve(comment.id)}
                     className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
                     title="Mark as resolved"
                   >
@@ -393,7 +396,15 @@ export default function CommentPopover({
                         Edit
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={onDelete}
+                        onClick={() => {
+                          if (
+                            confirm(
+                              "Are you sure you want to delete this comment?",
+                            )
+                          ) {
+                            onDelete(comment.id);
+                          }
+                        }}
                         className="text-red-600 hover:text-red-700"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />

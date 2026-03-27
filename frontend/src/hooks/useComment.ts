@@ -289,27 +289,62 @@ export function useComment({
 
   const handleDeleteComment = useCallback(
     async (commentId: string | number) => {
-      console.log("[handleDeleteComment] Start deleting:", commentId);
+      // 1. 收集所有次级回复 ID（级联删除）
+      const collectReplyIds = (
+        parentId: string | number,
+      ): (string | number)[] => {
+        const replyIds: (string | number)[] = [];
+        const directReplies = comments.filter((c) => c.parentId === parentId);
 
-      // 1. 从 localStorage 删除
-      deleteComment(projectId, substepId, String(commentId));
+        directReplies.forEach((reply) => {
+          replyIds.push(reply.id);
+          replyIds.push(...collectReplyIds(reply.id)); // 递归
+        });
 
-      // 2. 立即更新状态（触发重新渲染）
-      setComments((prev) => {
-        const filtered = prev.filter((c) => c.id !== commentId);
-        return filtered;
+        return replyIds;
+      };
+
+      const allReplyIds = collectReplyIds(commentId);
+      const idsToDelete = [commentId, ...allReplyIds];
+
+      // 2. 从 localStorage 删除主评论和所有次级回复
+      idsToDelete.forEach((id) => {
+        deleteComment(projectId, substepId, String(id));
       });
 
-      // 3. 关闭 popover
-      setSelectedCommentId(null);
-      setPopoverViewportPosition(null);
+      // 3. 立即更新状态
+      setComments((prev) => {
+        const idsSet = new Set(idsToDelete);
+        return prev.filter((c) => !idsSet.has(c.id));
+      });
 
-      // 4. 从 API 删除
+      // 4. 关闭 popover（如果删除的是当前选中的评论）
+      if (selectedCommentId === commentId) {
+        setSelectedCommentId(null);
+        setPopoverViewportPosition(null);
+      }
+
+      // 5. 从 API 删除
       try {
+        // 删除主评论
         await deleteCommentWithApi(projectId, substepId, commentId);
 
-        // 5. 删除后重新同步 API 数据
-        if (projectSubstepId && typeof commentId === "number") {
+        // 级联删除次级回复
+        for (const replyId of allReplyIds) {
+          if (typeof replyId === "number") {
+            await deleteCommentWithApi(projectId, substepId, replyId).catch(
+              () => {
+                console.warn(
+                  "[handleDeleteComment] Failed to delete reply:",
+                  replyId,
+                );
+              },
+            );
+          }
+        }
+
+        // 6. 重新同步
+        if (projectSubstepId) {
           const synced = await syncCommentsFromApi(
             projectId,
             substepId,
@@ -319,6 +354,7 @@ export function useComment({
         }
       } catch (error) {
         console.error("[handleDeleteComment] Delete failed:", error);
+        // 7. 失败后重新同步
         if (projectSubstepId) {
           const synced = await syncCommentsFromApi(
             projectId,
@@ -329,7 +365,7 @@ export function useComment({
         }
       }
     },
-    [projectId, substepId, projectSubstepId],
+    [projectId, substepId, projectSubstepId, comments, selectedCommentId],
   );
 
   const handleResolveComment = useCallback(
@@ -411,12 +447,6 @@ export function useComment({
       // 1. 先添加到本地
       addComment(projectId, substepId, reply);
       setComments((prev) => [...prev, reply]);
-
-      console.log("[handleReplyComment] Reply created locally:", {
-        parentId,
-        parentIdType: typeof parentId,
-        parentCommentId: parentComment.id,
-      });
 
       // 2. 保存到 API
       if (projectSubstepId) {
@@ -582,7 +612,7 @@ export function useComment({
     handleDeleteComment,
     handleResolveComment,
     handleReplyComment,
-    handleEditComment, 
+    handleEditComment,
     handleUpdateCommentPosition,
     handleClosePopover,
     handleCloseInput,

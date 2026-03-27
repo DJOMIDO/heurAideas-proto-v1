@@ -11,7 +11,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MessageSquare, MoreVertical, Edit, Trash2 } from "lucide-react";
+import {
+  MessageSquare,
+  MoreVertical,
+  Edit,
+  Trash2,
+  CheckCircle,
+} from "lucide-react";
 
 interface CommentListItemProps {
   comment: any;
@@ -23,6 +29,8 @@ interface CommentListItemProps {
   setReplyContent: (content: string) => void;
   onReply: (parentId: string | number, content: string) => void;
   onEdit?: (commentId: string | number, content: string) => void;
+  onDelete?: (commentId: string | number) => void;
+  onResolve?: (commentId: string | number) => void;
   isSubmittingReply: boolean;
   currentUserId?: number;
 }
@@ -36,6 +44,8 @@ export default function CommentListItem({
   setReplyContent,
   onReply,
   onEdit,
+  onDelete,
+  onResolve,
   isSubmittingReply,
   currentUserId,
 }: CommentListItemProps) {
@@ -102,11 +112,30 @@ export default function CommentListItem({
     }
   };
 
+  // 根据 depth 显示不同的删除确认信息
+  const handleDelete = () => {
+    const isReply = depth > 0;
+    if (
+      confirm(
+        `Are you sure you want to delete this ${isReply ? "reply" : "comment"}?`,
+      )
+    ) {
+      onDelete?.(comment.id);
+    }
+  };
+
+  // Resolve 函数（只在主评论时调用）
+  const handleResolve = () => {
+    onResolve?.(comment.id);
+  };
+
   // 根据深度调整样式
   const depthStyles = {
     padding: depth === 0 ? "1rem" : "0.75rem 1rem",
     backgroundColor: depth > 0 && depth % 2 === 1 ? "#f9fafb" : "transparent",
   };
+
+  const isMainComment = depth === 0; // 判断是否是主评论
 
   return (
     <div className={`p-4 ${depth === 0 ? "" : "py-3"}`} style={depthStyles}>
@@ -181,10 +210,7 @@ export default function CommentListItem({
                     Edit
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => {
-                      // 这里可以调用 onDelete，如果需要的话
-                      console.log("Delete comment:", comment.id);
-                    }}
+                    onClick={handleDelete}
                     className="text-red-600 hover:text-red-700"
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
@@ -192,6 +218,19 @@ export default function CommentListItem({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+            )}
+
+            {/* Resolve 按钮只在主评论时显示（depth === 0） */}
+            {isMainComment && !isResolved && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResolve}
+                className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                title="Mark as resolved"
+              >
+                <CheckCircle className="w-4 h-4" />
+              </Button>
             )}
           </div>
 

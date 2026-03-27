@@ -101,7 +101,7 @@ export default function CommentOverlay({
               comment={comment}
               position={popoverViewportPosition}
               onClose={handleClosePopover}
-              onDelete={() => handleDeleteComment(selectedCommentId)}
+              onDelete={(commentId) => handleDeleteComment(commentId)}
               onResolve={() => handleResolveComment(selectedCommentId)}
               // 修复：传递 handleReplyComment，让 Popover 调用时传入 parentId
               onReply={handleReplyComment}

@@ -1,15 +1,18 @@
 // src/pages/substep-comments/SubstepCommentsPage.tsx
 
 import { useParams, useNavigate } from "react-router-dom";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   getSubstepComments,
   createComment,
   updateComment as updateCommentApi,
+  deleteComment as deleteCommentApi,
+  resolveComment,
 } from "@/api/comments";
 import { getProjectDetail } from "@/api/projects";
 import type { ProjectDetail } from "@/types/project";
 import { getUserInfo } from "@/utils/auth";
+import { syncCommentsFromApi } from "@/utils/commentState";
 
 import CommentHeader from "./CommentHeader";
 import CommentFilters from "./CommentFilters";
@@ -38,23 +41,56 @@ export default function SubstepCommentsPage() {
   const [replyContent, setReplyContent] = useState("");
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
-  // ✅ 获取当前用户信息
+  // 获取当前用户信息
   const currentUser = getUserInfo();
   const currentUserId = currentUser?.id || 1;
+
+  // 存储 projectSubstepId
+  const projectSubstepIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!projectId || !substepId) return;
 
-    getSubstepComments(substepId, Number(projectId))
-      .then((response) => {
-        setComments(response.comments);
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error("Failed to load comments:", error);
-        setLoading(false);
-      });
+    // 使用 syncCommentsFromApi 加载评论（确保 parentId 正确设置）
+    const loadComments = async () => {
+      try {
+        // 1. 先获取 projectSubstepId
+        const projectSubstepId = await getProjectSubstepId(
+          Number(projectId),
+          substepId,
+        );
 
+        if (projectSubstepId) {
+          projectSubstepIdRef.current = projectSubstepId;
+          // 2. 使用 syncCommentsFromApi（会展平树形结构并设置 parentId）
+          const syncedComments = await syncCommentsFromApi(
+            Number(projectId),
+            substepId,
+            projectSubstepId,
+          );
+          setComments(syncedComments);
+          console.log(
+            "[SubstepCommentsPage] Loaded comments with syncCommentsFromApi:",
+            syncedComments.length,
+          );
+        } else {
+          // 3. 降级方案：如果没有 projectSubstepId，使用原始 API
+          const response = await getSubstepComments(
+            substepId,
+            Number(projectId),
+          );
+          setComments(response.comments);
+        }
+      } catch (error) {
+        console.error("Failed to load comments:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadComments();
+
+    // 加载 Subtasks
     getProjectDetail(Number(projectId))
       .then((detail: ProjectDetail) => {
         const step = detail.steps.find(
@@ -179,6 +215,168 @@ export default function SubstepCommentsPage() {
     [projectId, substepId],
   );
 
+  // 辅助函数：收集所有子回复 ID（递归）
+  const collectReplyIds = (
+    commentId: string | number,
+    allComments: any[],
+  ): (string | number)[] => {
+    const replyIds: (string | number)[] = [];
+
+    console.log(
+      "[collectReplyIds] Start - commentId:",
+      commentId,
+      "total comments:",
+      allComments.length,
+    );
+
+    const findReplies = (parentId: string | number) => {
+      const replies = allComments.filter((c) => {
+        const cParentId = c.parent_id ?? c.parentId;
+        return cParentId == parentId; // 使用 == 进行类型转换比较
+      });
+
+      console.log(
+        "[collectReplyIds] Found replies for parent",
+        parentId,
+        ":",
+        replies.map((r) => r.id),
+      );
+
+      replies.forEach((reply) => {
+        replyIds.push(reply.id);
+        findReplies(reply.id); // 递归查找更深层
+      });
+    };
+
+    findReplies(commentId);
+
+    console.log("[collectReplyIds] Total replyIds to delete:", replyIds);
+
+    return replyIds;
+  };
+
+  // 处理删除评论（删除前强制获取最新数据）
+  const handleDelete = useCallback(
+    async (commentId: string | number) => {
+      if (!projectId || !substepId) return;
+
+      try {
+        // 1. 获取 projectSubstepId
+        const projectSubstepId = await getProjectSubstepId(
+          Number(projectId),
+          substepId,
+        );
+
+        // 2. 强制获取最新评论数据（不依赖 state）
+        let freshComments = comments; // 降级使用 state
+        if (projectSubstepId) {
+          freshComments = await syncCommentsFromApi(
+            Number(projectId),
+            substepId,
+            projectSubstepId,
+          );
+          console.log(
+            "[SubstepCommentsPage] Fetched fresh comments for delete:",
+            freshComments.length,
+          );
+        }
+
+        // 3. 使用最新数据收集子回复 ID
+        const replyIds = collectReplyIds(commentId, freshComments);
+
+        console.log(
+          "[SubstepCommentsPage] Deleting comment:",
+          commentId,
+          "and replies:",
+          replyIds,
+        );
+
+        // 4. 执行删除
+        if (typeof commentId === "number") {
+          await deleteCommentApi(commentId);
+
+          for (const replyId of replyIds) {
+            if (typeof replyId === "number") {
+              console.log("[SubstepCommentsPage] Deleting reply:", replyId);
+              await deleteCommentApi(replyId).catch(() => {
+                console.warn(
+                  "[SubstepCommentsPage] Failed to delete reply:",
+                  replyId,
+                );
+              });
+            }
+          }
+        }
+
+        // 5. 删除后重新加载
+        if (projectSubstepId) {
+          const syncedComments = await syncCommentsFromApi(
+            Number(projectId),
+            substepId,
+            projectSubstepId,
+          );
+          setComments(syncedComments);
+        } else {
+          const response = await getSubstepComments(
+            substepId,
+            Number(projectId),
+          );
+          setComments(response.comments);
+        }
+      } catch (error) {
+        console.error("[SubstepCommentsPage] Delete failed:", error);
+      }
+    },
+    [projectId, substepId, comments],
+  );
+
+  // 处理 Resolve 评论
+  const handleResolve = useCallback(
+    async (commentId: string | number) => {
+      if (!projectId || !substepId) return;
+
+      // 1. 找到当前评论状态
+      const comment = comments.find((c) => c.id === commentId);
+      if (!comment) return;
+
+      const newResolvedState = !comment.is_resolved;
+
+      // 2. 立即更新本地状态（乐观更新）
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId ? { ...c, is_resolved: newResolvedState } : c,
+        ),
+      );
+
+      // 3. 同步到 API（只有已同步的评论）
+      if (typeof commentId === "number") {
+        try {
+          await resolveComment(commentId);
+
+          console.log("[SubstepCommentsPage] Comment resolved:", commentId);
+
+          // 4. 重新加载评论确保一致性
+          const response = await getSubstepComments(
+            substepId,
+            Number(projectId),
+          );
+          setComments(response.comments);
+        } catch (error) {
+          console.error("[SubstepCommentsPage] Resolve failed:", error);
+          // 5. API 失败回滚
+          setComments((prev) =>
+            prev.map((c) =>
+              c.id === commentId
+                ? { ...c, is_resolved: comment.is_resolved }
+                : c,
+            ),
+          );
+        }
+      }
+    },
+    [projectId, substepId, comments],
+  );
+
   // 获取 projectSubstepId
   const getProjectSubstepId = async (
     projectId: number,
@@ -237,6 +435,8 @@ export default function SubstepCommentsPage() {
                   setReplyContent={setReplyContent}
                   onReply={handleReply}
                   onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onResolve={handleResolve}
                   isSubmittingReply={isSubmittingReply}
                   currentUserId={currentUserId}
                 />

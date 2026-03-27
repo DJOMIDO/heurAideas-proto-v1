@@ -11,6 +11,8 @@ interface CommentListProps {
   setReplyContent: (content: string) => void;
   onReply: (parentId: string | number, content: string) => void;
   onEdit?: (commentId: string | number, content: string) => void;
+  onDelete?: (commentId: string | number) => void;
+  onResolve?: (commentId: string | number) => void;
   isSubmittingReply: boolean;
   currentUserId?: number;
 }
@@ -23,6 +25,8 @@ export default function CommentList({
   setReplyContent,
   onReply,
   onEdit,
+  onDelete,
+  onResolve,
   isSubmittingReply,
   currentUserId,
 }: CommentListProps) {
@@ -42,9 +46,11 @@ export default function CommentList({
           replyContent={replyContent}
           setReplyContent={setReplyContent}
           onReply={onReply}
-          onEdit={onEdit} // 传递 onEdit
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onResolve={onResolve}
           isSubmittingReply={isSubmittingReply}
-          currentUserId={currentUserId} // 传递 currentUserId
+          currentUserId={currentUserId}
         />
 
         {/* 递归渲染回复 */}
