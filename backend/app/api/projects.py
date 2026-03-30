@@ -1,10 +1,10 @@
 # backend/app/api/projects.py
 
 from app.schemas.stakeholder import StakeholderListResponse
-from fastapi import APIRouter, Depends, HTTPException, status  # pyright: ignore[reportMissingImports]
-from sqlalchemy.orm import Session  # pyright: ignore[reportMissingImports]
+from fastapi import APIRouter, Depends, HTTPException, status # pyright: ignore[reportMissingImports]
+from sqlalchemy.orm import Session # pyright: ignore[reportMissingImports]
 from sqlalchemy.sql import func # pyright: ignore[reportMissingImports]
-from typing import List, Optional, Union  # pyright: ignore[reportMissingImports]
+from typing import List, Optional, Union
 import re
 
 from app.database import get_db
@@ -25,6 +25,45 @@ from app.models.user import User
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
 
+# ==================== 辅助函数：清理空字段 ====================
+
+def cleanup_empty_fields(data: dict) -> dict:
+    """
+    递归清理 content_data 中的空字段
+    
+    规则：
+    - 空字符串 → 删除
+    - null → 删除
+    - 空字典 → 删除
+    - 空列表 → 删除
+    """
+    if not isinstance(data, dict):
+        return data
+    
+    cleaned = {}
+    for key, value in data.items():
+        if isinstance(value, dict):
+            # 递归清理嵌套字典
+            cleaned_value = cleanup_empty_fields(value)
+            # 只保留非空字典
+            if cleaned_value:
+                cleaned[key] = cleaned_value
+        elif isinstance(value, list):
+            # 清理列表中的空字典
+            cleaned_value = [
+                cleanup_empty_fields(item) if isinstance(item, dict) else item
+                for item in value
+            ]
+            # 只保留非空列表
+            if cleaned_value:
+                cleaned[key] = cleaned_value
+        elif value not in (None, '', []):
+            # 保留非空值
+            cleaned[key] = value
+    
+    return cleaned
+
+
 # ==================== 辅助函数：保存 Stakeholder 数据 ====================
 
 async def save_stakeholders(
@@ -35,14 +74,9 @@ async def save_stakeholders(
 ):
     """
     从 content_data 中提取 stakeholder 数据并保存到 stakeholders 表
-    
-    支持嵌套结构：{"subtask-a": {"stakeholder-role-0": "S1", ...}}
-    扁平化为：{"subtask-a-stakeholder-role-0": "S1", ...}
-    
-    同步逻辑：
-    - 前端存在的 → 创建或更新
-    - 前端删除的 → 从数据库删除
     """
+    # 在函数开始时清理空字段
+    content_data = cleanup_empty_fields(content_data)
     
     # 1. 扁平化嵌套结构
     flat_content_data = {}
@@ -65,7 +99,6 @@ async def save_stakeholders(
         if not value_stripped and '-role' not in key:
             continue
         
-        # 精确匹配 name 字段
         if re.match(r'^subtask-.*-stakeholder-role-\d+$', key):
             name = value_stripped
             if name:
@@ -73,10 +106,9 @@ async def save_stakeholders(
                 if name not in stakeholders_data:
                     stakeholders_data[name] = {"roles": []}
         
-        # 精确匹配 role 字段
         elif re.match(r'^subtask-.*-stakeholder-role-\d+-role$', key):
             role_string = value_stripped
-            name_key = key[:-5]  # 只删除末尾的 '-role'
+            name_key = key[:-5]
             name_value = flat_content_data.get(name_key, '')
             if isinstance(name_value, str):
                 name_value = name_value.strip()
@@ -130,7 +162,7 @@ async def save_stakeholders(
     db.commit()
     
 
-# ==================== 创建项目（使用真实用户 ID）====================
+# ==================== 创建项目 ====================
 
 @router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 async def create_project(
@@ -138,7 +170,7 @@ async def create_project(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 1. 获取模板
+    # ... (保持不变)
     template_id = project.template_id
     if not template_id:
         template = db.query(ProjectTemplate).filter(ProjectTemplate.is_default == True).first()
@@ -150,7 +182,6 @@ async def create_project(
         if not template:
             raise HTTPException(status_code=404, detail="Template not found")
     
-    # 2. 创建项目记录（使用真实用户 ID）
     db_project = Project(
         name=project.name,
         description=project.description,
@@ -163,7 +194,6 @@ async def create_project(
     db.commit()
     db.refresh(db_project)
     
-    # 3. 复制模板结构到项目实例
     template_steps = db.query(TemplateStep).filter(TemplateStep.template_id == template.id).order_by(TemplateStep.order).all()
     
     for t_step in template_steps:
@@ -213,21 +243,20 @@ async def create_project(
     return db_project
 
 
-# ==================== 获取项目列表（只返回当前用户的项目）====================
+# ==================== 获取项目列表 ====================
 
 @router.get("/", response_model=List[ProjectListResponse])
 async def get_projects(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 只查询当前用户的项目
     projects = db.query(Project).filter(
         Project.creator_id == current_user.id
     ).order_by(Project.created_at.desc()).all()
     return projects
 
 
-# ==================== 获取项目详情（验证用户权限）====================
+# ==================== 获取项目详情 ====================
 
 @router.get("/{project_id}", response_model=ProjectDetailResponse)
 async def get_project_detail(
@@ -235,7 +264,6 @@ async def get_project_detail(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 1. 获取项目（验证属于当前用户）
     project = db.query(Project).filter(
         Project.id == project_id,
         Project.creator_id == current_user.id
@@ -243,32 +271,31 @@ async def get_project_detail(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    # 2. 获取步骤（按 order 排序）
+    # 获取所有 steps
     steps = db.query(ProjectStep).filter(
         ProjectStep.project_id == project_id
     ).order_by(ProjectStep.order).all()
     
-    # 3. 为每个步骤获取子步骤
+    # 为每个 step 加载 substeps
     for step in steps:
         substeps = db.query(ProjectSubstep).filter(
             ProjectSubstep.project_step_id == step.id
         ).order_by(ProjectSubstep.order).all()
         step.substeps = substeps
         
-        # 4. 为每个子步骤获取子任务
+        # 为每个 substep 加载 subtasks
         for substep in substeps:
             subtasks = db.query(ProjectSubtask).filter(
                 ProjectSubtask.project_substep_id == substep.id
             ).order_by(ProjectSubtask.order).all()
             substep.subtasks = subtasks
     
-    # 5. 将步骤列表赋值给项目
     project.steps = steps
     
     return project
 
 
-# ==================== 保存子步骤内容（验证用户权限 + 保存 Stakeholder）====================
+# ==================== 保存子步骤内容 ====================
 
 @router.post("/{project_id}/substeps/{substep_id}/content", response_model=SubstepContentResponse)
 async def save_substep_content(
@@ -278,7 +305,6 @@ async def save_substep_content(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 验证项目属于当前用户
     project = db.query(Project).filter(
         Project.id == project_id,
         Project.creator_id == current_user.id
@@ -286,7 +312,6 @@ async def save_substep_content(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    # 通过 code 查找 substep
     substep = db.query(ProjectSubstep).filter(
         ProjectSubstep.code == substep_id,
         ProjectSubstep.project_step_id.in_(
@@ -296,14 +321,15 @@ async def save_substep_content(
     if not substep:
         raise HTTPException(status_code=404, detail="Substep not found")
     
-    # 限制 stakeholder role 为最多 3 个
     content_data = content.content_data.copy()
     for key, value in content_data.items():
         if key.endswith('-role') and isinstance(value, str):
             roles = [r.strip() for r in value.split(",") if r.strip()]
             content_data[key] = ", ".join(roles[:3])
     
-    # 使用 substep.id（整数主键）关联内容
+    # 保存前清理空字段
+    content_data = cleanup_empty_fields(content_data)
+    
     db_content = db.query(SubstepContent).filter(
         SubstepContent.project_substep_id == substep.id
     ).first()
@@ -321,7 +347,6 @@ async def save_substep_content(
         )
         db.add(db_content)
     
-    # 保存 Stakeholder 数据到单独表
     await save_stakeholders(db, project_id, current_user.id, content_data)
     
     db.commit()
@@ -329,7 +354,7 @@ async def save_substep_content(
     return db_content
 
 
-# ==================== 获取子步骤内容（验证用户权限）====================
+# ==================== 获取子步骤内容 ====================
 
 @router.get("/{project_id}/substeps/{substep_id}/content", response_model=Optional[SubstepContentResponse])
 async def get_substep_content(
@@ -338,7 +363,6 @@ async def get_substep_content(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 验证项目属于当前用户
     project = db.query(Project).filter(
         Project.id == project_id,
         Project.creator_id == current_user.id
@@ -346,7 +370,6 @@ async def get_substep_content(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    # 通过 code 查找 substep
     substep = db.query(ProjectSubstep).filter(
         ProjectSubstep.code == substep_id,
         ProjectSubstep.project_step_id.in_(
@@ -357,7 +380,6 @@ async def get_substep_content(
     if not substep:
         return None
     
-    # 使用 substep.id（整数主键）查找内容
     content = db.query(SubstepContent).filter(
         SubstepContent.project_substep_id == substep.id
     ).first()
@@ -373,15 +395,6 @@ async def get_project_stakeholders(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    获取项目中所有 stakeholder
-    
-    Query Parameters:
-    - response_format: 返回格式
-      - None 或 "full": 返回完整 stakeholder 列表（默认）
-      - "roles": 只返回去重的 roles 数组
-    """
-    # 验证项目属于当前用户
     project = db.query(Project).filter(
         Project.id == project_id,
         Project.creator_id == current_user.id
@@ -389,22 +402,18 @@ async def get_project_stakeholders(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    # 获取所有 stakeholder
     stakeholders = db.query(Stakeholder).filter(
         Stakeholder.project_id == project_id
     ).all()
     
-    # 根据 response_format 参数返回不同格式
     if response_format == "roles":
-        # 收集所有 role（去重）
         all_roles = set()
         for s in stakeholders:
             if s.roles:
                 for role in s.roles:
                     all_roles.add(role)
         
-        # 按字母排序返回
         return sorted(list(all_roles))
     else:
-        # 返回完整列表
         return stakeholders
+    

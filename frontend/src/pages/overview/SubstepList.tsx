@@ -12,6 +12,7 @@ interface SubstepListProps {
   selectedId: string | null;
   onSelect: (substep: Substep) => void;
   stepId: number;
+  commentCountMap?: Record<string, number>;
 }
 
 export default function SubstepList({

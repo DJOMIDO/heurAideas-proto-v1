@@ -16,6 +16,7 @@ from app.models.project import (
     Attachment,
 )
 from app.models.stakeholder import Stakeholder
+from app.models.comment import Comment
 
 __all__ = [
     "User",
@@ -30,4 +31,5 @@ __all__ = [
     "SubstepContent",
     "Attachment",
     "Stakeholder",
+    "Comment",
 ]
