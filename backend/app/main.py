@@ -22,7 +22,7 @@ from app.models import (
 )
 
 # 导入路由
-from app.api import auth, users, projects
+from app.api import auth, users, projects, comments
 
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
@@ -46,6 +46,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(projects.router)
+app.include_router(comments.router)
 
 @app.get("/")
 async def root():

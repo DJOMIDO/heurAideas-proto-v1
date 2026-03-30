@@ -1,9 +1,12 @@
-// src/pages/substep/substep-content-card/SubstepContentCard.tsx
+// frontend/src/pages/substep/substep-content-card/SubstepContentCard.tsx
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { type Substep, type Subtask } from "@/data/steps";
+
+import { CommentModeToggle, CommentOverlay } from "@/components/comment";
+import { useComment } from "@/hooks/useComment";
 
 import DescriptionTab from "./DescriptionTab";
 import SubtaskHeader from "./SubtaskHeader";
@@ -22,6 +25,13 @@ interface SubstepContentCardProps {
   isDropTarget?: boolean;
   onDropZoneEnter?: () => void;
   onDropZoneLeave?: () => void;
+  projectId?: number;
+  stepId?: number;
+  isCommentMode?: boolean;
+  setIsCommentMode?: (value: boolean) => void;
+  projectSubstepId?: number;
+  commentCount?: number;
+  commentRefreshKey?: number;
 }
 
 export default function SubstepContentCard({
@@ -34,8 +44,52 @@ export default function SubstepContentCard({
   isDropTarget = false,
   onDropZoneEnter,
   onDropZoneLeave,
+  projectId = 0,
+  stepId = 0,
+  isCommentMode = false,
+  setIsCommentMode = () => {},
+  projectSubstepId,
+  commentRefreshKey = 0,
 }: SubstepContentCardProps) {
-  // 处理空 activeTab（分屏初始状态）
+  const {
+    comments,
+    selectedCommentId,
+    showCommentInput,
+    inputViewportPosition,
+    popoverViewportPosition,
+    currentComments,
+    currentUserId,
+    contentAreaRef,
+    setShowCommentInput,
+    setCommentPosition,
+    setInputViewportPosition,
+    handleMarkerClick,
+    handleSaveComment,
+    handleDeleteComment,
+    handleResolveComment,
+    handleReplyComment,
+    handleUpdateCommentPosition,
+    handleClosePopover,
+    handleCloseInput,
+    handleEditComment,
+  } = useComment({
+    projectId,
+    substepId: substep.id,
+    stepId,
+    projectSubstepId,
+    activeTab,
+    isCommentMode,
+    setIsCommentMode,
+    commentRefreshKey,
+  });
+
+  const fieldPrefix = `${activeTab}`;
+  const updateField = (field: string, value: any) => {
+    onFormDataChange?.(`${fieldPrefix}-${field}`, value);
+  };
+  const getField = (field: string) => formData[`${fieldPrefix}-${field}`] || "";
+
+  // 处理空 activeTab
   if (!activeTab || activeTab === "") {
     return (
       <Card
@@ -87,7 +141,6 @@ export default function SubstepContentCard({
     );
   }
 
-  // 获取当前 Subtask
   const getCurrentSubtask = (): Subtask | null => {
     if (activeTab === "description") return null;
     const subtaskId = activeTab.replace("subtask-", "");
@@ -96,7 +149,6 @@ export default function SubstepContentCard({
 
   const subtask = getCurrentSubtask();
 
-  // Description Tab
   if (activeTab === "description") {
     return (
       <DescriptionTab
@@ -106,7 +158,6 @@ export default function SubstepContentCard({
     );
   }
 
-  // Subtask not found
   if (!subtask) {
     return (
       <Card
@@ -143,116 +194,177 @@ export default function SubstepContentCard({
     );
   }
 
-  // 辅助函数
-  const fieldPrefix = `${activeTab}`;
-  const updateField = (field: string, value: any) => {
-    onFormDataChange?.(`${fieldPrefix}-${field}`, value);
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (!isCommentMode || showCommentInput || selectedCommentId || !activeTab)
+      return;
+
+    const rect = contentAreaRef.current?.getBoundingClientRect();
+    const scrollTop = contentAreaRef.current?.scrollTop || 0;
+    if (!rect) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const contentPosition = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top + scrollTop,
+    };
+
+    const viewportPosition = {
+      x: e.clientX,
+      y: e.clientY,
+    };
+
+    setCommentPosition(contentPosition);
+    setInputViewportPosition(viewportPosition);
+    setShowCommentInput(true);
   };
-  const getField = (field: string) => formData[`${fieldPrefix}-${field}`] || "";
+
+  const handleToggleCommentMode = () => {
+    setIsCommentMode(!isCommentMode);
+    handleClosePopover();
+    handleCloseInput();
+  };
 
   return (
-    <Card
-      className={`
-        flex-1 m-4 border border-gray-200 shadow-sm
-        ${isDropTarget ? "ring-2 ring-blue-400 ring-inset bg-blue-50/30" : ""}
-        transition-all duration-200
-      `}
-      onDragOver={(e) => {
-        e.preventDefault();
-        if (isDropTarget) onDropZoneEnter?.();
-      }}
-      onDragLeave={(e) => {
-        if (isDropTarget && e.currentTarget.contains(e.relatedTarget as Node)) {
-          return;
-        }
-        onDropZoneLeave?.();
-      }}
-    >
-      {/* 标题 */}
-      <SubtaskHeader subtaskId={subtask.id} title={subtask.title} />
+    <div className="relative flex-1 m-4">
+      {/* 评论模式切换按钮 */}
+      <div className="absolute top-4 right-4 z-40">
+        <CommentModeToggle
+          isEnabled={isCommentMode}
+          onToggle={handleToggleCommentMode}
+          commentCount={currentComments.length}
+        />
+      </div>
 
-      {/* 可滑动内容区 */}
-      <CardContent className="px-6">
-        <div className="min-h-[400px] max-h-[calc(100vh-300px)] overflow-y-auto pr-2 space-y-6">
-          {/* 只读信息块 */}
-          <InfoSection label="Objective" content={subtask.objective} />
-          <InfoSection label="Actions" content={subtask.actions} />
-          <InfoSection
-            label="Recommended Documentation"
-            content={subtask.recommendedDocumentation}
-          />
+      <Card
+        className={`
+          border border-gray-200 shadow-sm transition-all duration-200
+          ${isCommentMode ? "cursor-crosshair" : ""}
+          ${isDropTarget ? "ring-2 ring-blue-400 ring-inset bg-blue-50/30" : ""}
+        `}
+        onClick={handleCardClick}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (isDropTarget) onDropZoneEnter?.();
+        }}
+        onDragLeave={(e) => {
+          if (
+            isDropTarget &&
+            e.currentTarget.contains(e.relatedTarget as Node)
+          ) {
+            return;
+          }
+          onDropZoneLeave?.();
+        }}
+      >
+        <SubtaskHeader subtaskId={subtask.id} title={subtask.title} />
 
-          {/* 分隔线 */}
-          <div className="my-6 border-t border-gray-200" />
+        <CardContent className="px-6">
+          {/* 内容区 */}
+          <div
+            ref={contentAreaRef}
+            className="relative min-h-[400px] max-h-[calc(100vh-300px)] overflow-y-auto pr-2 space-y-6"
+          >
+            {/* 评论 Overlay */}
+            <div
+              className="relative"
+              style={{ height: 0, overflow: "visible" }}
+            >
+              <CommentOverlay
+                showCommentInput={showCommentInput}
+                inputViewportPosition={inputViewportPosition}
+                selectedCommentId={selectedCommentId}
+                popoverViewportPosition={popoverViewportPosition}
+                comments={comments}
+                currentComments={currentComments}
+                currentUserId={currentUserId}
+                handleMarkerClick={handleMarkerClick}
+                handleSaveComment={handleSaveComment}
+                handleCloseInput={handleCloseInput}
+                handleClosePopover={handleClosePopover}
+                handleDeleteComment={handleDeleteComment}
+                handleResolveComment={handleResolveComment}
+                handleReplyComment={handleReplyComment}
+                handleUpdateCommentPosition={handleUpdateCommentPosition}
+                handleEditComment={handleEditComment}
+              />
+            </div>
 
-          {/* 1. Activity Name */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-800">
-              1. Register the activity of interest*
-            </label>
-            <p className="text-xs text-gray-500 italic">
-              *The name given for the activity will be automatically reused for
-              the rest of the activity. You can come back here to change it.
-            </p>
-            <Input
-              placeholder="Enter the name of the activity"
-              value={getField("activityName")}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                updateField("activityName", e.target.value)
-              }
-              className="max-w-2xl"
+            {/* 表单内容 */}
+            <InfoSection label="Objective" content={subtask.objective} />
+            <InfoSection label="Actions" content={subtask.actions} />
+            <InfoSection
+              label="Recommended Documentation"
+              content={subtask.recommendedDocumentation}
             />
-          </div>
 
-          {/* 2. Activity Definition */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-800">
-              2. Propose a short definition of this activity
-            </label>
-            <Textarea
-              placeholder="Enter the description of the activity"
-              value={getField("activityDefinition")}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                updateField("activityDefinition", e.target.value)
-              }
-              className="max-w-2xl min-h-[80px]"
+            <div className="my-6 border-t border-gray-200" />
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-800">
+                1. Register the activity of interest*
+              </label>
+              <p className="text-xs text-gray-500 italic">
+                *The name given for the activity will be automatically reused
+                for the rest of the activity. You can come back here to change
+                it.
+              </p>
+              <Input
+                placeholder="Enter the name of the activity"
+                value={getField("activityName")}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  updateField("activityName", e.target.value)
+                }
+                className="max-w-2xl"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-800">
+                2. Propose a short definition of this activity
+              </label>
+              <Textarea
+                placeholder="Enter the description of the activity"
+                value={getField("activityDefinition")}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                  updateField("activityDefinition", e.target.value)
+                }
+                className="max-w-2xl min-h-[80px]"
+              />
+            </div>
+
+            <PrimaryElementsTable
+              formData={formData}
+              onFormDataChange={onFormDataChange!}
+              fieldPrefix={fieldPrefix}
             />
-          </div>
 
-          {/* 3. Primary Elements Table */}
-          <PrimaryElementsTable
-            formData={formData}
-            onFormDataChange={onFormDataChange!}
-            fieldPrefix={fieldPrefix}
-          />
-
-          {/* 4. Stakeholders Section */}
-          <StakeholderSection
-            formData={formData}
-            onFormDataChange={onFormDataChange!}
-            fieldPrefix={fieldPrefix}
-          />
-
-          {/* 5. Additional Stakeholders */}
-          <div className="space-y-2">
-            <label className="text-sm font-semibold text-gray-800">
-              5. Identify the stakeholders involved in the activity and that
-              might be concerned by the SoI use
-            </label>
-            <Textarea
-              placeholder="Enter additional stakeholder information..."
-              value={getField("additionalStakeholders")}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                updateField("additionalStakeholders", e.target.value)
-              }
-              className="max-w-2xl min-h-[80px]"
+            <StakeholderSection
+              formData={formData}
+              onFormDataChange={onFormDataChange!}
+              fieldPrefix={fieldPrefix}
             />
-          </div>
 
-          {/* Save Status */}
-          <SaveStatus lastSaved={lastSaved} isSaving={isSaving} />
-        </div>
-      </CardContent>
-    </Card>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-gray-800">
+                5. Identify the stakeholders involved in the activity and that
+                might be concerned by the SoI use
+              </label>
+              <Textarea
+                placeholder="Enter additional stakeholder information..."
+                value={getField("additionalStakeholders")}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                  updateField("additionalStakeholders", e.target.value)
+                }
+                className="max-w-2xl min-h-[80px]"
+              />
+            </div>
+
+            <SaveStatus lastSaved={lastSaved} isSaving={isSaving} />
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

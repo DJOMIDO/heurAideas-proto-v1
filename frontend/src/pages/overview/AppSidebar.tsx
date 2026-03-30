@@ -1,3 +1,5 @@
+// frontend/src/pages/overview/AppSidebar.tsx
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,9 +31,7 @@ export default function AppSidebar({
   onToggle,
   onNavigate,
 }: AppSidebarProps) {
-  // 获取真实用户信息（Mock/Real 自动切换）
   const user = getUserInfo();
-  // 生成首字母头像（纯 CSS 方案）
   const avatarInitial = user?.name?.charAt(0).toUpperCase() || "U";
 
   return (
@@ -40,31 +40,26 @@ export default function AppSidebar({
         isCollapsed ? "w-16" : "w-64"
       } bg-gray-800 border-r border-gray-700 flex flex-col transition-all duration-300 ease-in-out shrink-0 z-20`}
     >
-      {/* 顶部：Manage Account (Dropdown) */}
       <div className="p-4 border-b border-gray-700 h-16 flex items-center justify-between">
         {!isCollapsed ? (
-          /* 展开状态：显示账户 Dropdown */
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 className="w-full justify-start px-2 py-2 text-white hover:bg-gray-700"
               >
-                {/* 纯 CSS 首字母头像（无需安装 Avatar 组件） */}
                 <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center shrink-0 border-2 border-gray-600">
                   <span className="text-white font-semibold text-sm">
                     {avatarInitial}
                   </span>
                 </div>
 
-                {/* 真实用户信息 */}
                 <div className="flex-1 min-w-0 ml-3 text-left">
                   <p className="text-white font-medium text-sm truncate">
                     {user?.name || "Loading..."}
                   </p>
                 </div>
 
-                {/* 下拉箭头 */}
                 <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
               </Button>
             </DropdownMenuTrigger>
@@ -74,7 +69,6 @@ export default function AppSidebar({
               sideOffset={8}
               className="w-56 bg-gray-800 border-gray-700"
             >
-              {/* 显示用户信息摘要 */}
               <div className="px-3 py-2 border-b border-gray-700">
                 <p className="text-white font-medium text-sm">{user?.name}</p>
                 <p className="text-gray-400 text-xs">{user?.email}</p>
@@ -90,7 +84,6 @@ export default function AppSidebar({
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-gray-700" />
 
-              {/* Sign Out：调用 signOut() + 跳转 */}
               <DropdownMenuItem
                 className="text-red-400 hover:bg-gray-700 hover:text-red-300 cursor-pointer"
                 onClick={() => {
@@ -104,11 +97,9 @@ export default function AppSidebar({
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          /* 折叠状态：空白占位 */
           <div className="flex-1"></div>
         )}
 
-        {/* 折叠按钮 (始终显示) */}
         <Button
           variant="ghost"
           size="sm"
@@ -119,7 +110,6 @@ export default function AppSidebar({
         </Button>
       </div>
 
-      {/* 中间：项目功能按钮 */}
       <div className="flex-1 py-4 overflow-hidden">
         <div className="flex flex-col gap-2 px-2">
           {/* Manage Project */}
@@ -160,7 +150,6 @@ export default function AppSidebar({
             </Button>
           )}
 
-          {/* Review Project */}
           {isCollapsed ? (
             <Button
               variant="ghost"
@@ -181,7 +170,6 @@ export default function AppSidebar({
         </div>
       </div>
 
-      {/* 底部：返回按钮 */}
       <div className="p-2 border-t border-gray-700">
         {isCollapsed ? (
           <Button

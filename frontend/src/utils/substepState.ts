@@ -2,6 +2,7 @@
 
 import { saveSubstepContent, getSubstepContent } from "@/api/projects";
 import { isAuthenticated, getUserId } from "./auth";
+import { cleanupEmptyFormDataFields } from "@/utils/formDataUtils";
 
 export interface SubstepState {
   activeTab: string;
@@ -99,6 +100,10 @@ function convertToContentData(
         contentData[subtaskKey] = {};
       }
 
+      if (fieldName === "element-row-count") {
+        return;
+      }
+
       if (fieldName.startsWith("element-")) {
         const elemMatch = fieldName.match(/^element-(\d+)-(.+)$/);
         if (elemMatch) {
@@ -122,6 +127,15 @@ function convertToContentData(
       }
 
       contentData[subtaskKey][fieldName] = formData[key];
+    }
+  });
+
+  Object.keys(contentData).forEach((key) => {
+    if (
+      typeof contentData[key] === "object" &&
+      Object.keys(contentData[key]).length === 0
+    ) {
+      delete contentData[key];
     }
   });
 
@@ -168,7 +182,9 @@ export async function saveSubstepStateWithApi(
   state: Partial<SubstepState>,
   syncToDatabase: boolean = false,
 ): Promise<void> {
-  const contentData = convertToContentData(state.formData || {});
+  const cleanedFormData = cleanupEmptyFormDataFields(state.formData || {});
+
+  const contentData = convertToContentData(cleanedFormData);
   const uiState = {
     activeTab: state.activeTab || "description",
     viewMode: state.viewMode || "single",
@@ -176,11 +192,7 @@ export async function saveSubstepStateWithApi(
     lastSaved: new Date().toISOString(),
   };
 
-  if (
-    syncToDatabase &&
-    import.meta.env.VITE_AUTH_MODE === "real" &&
-    isAuthenticated()
-  ) {
+  if (syncToDatabase && isAuthenticated()) {
     try {
       await saveSubstepContent(projectId, substepId, {
         content_data: contentData,
@@ -194,29 +206,36 @@ export async function saveSubstepStateWithApi(
     }
   }
 
-  saveSubstepState(projectId, substepId, state);
+  saveSubstepState(projectId, substepId, {
+    ...state,
+    activeTab: state.activeTab || "description",
+    formData: cleanedFormData,
+  });
 }
-
-// frontend/src/utils/substepState.ts
 
 export async function loadSubstepStateWithApi(
   projectId: number,
   substepId: string,
 ): Promise<SubstepState | null> {
-  // ✅ 先从 localStorage 加载（未保存的更改优先）
   const localState = getSubstepState(projectId, substepId);
-  if (localState && localState.formData && Object.keys(localState.formData).length > 0) {
-    console.log(`[substepState] Using localStorage state for ${substepId}`);
+
+  // 只要有 localStorage 状态就加载（不管 formData 是否为空）
+  if (localState) {
+    console.log(
+      `[substepState] Using localStorage state for ${substepId}`,
+      localState,
+    );
     return localState;
   }
 
-  // 如果 localStorage 没有数据，再从 API 加载
-  if (import.meta.env.VITE_AUTH_MODE === "real" && isAuthenticated()) {
+  if (isAuthenticated()) {
     try {
       const apiContent = await getSubstepContent(projectId, substepId);
-      if (apiContent && apiContent.content_data) {
+      if (apiContent) {
         console.log(`[substepState] Using API state for ${substepId}`);
-        const formData = convertToFormData(apiContent.content_data);
+        const formData = apiContent.content_data
+          ? convertToFormData(apiContent.content_data)
+          : {};
         const state: SubstepState = {
           activeTab: apiContent.ui_state?.activeTab || "description",
           formData,
@@ -227,13 +246,11 @@ export async function loadSubstepStateWithApi(
         return state;
       }
     } catch (error) {
-      console.warn(
-        `[loadSubstepStateWithApi] Failed to load from API:`,
-        error,
-      );
+      console.warn(`[loadSubstepStateWithApi] Failed to load from API:`, error);
     }
   }
 
+  // 默认状态
   return {
     activeTab: "description",
     formData: {},
@@ -254,10 +271,10 @@ export function getSubstepState(
   try {
     const parsed = JSON.parse(data);
     return {
-      activeTab: parsed.activeTab ?? "description",
+      activeTab: parsed.activeTab || "description", // 确保有默认值
       formData: parsed.formData ?? {},
       lastSaved: parsed.lastSaved,
-      viewMode: parsed.viewMode,
+      viewMode: parsed.viewMode || "single",
       splitView: parsed.splitView,
     };
   } catch (error) {
@@ -271,20 +288,23 @@ export function saveSubstepState(
   substepId: string,
   state: Partial<SubstepState>,
 ): void {
-  const existing = getSubstepState(projectId, substepId) || {
-    activeTab: "description",
-    formData: {},
-  };
+  const existing = getSubstepState(projectId, substepId);
 
-  const merged = {
-    ...existing,
-    ...state,
+  // 确保 activeTab 始终被保存
+  const merged: SubstepState = {
+    activeTab: state.activeTab || existing?.activeTab || "description",
+    formData:
+      state.formData !== undefined ? state.formData : existing?.formData || {},
     lastSaved: new Date().toISOString(),
+    viewMode: state.viewMode || existing?.viewMode || "single",
+    splitView:
+      state.splitView !== undefined ? state.splitView : existing?.splitView,
   };
 
   try {
     const key = getStorageKey(projectId, substepId);
     localStorage.setItem(key, JSON.stringify(merged));
+    console.log(`[substepState] Saved state for ${substepId}:`, merged);
   } catch (error) {
     console.warn(`Failed to save substep state for ${substepId}:`, error);
   }

@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status  # pyright: ignore[reportMissingImports]
 from fastapi.security import OAuth2PasswordBearer  # pyright: ignore[reportMissingImports]
+from fastapi.security import OAuth2PasswordRequestForm # pyright: ignore[reportMissingImports]
 from sqlalchemy.orm import Session  # pyright: ignore[reportMissingImports]
 from datetime import timedelta
 
@@ -13,8 +14,9 @@ from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-# OAuth2 scheme，用于从 Header 中提取 Token
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+# OAuth2 scheme，用于从 Header 中提取 Token 指向 OAuth2 专用端点
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/oauth2/login")
+
 
 # ============================
 # 获取当前用户依赖函数
@@ -45,6 +47,43 @@ async def get_current_user(
         raise credentials_exception
     
     return user
+
+
+# ============================
+# 辅助函数：验证用户
+# ============================
+def _authenticate_user(db: Session, username_or_email: str, password: str) -> User:
+    """验证用户的辅助函数"""
+    # 用 username 或 email 查找用户
+    user = db.query(User).filter(User.username == username_or_email).first()
+    if not user:
+        user = db.query(User).filter(User.email == username_or_email).first()
+    
+    if not user or not verify_password(password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return user
+
+
+# ============================
+# 辅助函数：创建 Token
+# ============================
+def _create_token(user: User) -> dict:
+    """创建访问令牌的辅助函数"""
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={
+            "sub": user.username,
+            "email": user.email,
+            "user_id": user.id
+        },
+        expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 # ============================
@@ -85,38 +124,29 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
 
 
 # ============================
-# 登录
+# 登录 - 前端使用（JSON）
 # ============================
 @router.post("/login", response_model=Token)
-async def login(user_login: UserLogin, db: Session = Depends(get_db)):
-    # 查找用户
-    user = db.query(User).filter(User.email == user_login.email).first()
+async def login_json(
+    user_login: UserLogin,  # 只接受 JSON
+    db: Session = Depends(get_db)
+):
+    """前端登录 - 使用 JSON"""
+    username_or_email = user_login.email or user_login.username
+    password = user_login.password
     
-    # 验证用户是否存在
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # 验证密码
-    if not verify_password(user_login.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # 创建访问令牌（添加 user_id）
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={
-            "sub": user.username,
-            "email": user.email,
-            "user_id": user.id
-        },
-        expires_delta=access_token_expires
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+    user = _authenticate_user(db, username_or_email, password)
+    return _create_token(user)
+
+
+# ============================
+# 登录 - Swagger OAuth2 使用（Form）
+# ============================
+@router.post("/oauth2/login", response_model=Token)
+async def login_oauth2(
+    form_data: OAuth2PasswordRequestForm = Depends(),  # 只接受 Form
+    db: Session = Depends(get_db)
+):
+    """Swagger OAuth2 登录 - 使用 Form 数据"""
+    user = _authenticate_user(db, form_data.username, form_data.password)
+    return _create_token(user)

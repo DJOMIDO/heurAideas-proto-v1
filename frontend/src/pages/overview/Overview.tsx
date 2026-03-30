@@ -21,6 +21,13 @@ const getActiveStepStorageKey = (): string => {
   return userId ? `overview-active-step-${userId}` : "overview-active-step";
 };
 
+const getSelectedSubstepStorageKey = (stepId: number): string => {
+  const userId = getUserId();
+  return userId
+    ? `overview-selected-substep-${userId}-step-${stepId}`
+    : `overview-selected-substep-step-${stepId}`;
+};
+
 export default function Overview() {
   const navigate = useNavigate();
 
@@ -32,24 +39,68 @@ export default function Overview() {
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
+  // 先初始化 activeStepId
   const [activeStepId, setActiveStepId] = useState(() => {
     const stored = localStorage.getItem(getActiveStepStorageKey());
     return stored ? Number(stored) : 1;
   });
 
-  const [selectedSubstep, setSelectedSubstep] = useState<Substep | null>(null);
+  // 再根据 activeStepId 初始化 selectedSubstep
+  const [selectedSubstep, setSelectedSubstep] = useState<Substep | null>(() => {
+    // 使用 activeStepId 的初始值（需要从上面获取）
+    const storedStepId = localStorage.getItem(getActiveStepStorageKey());
+    const stepId = storedStepId ? Number(storedStepId) : 1;
+
+    const stored = localStorage.getItem(getSelectedSubstepStorageKey(stepId));
+    if (stored) {
+      const step = stepsData.find((s) => s.id === stepId);
+      return step?.substeps.find((s) => s.id === stored) || null;
+    }
+    return null;
+  });
 
   const activeStep =
     stepsData.find((step) => step.id === activeStepId) || stepsData[0];
 
   const handleStepChange = (id: number) => {
+    // 保存当前选中的子步骤
+    if (selectedSubstep) {
+      localStorage.setItem(
+        getSelectedSubstepStorageKey(activeStepId),
+        selectedSubstep.id,
+      );
+    }
+
     setActiveStepId(id);
-    setSelectedSubstep(null);
     localStorage.setItem(getActiveStepStorageKey(), String(id));
+
+    // 读取新 Step 的选中子步骤
+    const stored = localStorage.getItem(getSelectedSubstepStorageKey(id));
+    if (stored) {
+      const newStep = stepsData.find((s) => s.id === id);
+      const substep = newStep?.substeps.find((s) => s.id === stored);
+      if (substep) {
+        setSelectedSubstep(substep);
+      } else {
+        setSelectedSubstep(null);
+      }
+    } else {
+      setSelectedSubstep(null);
+    }
   };
 
   const handleSubstepSelect = (substep: Substep) => {
-    setSelectedSubstep((prev) => (prev?.id === substep.id ? null : substep));
+    const newSelected = selectedSubstep?.id === substep.id ? null : substep;
+    setSelectedSubstep(newSelected);
+
+    if (newSelected) {
+      localStorage.setItem(
+        getSelectedSubstepStorageKey(activeStepId),
+        newSelected.id,
+      );
+    } else {
+      localStorage.removeItem(getSelectedSubstepStorageKey(activeStepId));
+    }
   };
 
   const toggleSidebar = () => {
@@ -80,7 +131,10 @@ export default function Overview() {
 
         <ResizablePanel defaultSize="85" minSize="50">
           <div className="flex flex-col h-full overflow-hidden">
-            <StatusBar step={activeStep} />
+            <StatusBar
+              step={activeStep}
+              substep={selectedSubstep || undefined}
+            />
 
             <ResizablePanelGroup
               orientation="horizontal"
@@ -98,7 +152,7 @@ export default function Overview() {
                 className="w-2 bg-gray-200 hover:bg-gray-300 transition-colors z-10 cursor-col-resize"
               />
 
-              <DetailPanel substep={selectedSubstep} />
+              <DetailPanel substep={selectedSubstep} stepId={activeStepId} />
             </ResizablePanelGroup>
           </div>
         </ResizablePanel>
