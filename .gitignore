@@ -55,3 +55,12 @@ Thumbs.db
 # Docker
 # ============================
 .dockerenv
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Vite
+.vite/
+
