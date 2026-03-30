@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Plus, X } from "lucide-react";
 import { getStakeholderRoles } from "@/api/projects";
+import { getInitials } from "@/utils/string";
 
 interface Stakeholder {
   id: string;
@@ -45,14 +46,6 @@ const getTextColor = (color: string) => {
   };
   return colorMap[color] || "text-gray-500";
 };
-
-const getInitials = (name: string) =>
-  name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
 
 const limitToThreeRolesOnSave = (roleString: string): string => {
   const roles = roleString

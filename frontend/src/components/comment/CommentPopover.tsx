@@ -20,6 +20,8 @@ import {
   Edit,
 } from "lucide-react";
 import { type Comment } from "@/types/comment";
+import { formatDate } from "@/utils/comment";
+import { getInitials } from "@/utils/string";
 
 interface CommentPopoverProps {
   comment: Comment;
@@ -130,22 +132,8 @@ export default function CommentPopover({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const initials = comment.authorName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  // 使用工具函数
+  const initials = getInitials(comment.authorName);
 
   // 从扁平数组构建回复树
   const buildReplyTree = (
@@ -163,12 +151,7 @@ export default function CommentPopover({
 
   // 递归渲染回复组件
   const renderReply = (reply: Comment, depth: number = 1) => {
-    const replyInitials = reply.authorName
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+    const replyInitials = getInitials(reply.authorName);
 
     const hasNestedReplies = reply.replies && reply.replies.length > 0;
     const canReply = depth < 3;
@@ -357,7 +340,6 @@ export default function CommentPopover({
 
   return (
     <div
-      // slide-in-from-top-2（从上方滑入）
       className="fixed z-50 animate-in fade-in duration-200"
       style={{
         left: position.x,
@@ -366,7 +348,6 @@ export default function CommentPopover({
       }}
     >
       <Card className="w-96 shadow-xl border-gray-200">
-        {/* 外层容器必须有 max-h-[70vh] + overflow: 'hidden' */}
         <div
           className="flex flex-col"
           style={{ maxHeight: "70vh", overflow: "hidden" }}
@@ -494,7 +475,7 @@ export default function CommentPopover({
             )}
           </div>
 
-          {/* 回复区域 - 移除 ScrollArea，用原生滚动 */}
+          {/* 回复区域 */}
           {replyTree.length > 0 && (
             <div
               className="border-t border-gray-100 flex-shrink-0"

@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { GripVertical } from "lucide-react";
 import { type Comment } from "@/types/comment";
+import { getInitials } from "@/utils/string";
 
 interface CommentMarkerProps {
   comment: Comment;
@@ -93,12 +94,8 @@ export default function CommentMarker({
     }
   };
 
-  const initials = comment.authorName
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  // 使用工具函数
+  const initials = getInitials(comment.authorName);
 
   return (
     <button
