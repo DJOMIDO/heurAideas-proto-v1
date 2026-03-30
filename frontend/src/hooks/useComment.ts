@@ -145,6 +145,75 @@ export function useComment({
     }
   }, [activeTab]);
 
+  const calculatePopoverPosition = useCallback(
+    (
+      comment: Comment,
+      contentArea: HTMLElement,
+      scrollTop: number,
+    ): { align: PopoverAlign; position: { x: number; y: number } } => {
+      const rect = contentArea.getBoundingClientRect();
+
+      // Marker 相对于容器内容区的坐标
+      const markerX = comment.position!.x;
+      const markerY = comment.position!.y - scrollTop;
+
+      // Marker 的视口坐标（用于 Popover 定位）
+      const markerViewportX = rect.left + markerX;
+      const markerViewportY = rect.top + markerY;
+
+      // 容器尺寸
+      const containerWidth = rect.width;
+      const containerHeight = rect.height;
+
+      // Popover 预估尺寸
+      const popoverWidth = 384; // w-96 = 384px
+      const popoverHeight = 500; // 预估最大高度
+
+      // 边缘检测阈值（基于容器内坐标）
+      const horizontalMargin = 200;
+      const verticalMargin = 300;
+
+      let align: PopoverAlign = "bottom";
+      let viewportPosition: { x: number; y: number };
+
+      // 1. 检测是否在底部边缘 → 上方显示
+      if (markerY > containerHeight - verticalMargin) {
+        align = "top";
+        viewportPosition = {
+          x: markerViewportX,
+          y: markerViewportY - popoverHeight,
+        };
+      }
+      // 2. 检测是否在右边缘 → 左边显示
+      else if (markerX > containerWidth - horizontalMargin) {
+        align = "left";
+        viewportPosition = {
+          x: markerViewportX - popoverWidth + 150,
+          y: markerViewportY - 125,
+        };
+      }
+      // 3. 检测是否在左边缘 → 右边显示
+      else if (markerX < horizontalMargin) {
+        align = "right";
+        viewportPosition = {
+          x: markerViewportX + 10,
+          y: markerViewportY,
+        };
+      }
+      // 4. 默认：下方显示
+      else {
+        align = "bottom";
+        viewportPosition = {
+          x: markerViewportX,
+          y: markerViewportY,
+        };
+      }
+
+      return { align, position: viewportPosition };
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!contentAreaRef.current) return;
 
@@ -156,49 +225,17 @@ export function useComment({
       const comment = comments.find((c) => c.id === selectedCommentId);
       if (!comment || !comment.position) return;
 
-      const rect = contentArea.getBoundingClientRect();
       const scrollTop = contentArea.scrollTop || 0;
 
-      const markerX = comment.position.x;
-      const markerY = comment.position.y - scrollTop;
-      const containerWidth = rect.width;
-      const containerHeight = rect.height;
-      const popoverWidth = 384;
-      const popoverHeight = 500;
-      const edgeMargin = 400;
-
-      // 重新计算方向（与 handleMarkerClick 逻辑一致）
-      let align: PopoverAlign = popoverAlign;
-      let newViewportPosition: { x: number; y: number };
-
-      if (markerY > containerHeight - edgeMargin) {
-        align = "top";
-        newViewportPosition = {
-          x: rect.left + markerX,
-          y: rect.top + markerY - popoverHeight - 10,
-        };
-      } else if (markerX > containerWidth - edgeMargin) {
-        align = "left";
-        newViewportPosition = {
-          x: rect.left + markerX - popoverWidth - 10,
-          y: rect.top + markerY,
-        };
-      } else if (markerX < edgeMargin) {
-        align = "right";
-        newViewportPosition = {
-          x: rect.left + markerX + 10,
-          y: rect.top + markerY,
-        };
-      } else {
-        align = "bottom";
-        newViewportPosition = {
-          x: rect.left + markerX,
-          y: rect.top + markerY + 20,
-        };
-      }
+      // 使用公共函数计算位置
+      const { align, position } = calculatePopoverPosition(
+        comment,
+        contentArea,
+        scrollTop,
+      );
 
       setPopoverAlign(align);
-      setPopoverViewportPosition(newViewportPosition);
+      setPopoverViewportPosition(position);
     };
 
     contentArea.addEventListener("scroll", scrollHandlerRef.current);
@@ -208,7 +245,12 @@ export function useComment({
         contentArea.removeEventListener("scroll", scrollHandlerRef.current);
       }
     };
-  }, [selectedCommentId, popoverViewportPosition, comments, popoverAlign]);
+  }, [
+    selectedCommentId,
+    popoverViewportPosition,
+    comments,
+    calculatePopoverPosition,
+  ]);
 
   const currentComments = activeTab
     ? getCommentsBySubtask(
@@ -227,61 +269,17 @@ export function useComment({
     const contentArea = contentAreaRef.current;
     if (!contentArea) return;
 
-    const rect = contentArea.getBoundingClientRect();
     const scrollTop = contentArea.scrollTop || 0;
 
-    // Marker 相对于容器的位置
-    const markerX = comment.position.x;
-    const markerY = comment.position.y - scrollTop;
-
-    // 容器尺寸
-    const containerWidth = rect.width;
-    const containerHeight = rect.height;
-
-    // Popover 预估尺寸
-    const popoverWidth = 384; // w-96 = 384px
-    const popoverHeight = 500; // 预估最大高度
-
-    // 智能检测边缘位置
-    const edgeMargin = 400; // 边缘检测阈值
-    let align: PopoverAlign = "bottom";
-    let viewportPosition: { x: number; y: number };
-
-    // 1. 检测是否在底部边缘 → 上方显示
-    if (markerY > containerHeight - edgeMargin) {
-      align = "top";
-      viewportPosition = {
-        x: rect.left + markerX,
-        y: rect.top + markerY - popoverHeight - 10, // 上方 10px
-      };
-    }
-    // 2. 检测是否在右边缘 → 左边显示
-    else if (markerX > containerWidth - edgeMargin) {
-      align = "left";
-      viewportPosition = {
-        x: rect.left + markerX - popoverWidth - 10, // 左边 10px
-        y: rect.top + markerY,
-      };
-    }
-    // 3. 检测是否在左边缘 → 右边显示
-    else if (markerX < edgeMargin) {
-      align = "right";
-      viewportPosition = {
-        x: rect.left + markerX + 10, // 右边 10px
-        y: rect.top + markerY,
-      };
-    }
-    // 4. 默认：下方显示
-    else {
-      align = "bottom";
-      viewportPosition = {
-        x: rect.left + markerX,
-        y: rect.top + markerY + 20, // 下方 20px
-      };
-    }
+    // 使用公共函数计算位置
+    const { align, position } = calculatePopoverPosition(
+      comment,
+      contentArea,
+      scrollTop,
+    );
 
     setPopoverAlign(align);
-    setPopoverViewportPosition(viewportPosition);
+    setPopoverViewportPosition(position);
   };
 
   const handleSaveComment = useCallback(

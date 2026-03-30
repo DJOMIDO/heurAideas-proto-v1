@@ -75,7 +75,7 @@ export default function CommentPopover({
       default:
         return {
           transform: "translate(-50%, 0)",
-          marginTop: "0",
+          marginTop: "30px",
         };
     }
   };
@@ -358,7 +358,7 @@ export default function CommentPopover({
   return (
     <div
       // slide-in-from-top-2（从上方滑入）
-      className="fixed z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+      className="fixed z-50 animate-in fade-in duration-200"
       style={{
         left: position.x,
         top: position.y,
