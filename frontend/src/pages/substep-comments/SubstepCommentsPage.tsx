@@ -48,12 +48,48 @@ export default function SubstepCommentsPage() {
   // 存储 projectSubstepId
   const projectSubstepIdRef = useRef<number | null>(null);
 
+  // 辅助函数：递归更新树形结构中的评论
+  const updateCommentInTree = useCallback(
+    (tree: any[], commentId: string | number, updates: Partial<any>): any[] => {
+      return tree.map((comment) => {
+        if (comment.id === commentId) {
+          return { ...comment, ...updates };
+        }
+        if (comment.replies && comment.replies.length > 0) {
+          return {
+            ...comment,
+            replies: updateCommentInTree(comment.replies, commentId, updates),
+          };
+        }
+        return comment;
+      });
+    },
+    [],
+  );
+
+  // 辅助函数：递归从树形结构中删除评论
+  const deleteCommentFromTree = useCallback(
+    (tree: any[], commentId: string | number): any[] => {
+      return tree
+        .filter((comment) => comment.id !== commentId)
+        .map((comment) => {
+          if (comment.replies && comment.replies.length > 0) {
+            return {
+              ...comment,
+              replies: deleteCommentFromTree(comment.replies, commentId),
+            };
+          }
+          return comment;
+        });
+    },
+    [],
+  );
+
   // 辅助函数：将扁平数组转换为树形结构
   const buildCommentTree = useCallback((flatComments: any[]): any[] => {
     const commentMap = new Map();
     const rootComments: any[] = [];
 
-    // 1. 创建所有评论的映射
     flatComments.forEach((comment) => {
       commentMap.set(comment.id, {
         ...comment,
@@ -61,21 +97,17 @@ export default function SubstepCommentsPage() {
       });
     });
 
-    // 2. 构建树形结构
     flatComments.forEach((comment) => {
       const node = commentMap.get(comment.id);
       const parentId = comment.parent_id ?? comment.parentId;
 
       if (parentId === null || parentId === undefined || parentId === "") {
-        // 顶级评论
         rootComments.push(node);
       } else {
-        // 回复：添加到父评论的 replies 数组
         const parent = commentMap.get(parentId);
         if (parent) {
           parent.replies.push(node);
         } else {
-          // 父评论不存在（可能被删除），提升为顶级评论
           rootComments.push(node);
         }
       }
@@ -102,15 +134,12 @@ export default function SubstepCommentsPage() {
             projectSubstepId,
           );
 
-          // 确保 parentId 正确设置
           const fixedComments = syncedComments.map((c: any) => ({
             ...c,
             parentId: c.parent_id ?? c.parentId ?? null,
           }));
 
-          // 转换为树形结构
           const treeComments = buildCommentTree(fixedComments);
-
           setComments(treeComments);
         } else {
           const response = await getSubstepComments(
@@ -128,7 +157,6 @@ export default function SubstepCommentsPage() {
 
     loadComments();
 
-    // 加载 Subtasks
     getProjectDetail(Number(projectId))
       .then((detail: ProjectDetail) => {
         const step = detail.steps.find(
@@ -152,22 +180,18 @@ export default function SubstepCommentsPage() {
       });
   }, [projectId, stepId, substepId, buildCommentTree]);
 
-  // 筛选逻辑（使用 useMemo，依赖 comments, filter, subtaskFilter）
+  // 筛选逻辑
   const filteredComments = useMemo(() => {
-    // 递归筛选树形结构
     const filterTree = (comments: any[]): any[] => {
       return comments
         .filter((comment) => {
-          // 兼容字段名
           const isResolved = comment.is_resolved ?? comment.resolved ?? false;
           const subtaskCode =
             comment.project_subtask_code ?? comment.subtaskId ?? "";
 
-          // 状态筛选
           if (filter === "resolved" && !isResolved) return false;
           if (filter === "unresolved" && isResolved) return false;
 
-          // 子任务筛选（只筛选主评论）
           if (
             subtaskFilter !== "all" &&
             String(subtaskCode) !== String(subtaskFilter)
@@ -179,7 +203,6 @@ export default function SubstepCommentsPage() {
         })
         .map((comment) => ({
           ...comment,
-          // 递归筛选回复
           replies: filterTree(comment.replies || []),
         }));
     };
@@ -187,7 +210,6 @@ export default function SubstepCommentsPage() {
     return filterTree(comments);
   }, [comments, filter, subtaskFilter]);
 
-  // 计算筛选后的评论数量（只计主评论）
   const filteredCount = filteredComments.length;
   const totalCount = comments.length;
 
@@ -210,7 +232,6 @@ export default function SubstepCommentsPage() {
           return;
         }
 
-        // 调用 API 创建回复
         await createComment({
           projectId: Number(projectId),
           projectSubstepId,
@@ -219,11 +240,18 @@ export default function SubstepCommentsPage() {
           parentId: typeof parentId === "number" ? parentId : undefined,
         });
 
-        // 重新加载评论
-        const response = await getSubstepComments(substepId, Number(projectId));
-        setComments(response.comments);
+        // 重新加载并转换为树形结构
+        const syncedComments = await syncCommentsFromApi(
+          Number(projectId),
+          substepId,
+          projectSubstepId,
+        );
+        const fixedComments = syncedComments.map((c: any) => ({
+          ...c,
+          parentId: c.parent_id ?? c.parentId ?? null,
+        }));
+        setComments(buildCommentTree(fixedComments));
 
-        // 重置状态
         setReplyingTo(null);
         setReplyContent("");
       } catch (error) {
@@ -232,58 +260,117 @@ export default function SubstepCommentsPage() {
         setIsSubmittingReply(false);
       }
     },
-    [projectId, stepId, substepId],
+    [projectId, stepId, substepId, buildCommentTree],
   );
 
-  // 处理编辑评论
+  // 处理编辑评论（使用递归更新）
   const handleEdit = useCallback(
     async (commentId: string | number, newContent: string) => {
       if (!projectId || !substepId) return;
 
-      // 1. 立即更新本地状态（乐观更新）
+      // 1. 立即更新本地状态（乐观更新，递归）
       setComments((prev) =>
-        prev.map((c) =>
-          c.id === commentId
-            ? { ...c, content: newContent, is_edited: true }
-            : c,
-        ),
+        updateCommentInTree(prev, commentId, {
+          content: newContent,
+          is_edited: true,
+        }),
       );
 
-      // 2. 同步到 API（只有已同步的评论）
+      // 2. 同步到 API
       if (typeof commentId === "number") {
         try {
           await updateCommentApi(commentId, {
             content: newContent,
           });
 
-          // 3. 重新加载评论确保一致性
-          const response = await getSubstepComments(
-            substepId,
-            Number(projectId),
-          );
-          setComments(response.comments);
+          // 3. 重新加载并转换为树形结构
+          const projectSubstepId = projectSubstepIdRef.current;
+          if (projectSubstepId) {
+            const syncedComments = await syncCommentsFromApi(
+              Number(projectId),
+              substepId,
+              projectSubstepId,
+            );
+            const fixedComments = syncedComments.map((c: any) => ({
+              ...c,
+              parentId: c.parent_id ?? c.parentId ?? null,
+            }));
+            setComments(buildCommentTree(fixedComments));
+          }
         } catch (error) {
           console.error("[SubstepCommentsPage] Edit failed:", error);
           // 4. API 失败回滚
           setComments((prev) =>
-            prev.map((c) =>
-              c.id === commentId
-                ? { ...c, content: c.content, is_edited: c.is_edited }
-                : c,
-            ),
+            updateCommentInTree(prev, commentId, {
+              is_edited: false,
+            }),
           );
         }
       }
     },
-    [projectId, substepId],
+    [projectId, substepId, updateCommentInTree, buildCommentTree],
   );
 
-  // 辅助函数：收集所有子回复 ID（递归，支持树形结构）
-  const collectReplyIds = useCallback(
-    (commentId: string | number, allComments: any[]): (string | number)[] => {
-      const replyIds: (string | number)[] = [];
+  // 处理删除评论（使用递归删除 + 树形重建）
+  const handleDelete = useCallback(
+    async (commentId: string | number) => {
+      if (!projectId || !substepId) return;
 
-      // 先展平树形结构
+      try {
+        // 1. 先更新本地状态（立即删除，递归）
+        setComments((prev) => deleteCommentFromTree(prev, commentId));
+
+        // 2. 获取 projectSubstepId
+        const projectSubstepId = await getProjectSubstepId(
+          Number(projectId),
+          substepId,
+        );
+
+        // 3. 执行 API 删除
+        if (typeof commentId === "number") {
+          await deleteCommentApi(commentId);
+        }
+
+        // 4. 重新加载并转换为树形结构
+        if (projectSubstepId) {
+          const syncedComments = await syncCommentsFromApi(
+            Number(projectId),
+            substepId,
+            projectSubstepId,
+          );
+          const fixedComments = syncedComments.map((c: any) => ({
+            ...c,
+            parentId: c.parent_id ?? c.parentId ?? null,
+          }));
+          setComments(buildCommentTree(fixedComments));
+        }
+      } catch (error) {
+        console.error("[SubstepCommentsPage] Delete failed:", error);
+        // 失败后重新加载
+        const projectSubstepId = projectSubstepIdRef.current;
+        if (projectSubstepId) {
+          const syncedComments = await syncCommentsFromApi(
+            Number(projectId),
+            substepId,
+            projectSubstepId,
+          );
+          const fixedComments = syncedComments.map((c: any) => ({
+            ...c,
+            parentId: c.parent_id ?? c.parentId ?? null,
+          }));
+          setComments(buildCommentTree(fixedComments));
+        }
+      }
+    },
+    [projectId, substepId, deleteCommentFromTree, buildCommentTree],
+  );
+
+  // 处理 Resolve 评论（使用递归更新）
+  const handleResolve = useCallback(
+    async (commentId: string | number) => {
+      if (!projectId || !substepId) return;
+
+      // 1. 找到当前评论状态（需要展平树形结构）
       const flattenTree = (comments: any[]): any[] => {
         const flat: any[] = [];
         const traverse = (list: any[]) => {
@@ -299,133 +386,50 @@ export default function SubstepCommentsPage() {
         return flat;
       };
 
-      const flatComments = flattenTree(allComments);
-
-      const findReplies = (parentId: string | number) => {
-        const replies = flatComments.filter((c) => {
-          const cParentId = c.parent_id ?? c.parentId;
-          return cParentId == parentId;
-        });
-
-        replies.forEach((reply) => {
-          replyIds.push(reply.id);
-          findReplies(reply.id);
-        });
-      };
-
-      findReplies(commentId);
-
-      return replyIds;
-    },
-    [],
-  );
-
-  // 处理删除评论（删除前强制获取最新数据）
-  const handleDelete = useCallback(
-    async (commentId: string | number) => {
-      if (!projectId || !substepId) return;
-
-      try {
-        // 1. 获取 projectSubstepId
-        const projectSubstepId = await getProjectSubstepId(
-          Number(projectId),
-          substepId,
-        );
-
-        // 2. 强制获取最新评论数据（不依赖 state）
-        let freshComments = comments; // 降级使用 state
-        if (projectSubstepId) {
-          freshComments = await syncCommentsFromApi(
-            Number(projectId),
-            substepId,
-            projectSubstepId,
-          );
-        }
-
-        // 3. 使用最新数据收集子回复 ID
-        const replyIds = collectReplyIds(commentId, freshComments);
-
-        // 4. 执行删除
-        if (typeof commentId === "number") {
-          await deleteCommentApi(commentId);
-
-          for (const replyId of replyIds) {
-            if (typeof replyId === "number") {
-              await deleteCommentApi(replyId).catch(() => {
-                console.warn(
-                  "[SubstepCommentsPage] Failed to delete reply:",
-                  replyId,
-                );
-              });
-            }
-          }
-        }
-
-        // 5. 删除后重新加载
-        if (projectSubstepId) {
-          const syncedComments = await syncCommentsFromApi(
-            Number(projectId),
-            substepId,
-            projectSubstepId,
-          );
-          setComments(syncedComments);
-        } else {
-          const response = await getSubstepComments(
-            substepId,
-            Number(projectId),
-          );
-          setComments(response.comments);
-        }
-      } catch (error) {
-        console.error("[SubstepCommentsPage] Delete failed:", error);
-      }
-    },
-    [projectId, substepId, comments, collectReplyIds],
-  );
-
-  // 处理 Resolve 评论
-  const handleResolve = useCallback(
-    async (commentId: string | number) => {
-      if (!projectId || !substepId) return;
-
-      // 1. 找到当前评论状态
-      const comment = comments.find((c) => c.id === commentId);
+      const flatComments = flattenTree(comments);
+      const comment = flatComments.find((c) => c.id === commentId);
       if (!comment) return;
 
       const newResolvedState = !comment.is_resolved;
 
-      // 2. 立即更新本地状态（乐观更新）
+      // 2. 立即更新本地状态（乐观更新，递归）
       setComments((prev) =>
-        prev.map((c) =>
-          c.id === commentId ? { ...c, is_resolved: newResolvedState } : c,
-        ),
+        updateCommentInTree(prev, commentId, {
+          is_resolved: newResolvedState,
+        }),
       );
 
-      // 3. 同步到 API（只有已同步的评论）
+      // 3. 同步到 API
       if (typeof commentId === "number") {
         try {
           await resolveComment(commentId);
 
-          // 4. 重新加载评论确保一致性
-          const response = await getSubstepComments(
-            substepId,
-            Number(projectId),
-          );
-          setComments(response.comments);
+          // 4. 重新加载并转换为树形结构
+          const projectSubstepId = projectSubstepIdRef.current;
+          if (projectSubstepId) {
+            const syncedComments = await syncCommentsFromApi(
+              Number(projectId),
+              substepId,
+              projectSubstepId,
+            );
+            const fixedComments = syncedComments.map((c: any) => ({
+              ...c,
+              parentId: c.parent_id ?? c.parentId ?? null,
+            }));
+            setComments(buildCommentTree(fixedComments));
+          }
         } catch (error) {
           console.error("[SubstepCommentsPage] Resolve failed:", error);
           // 5. API 失败回滚
           setComments((prev) =>
-            prev.map((c) =>
-              c.id === commentId
-                ? { ...c, is_resolved: comment.is_resolved }
-                : c,
-            ),
+            updateCommentInTree(prev, commentId, {
+              is_resolved: comment.is_resolved,
+            }),
           );
         }
       }
     },
-    [projectId, substepId, comments],
+    [projectId, substepId, comments, updateCommentInTree, buildCommentTree],
   );
 
   // 获取 projectSubstepId

@@ -18,6 +18,8 @@ import {
   Trash2,
   CheckCircle,
 } from "lucide-react";
+import { formatDate } from "@/utils/comment";
+import { getInitials } from "@/utils/string";
 
 interface CommentListItemProps {
   comment: any;
@@ -55,23 +57,11 @@ export default function CommentListItem({
     comment.created_at ?? comment.createdAt ?? new Date().toISOString();
   const authorId = comment.author_id ?? comment.authorId;
   const isEdited = comment.is_edited ?? comment.edited ?? false;
-
-  // 处理头像首字母（兼容两种字段名）
-  const getInitials = (name: string) => {
-    if (!name || name === "Unknown") return "?";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const initials = getInitials(authorName);
-
-  // 兼容 resolved/deleted 字段
   const isResolved = comment.is_resolved ?? comment.resolved ?? false;
   const isDeleted = comment.is_deleted ?? comment.deleted ?? false;
+
+  // 使用工具函数
+  const initials = getInitials(authorName);
 
   // 编辑状态
   const [isEditing, setIsEditing] = useState(false);
@@ -80,33 +70,6 @@ export default function CommentListItem({
   if (isDeleted) {
     return null;
   }
-
-  // 修复日期解析（兼容多种格式）
-  const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return "Unknown";
-
-    // 尝试解析日期
-    let date: Date;
-    try {
-      date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        // 如果解析失败，尝试添加 'Z' 后缀（UTC 时间）
-        date = new Date(dateString + "Z");
-      }
-      if (isNaN(date.getTime())) {
-        return "Invalid Date";
-      }
-    } catch (e) {
-      return "Invalid Date";
-    }
-
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   const handleSubmitReply = () => {
     if (replyContent.trim() && replyingTo === comment.id) {
