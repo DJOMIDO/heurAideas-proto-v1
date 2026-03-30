@@ -1,3 +1,6 @@
+# ============================
+# Frontend (Vite + React)
+# ============================
 # Logs
 logs
 *.log
@@ -7,18 +10,48 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
+# Dependencies
+frontend/node_modules/
+dist/
+dist-ssr/
 *.local
 
-# Editor directories and files
+# ============================
+# Backend (Python + FastAPI)
+# ============================
+# Python
+backend/venv/
+backend/ENV/
+backend/env/
+backend/.python-version
+backend/__pycache__/
+backend/**/*.py[cod]
+backend/**/$py.class
+backend/*.so
+backend/.Python
+
+# Environment variables
+backend/.env
+
+# ============================
+# IDE
+# ============================
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
+.idea/
+*.swp
+*.swo
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+
+# ============================
+# OS
+# ============================
+.DS_Store
+Thumbs.db
+
+# ============================
+# Docker
+# ============================
+.dockerenv
