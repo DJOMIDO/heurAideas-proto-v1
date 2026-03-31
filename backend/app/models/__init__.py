@@ -17,6 +17,7 @@ from app.models.project import (
 )
 from app.models.stakeholder import Stakeholder
 from app.models.comment import Comment
+from app.models.member import ProjectMember 
 
 __all__ = [
     "User",
@@ -32,4 +33,5 @@ __all__ = [
     "Attachment",
     "Stakeholder",
     "Comment",
+    "ProjectMember",
 ]

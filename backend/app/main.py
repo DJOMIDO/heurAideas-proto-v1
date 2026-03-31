@@ -19,6 +19,7 @@ from app.models import (
     SubstepContent,
     Attachment,
     Stakeholder,  # noqa: F401
+    ProjectMember,
 )
 
 # 导入路由
