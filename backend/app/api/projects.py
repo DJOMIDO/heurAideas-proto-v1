@@ -190,6 +190,17 @@ async def create_project(
     db.commit()
     db.refresh(db_project)
 
+    # 自动添加创建者为项目 owner
+    from app.models.member import ProjectMember
+    
+    membership = ProjectMember(
+        project_id=db_project.id,
+        user_id=current_user.id,
+        role="owner",
+    )
+    db.add(membership)
+    db.commit()
+
     template_steps = db.query(TemplateStep).filter(TemplateStep.template_id == template.id).order_by(TemplateStep.order).all()
 
     for t_step in template_steps:
@@ -245,7 +256,7 @@ async def get_projects(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # ✅ 修改：获取用户可访问的所有项目（包括作为成员的项目）
+    # 获取用户可访问的所有项目（包括作为成员的项目）
     from app.models.member import ProjectMember
     
     # 获取用户创建的项目
@@ -280,7 +291,7 @@ async def get_project_detail(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # ✅ 修改：使用权限函数（支持团队成员访问）
+    # 使用权限函数（支持团队成员访问）
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -318,7 +329,7 @@ async def save_substep_content(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # ✅ 修改：使用权限函数（支持团队成员保存）
+    # 使用权限函数（支持团队成员保存）
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -373,7 +384,7 @@ async def get_substep_content(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # ✅ 修改：使用权限函数（支持团队成员查看）
+    # 使用权限函数（支持团队成员查看）
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -402,7 +413,7 @@ async def get_project_stakeholders(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # ✅ 修改：使用权限函数（支持团队成员访问）
+    # 使用权限函数（支持团队成员访问）
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")

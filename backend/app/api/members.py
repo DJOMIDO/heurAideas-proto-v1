@@ -71,27 +71,24 @@ async def add_project_member(
     current_user: User = Depends(get_current_user)
 ):
     """添加项目成员（只有 owner/admin 可以）"""
-    # 验证项目存在
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    # 验证权限（只有 owner/admin 可以添加成员）
     if not is_project_owner_or_admin(db, project_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only project owner or admin can add members"
         )
     
-    # 查找用户
-    new_member = db.query(User).filter(User.email == member_data.email).first()
+    # 使用 user_id 查找用户
+    new_member = db.query(User).filter(User.id == member_data.user_id).first()
     if not new_member:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found. Please ask them to register first."
+            detail="User not found"
         )
     
-    # 检查是否已是成员
     existing = db.query(ProjectMember).filter(
         ProjectMember.project_id == project_id,
         ProjectMember.user_id == new_member.id
@@ -103,7 +100,6 @@ async def add_project_member(
             detail="User is already a member of this project"
         )
     
-    # 限制 owner 数量（一个项目只能有一个 owner）
     if member_data.role == "owner":
         existing_owner = db.query(ProjectMember).filter(
             ProjectMember.project_id == project_id,
@@ -115,7 +111,6 @@ async def add_project_member(
                 detail="Project already has an owner"
             )
     
-    # 添加成员
     membership = ProjectMember(
         project_id=project_id,
         user_id=new_member.id,

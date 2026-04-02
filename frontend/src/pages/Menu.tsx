@@ -13,9 +13,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getUserInfo, signOut, isAuthenticated, getUserId } from "@/utils/auth";
+import { getUserInfo, signOut, isAuthenticated, getUserId, getToken } from "@/utils/auth";
 import { getProjects, createProject } from "@/api/projects";
 import { getLastEditedSubstep } from "@/utils/substepState";
+import TeamMemberSelector from "@/components/TeamMemberSelector";
+
 
 interface Project {
   id: number;
@@ -31,6 +33,10 @@ export default function Menu() {
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // 团队成员选择器状态（添加到现有 state 后面）
+  const [showMemberSelector, setShowMemberSelector] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -53,12 +59,20 @@ export default function Menu() {
     }
   };
 
-  const handleCreateProject = async () => {
+  // 打开团队成员选择器（替换原有的 handleCreateProject）
+  const handleCreateProject = () => {
     if (!isAuthenticated()) {
       navigate("/auth");
       return;
     }
+    setShowMemberSelector(true);
+  };
 
+  // 创建项目并添加成员
+  const handleCreateProjectWithMembers = async (
+    selectedMembers: { userId: number; role: string }[],
+  ) => {
+    setIsCreating(true);
     try {
       const now = new Date();
       const timestamp = now.toISOString().replace(/[:.]/g, "-").slice(0, 19);
@@ -69,15 +83,48 @@ export default function Menu() {
         description: "Created from Menu",
       });
 
-      // localStorage key 与用户 ID 关联
       const storageKey = userId
         ? `currentProjectId-${userId}`
         : "currentProjectId";
       localStorage.setItem(storageKey, String(newProject.id));
+
+      // 调用成员 API 添加选中的成员
+      if (selectedMembers.length > 0) {
+        const token = getToken();
+        const API_BASE_URL =
+          import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+        // 遍历选中的成员，逐个添加
+        for (const member of selectedMembers) {
+          try {
+            await fetch(`${API_BASE_URL}/projects/${newProject.id}/members`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({
+                user_id: member.userId,
+                role: member.role || "member",
+              }),
+            });
+            console.log(`Added member ${member.userId} as ${member.role}`);
+          } catch (error) {
+            console.error(`Failed to add member ${member.userId}:`, error);
+          }
+        }
+      }
+
+      console.log("Selected members:", selectedMembers);
+      console.log("Project created:", newProject.id);
+
+      setShowMemberSelector(false);
       navigate(`/overview`);
     } catch (error) {
       console.error("Failed to create project:", error);
       alert("Failed to create project. Please try again.");
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -202,6 +249,12 @@ export default function Menu() {
           </CardContent>
         </Card>
       </div>
+      <TeamMemberSelector
+        open={showMemberSelector}
+        onOpenChange={setShowMemberSelector}
+        onCreateProject={handleCreateProjectWithMembers}
+        isCreating={isCreating}
+      />
     </div>
   );
 }

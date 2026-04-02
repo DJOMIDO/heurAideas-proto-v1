@@ -8,7 +8,7 @@ from datetime import datetime
 
 class MemberCreate(BaseModel):
     """添加成员请求"""
-    email: EmailStr = Field(..., description="用户邮箱")
+    user_id: int = Field(..., description="用户 ID") 
     role: Optional[str] = Field(default="member", description="角色：owner, admin, member")
 
 class MemberAddResponse(BaseModel):
