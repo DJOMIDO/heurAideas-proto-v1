@@ -21,6 +21,14 @@ class Project(Base):
     # 关系
     creator = relationship("User", back_populates="projects")
     template = relationship("ProjectTemplate")
+
+    # 项目成员关系
+    members = relationship(
+        "ProjectMember",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
+
     steps = relationship(
         "ProjectStep",
         back_populates="project",

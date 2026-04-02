@@ -19,10 +19,11 @@ from app.models import (
     SubstepContent,
     Attachment,
     Stakeholder,  # noqa: F401
+    ProjectMember,
 )
 
 # 导入路由
-from app.api import auth, users, projects, comments
+from app.api import auth, users, projects, comments, members
 
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
@@ -47,6 +48,7 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(projects.router)
 app.include_router(comments.router)
+app.include_router(members.router)
 
 @app.get("/")
 async def root():
