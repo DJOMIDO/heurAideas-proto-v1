@@ -20,8 +20,8 @@ from app.schemas.project import (
 )
 from app.api.auth import get_current_user
 from app.models.user import User
-# 导入权限函数
-from app.utils.permissions import can_access_project
+# ✅ 新增：导入权限函数
+from app.utils.permissions import can_access_project  # pyright: ignore[reportMissingImports]
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -42,17 +42,22 @@ def cleanup_empty_fields(data: dict) -> dict:
     cleaned = {}
     for key, value in data.items():
         if isinstance(value, dict):
+            # 递归清理嵌套字典
             cleaned_value = cleanup_empty_fields(value)
+            # 只保留非空字典
             if cleaned_value:
                 cleaned[key] = cleaned_value
         elif isinstance(value, list):
+            # 清理列表中的空字典
             cleaned_value = [
                 cleanup_empty_fields(item) if isinstance(item, dict) else item
                 for item in value
             ]
+            # 只保留非空列表
             if cleaned_value:
                 cleaned[key] = cleaned_value
         elif value not in (None, '', []):
+            # 保留非空值
             cleaned[key] = value
 
     return cleaned
@@ -68,16 +73,19 @@ async def save_stakeholders(
     """
     从 content_data 中提取 stakeholder 数据并保存到 stakeholders 表
     """
+    # 在函数开始时清理空字段
     content_data = cleanup_empty_fields(content_data)
     
+    # 1. 扁平化嵌套结构
     flat_content_data = {}
     for subtask_key, subtask_data in content_data.items():
         if isinstance(subtask_data, dict):
             for key, value in subtask_data.items():
-                flat_content_data[f"{subtask_key}-{key}"] = value
+                 flat_content_data[f"{subtask_key}-{key}"] = value
         else:
             flat_content_data[subtask_key] = subtask_data
 
+    # 2. 收集前端所有 stakeholder 数据
     frontend_stakeholders = set()
     stakeholders_data = {}
 
@@ -113,18 +121,21 @@ async def save_stakeholders(
                     roles = [r.strip() for r in role_string.split(",") if r.strip()]
                     stakeholders_data[name_value]["roles"].extend(roles)
 
+    # 3. 获取数据库现有 stakeholder
     existing_stakeholders = db.query(Stakeholder).filter(
         Stakeholder.project_id == project_id
     ).all()
 
     existing_names = {s.name for s in existing_stakeholders}
 
+    # 4. 删除前端已删除的
     for name in existing_names - frontend_stakeholders:
         db.query(Stakeholder).filter(
             Stakeholder.project_id == project_id,
             Stakeholder.name == name
         ).delete()
 
+    # 5. 创建或更新前端存在的
     for name, data in stakeholders_data.items():
         unique_roles = list(dict.fromkeys(data["roles"]))[:3]
 
@@ -234,7 +245,7 @@ async def get_projects(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 获取用户可访问的所有项目（包括作为成员的项目）
+    # ✅ 修改：获取用户可访问的所有项目（包括作为成员的项目）
     from app.models.member import ProjectMember
     
     # 获取用户创建的项目
@@ -254,7 +265,10 @@ async def get_projects(
     
     # 合并并去重
     all_projects = {p.id: p for p in created_projects}.values()
-    all_projects = list(all_projects) + [p for p in member_projects if p.id not in [cp.id for cp in created_projects]]
+    all_projects = list(all_projects) + [
+        p for p in member_projects 
+        if p.id not in [cp.id for cp in created_projects]
+    ]
     
     return all_projects
 
@@ -266,7 +280,7 @@ async def get_project_detail(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 使用权限函数
+    # ✅ 修改：使用权限函数（支持团队成员访问）
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -304,7 +318,7 @@ async def save_substep_content(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 使用权限函数
+    # ✅ 修改：使用权限函数（支持团队成员保存）
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -324,6 +338,7 @@ async def save_substep_content(
             roles = [r.strip() for r in value.split(",") if r.strip()]
             content_data[key] = ", ".join(roles[:3])
 
+    # 保存前清理空字段
     content_data = cleanup_empty_fields(content_data)
 
     db_content = db.query(SubstepContent).filter(
@@ -358,7 +373,7 @@ async def get_substep_content(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 使用权限函数
+    # ✅ 修改：使用权限函数（支持团队成员查看）
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -387,7 +402,7 @@ async def get_project_stakeholders(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 使用权限函数
+    # ✅ 修改：使用权限函数（支持团队成员访问）
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -406,4 +421,4 @@ async def get_project_stakeholders(
         return sorted(list(all_roles))
     else:
         return stakeholders
-    
+        

@@ -1,8 +1,8 @@
 # backend/app/api/comments.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query  # pyright: ignore[reportMissingImports]
-from sqlalchemy.orm import Session  # pyright: ignore[reportMissingImports]
-from sqlalchemy import func  # pyright: ignore[reportMissingImports]
+from fastapi import APIRouter, Depends, HTTPException, status, Query # pyright: ignore[reportMissingImports]
+from sqlalchemy.orm import Session # pyright: ignore[reportMissingImports]
+from sqlalchemy import func # pyright: ignore[reportMissingImports]
 from typing import List, Optional
 from app.database import get_db
 from app.models.comment import Comment
@@ -29,7 +29,6 @@ router = APIRouter(prefix="/comments", tags=["Comments"])
 # ==================== 辅助函数 ====================
 
 def get_subtask_code(db: Session, project_subtask_id: Optional[int]) -> Optional[str]:
-    """获取 subtask code"""
     if not project_subtask_id:
         return None
     subtask = db.query(ProjectSubtask).filter(
@@ -38,7 +37,6 @@ def get_subtask_code(db: Session, project_subtask_id: Optional[int]) -> Optional
     return subtask.code if subtask else None
 
 def build_comment_dict(comment: Comment, db: Session) -> dict:
-    """构建单个评论字典"""
     return {
         "id": comment.id,
         "content": comment.content,
@@ -63,9 +61,7 @@ def build_comment_dict(comment: Comment, db: Session) -> dict:
     }
 
 def build_comment_tree(comment: Comment, db: Session, depth: int = 0, max_depth: int = 3) -> dict:
-    """递归构建评论树，支持多层回复（最多 3 层）"""
     comment_dict = build_comment_dict(comment, db)
-    # 手动递归查询每一层回复
     if depth < max_depth:
         replies = db.query(Comment).filter(
             Comment.parent_id == comment.id,
@@ -75,7 +71,6 @@ def build_comment_tree(comment: Comment, db: Session, depth: int = 0, max_depth:
         for reply in replies:
             reply_dict = build_comment_tree(reply, db, depth + 1, max_depth)
             comment_dict["replies"].append(reply_dict)
-
     return comment_dict
 
 # ==================== 获取评论列表 ====================
@@ -90,7 +85,7 @@ async def get_project_comments(
     current_user: User = Depends(get_current_user)
 ):
     """获取项目的所有评论"""
-    # 使用权限函数
+    # ✅ 修改：使用权限函数
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -155,7 +150,7 @@ async def get_substep_comments(
     current_user: User = Depends(get_current_user)
 ):
     """获取指定子步骤的所有评论"""
-    # 使用权限函数
+    # ✅ 修改：使用权限函数
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -180,7 +175,6 @@ async def get_substep_comments(
 
     comments = query.order_by(Comment.created_at.desc()).all()
 
-    # 使用递归函数构建评论树（支持多层回复）
     comments_with_code = []
     for comment in comments:
         comment_dict = build_comment_tree(comment, db, depth=0, max_depth=3)
@@ -205,7 +199,7 @@ async def create_comment(
     current_user: User = Depends(get_current_user)
 ):
     """创建新评论或回复"""
-    # 使用权限函数
+    # ✅ 修改：使用权限函数
     project = db.query(Project).filter(Project.id == comment.project_id).first()
     if not project or not can_access_project(db, comment.project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -273,7 +267,7 @@ async def get_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # 使用权限函数
+    # ✅ 修改：使用权限函数
     project = db.query(Project).filter(Project.id == comment.project_id).first()
     if not project or not can_access_project(db, comment.project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -297,7 +291,7 @@ async def update_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # 只有作者可以编辑
+    # ✅ 保持不变：只有作者可以编辑
     if not can_edit_comment(comment.author_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -335,7 +329,7 @@ async def delete_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # 使用权限函数（作者 + owner/admin 可删除回复）
+    # ✅ 修改：使用权限函数（作者 + owner/admin 可删除回复）
     is_reply = comment.parent_id is not None
     if not can_delete_comment(db, comment.author_id, current_user.id, comment.project_id, is_reply):
         raise HTTPException(
@@ -364,7 +358,7 @@ async def resolve_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # 只有 owner/admin 可以 resolve
+    # ✅ 修改：只有 owner/admin 可以 resolve
     if not can_resolve_comment(db, comment.project_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -395,7 +389,7 @@ async def unresolve_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # 只有 owner/admin 可以 unresolve
+    # ✅ 修改：只有 owner/admin 可以 unresolve
     if not can_resolve_comment(db, comment.project_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -419,7 +413,7 @@ async def get_comment_count(
     current_user: User = Depends(get_current_user)
 ):
     """获取项目评论统计"""
-    # 使用权限函数
+    # ✅ 修改：使用权限函数
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
