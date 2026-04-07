@@ -129,13 +129,22 @@ export function useComment({
   }, [projectId, substepId, projectSubstepId]);
 
   useEffect(() => {
-    if (commentRefreshKey > 0) {
-      const state = getCommentState(projectId, substepId);
-      if (state) {
-        setComments(state.comments);
-      }
+    if (commentRefreshKey > 0 && projectSubstepId) {
+      // 从 API 同步最新评论
+      syncCommentsFromApi(projectId, substepId, projectSubstepId)
+        .then((syncedComments) => {
+          setComments(syncedComments);
+        })
+        .catch((error) => {
+          console.error("useComment: sync failed:", error);
+          // 降级：从 localStorage 读取
+          const state = getCommentState(projectId, substepId);
+          if (state) {
+            setComments(state.comments);
+          }
+        });
     }
-  }, [projectId, substepId, commentRefreshKey]);
+  }, [projectId, substepId, projectSubstepId, commentRefreshKey]);
 
   // 监听 activeTab 变化，切换时关闭 popover
   useEffect(() => {

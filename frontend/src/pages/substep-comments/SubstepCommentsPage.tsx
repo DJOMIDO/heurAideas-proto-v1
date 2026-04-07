@@ -22,6 +22,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { useWebSocket } from "@/hooks/useWebSocket";
+
 export default function SubstepCommentsPage() {
   const { projectId, stepId, substepId } = useParams();
   const navigate = useNavigate();
@@ -179,6 +181,42 @@ export default function SubstepCommentsPage() {
         console.error("Failed to load subtasks:", error);
       });
   }, [projectId, stepId, substepId, buildCommentTree]);
+
+  // WebSocket 实时刷新评论
+  useWebSocket({
+  projectId: projectId ? Number(projectId) : 0,  // 添加三元表达式
+  enabled: !!projectId && !!substepId,
+  onMessage: (message) => {
+    if (['comment_added', 'comment_updated', 'comment_deleted'].includes(message.type)) {
+      // 重新加载评论（复用现有逻辑）
+      const loadComments = async () => {
+        try {
+          const projectSubstepId = await getProjectSubstepId(
+            Number(projectId),
+            substepId!,  // 添加非空断言，因为 enabled 已检查
+          );
+
+          if (projectSubstepId) {
+            projectSubstepIdRef.current = projectSubstepId;
+            const syncedComments = await syncCommentsFromApi(
+              Number(projectId),
+              substepId!,  // 添加非空断言
+              projectSubstepId,
+            );
+            const fixedComments = syncedComments.map((c: any) => ({
+              ...c,
+              parentId: c.parent_id ?? c.parentId ?? null,
+            }));
+            setComments(buildCommentTree(fixedComments));
+          }
+        } catch (error) {
+          console.error("Failed to reload comments:", error);
+        }
+      };
+      loadComments();
+    }
+  },
+});
 
   // 筛选逻辑
   const filteredComments = useMemo(() => {

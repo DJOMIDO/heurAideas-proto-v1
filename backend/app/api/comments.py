@@ -23,6 +23,11 @@ from app.utils.permissions import (
     can_delete_comment,
     can_resolve_comment,
 )
+from app.utils.websocket_utils import (
+    notify_comment_added,
+    notify_comment_updated,
+    notify_comment_deleted,
+)
 
 router = APIRouter(prefix="/comments", tags=["Comments"])
 
@@ -85,7 +90,7 @@ async def get_project_comments(
     current_user: User = Depends(get_current_user)
 ):
     """获取项目的所有评论"""
-    # ✅ 修改：使用权限函数
+    # 使用权限函数
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -150,7 +155,7 @@ async def get_substep_comments(
     current_user: User = Depends(get_current_user)
 ):
     """获取指定子步骤的所有评论"""
-    # ✅ 修改：使用权限函数
+    # 使用权限函数
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -199,7 +204,7 @@ async def create_comment(
     current_user: User = Depends(get_current_user)
 ):
     """创建新评论或回复"""
-    # ✅ 修改：使用权限函数
+    # 使用权限函数
     project = db.query(Project).filter(Project.id == comment.project_id).first()
     if not project or not can_access_project(db, comment.project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -249,6 +254,17 @@ async def create_comment(
     db.commit()
     db.refresh(db_comment)
 
+    # 推送给同一项目的其他客户端
+    await notify_comment_added(db_comment.project_id, {
+        "id": db_comment.id,
+        "content": db_comment.content,
+        "author_id": db_comment.author_id,
+        "author_name": db_comment.author_name,
+        "project_substep_id": db_comment.project_substep_id,
+        "parent_id": db_comment.parent_id,
+        "created_at": db_comment.created_at.isoformat() if db_comment.created_at else None,
+    })
+
     return db_comment
 
 # ==================== 获取评论详情 ====================
@@ -267,7 +283,7 @@ async def get_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # ✅ 修改：使用权限函数
+    # 使用权限函数
     project = db.query(Project).filter(Project.id == comment.project_id).first()
     if not project or not can_access_project(db, comment.project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -291,7 +307,7 @@ async def update_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # ✅ 保持不变：只有作者可以编辑
+    # 只有作者可以编辑
     if not can_edit_comment(comment.author_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -311,6 +327,14 @@ async def update_comment(
     db.commit()
     db.refresh(comment)
 
+    # 推送更新
+    await notify_comment_updated(comment.project_id, {
+        "id": comment.id,
+        "content": comment.content,
+        "is_edited": comment.is_edited,
+        "updated_at": comment.updated_at.isoformat() if comment.updated_at else None,
+    })
+
     return comment
 
 # ==================== 删除评论 ====================
@@ -329,7 +353,7 @@ async def delete_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # ✅ 修改：使用权限函数（作者 + owner/admin 可删除回复）
+    # 使用权限函数（作者 + owner/admin 可删除回复）
     is_reply = comment.parent_id is not None
     if not can_delete_comment(db, comment.author_id, current_user.id, comment.project_id, is_reply):
         raise HTTPException(
@@ -341,6 +365,8 @@ async def delete_comment(
     comment.deleted_at = func.now()
 
     db.commit()
+
+    await notify_comment_deleted(comment.project_id, comment_id)
 
 # ==================== 标记为已解决 ====================
 
@@ -358,7 +384,7 @@ async def resolve_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # ✅ 修改：只有 owner/admin 可以 resolve
+    # 只有 owner/admin 可以 resolve
     if not can_resolve_comment(db, comment.project_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -370,6 +396,12 @@ async def resolve_comment(
 
     db.commit()
     db.refresh(comment)
+
+    await notify_comment_updated(comment.project_id, {
+        "id": comment.id,
+        "is_resolved": comment.is_resolved,
+        "updated_at": comment.updated_at.isoformat() if comment.updated_at else None,
+    })
 
     return comment
 
@@ -389,7 +421,7 @@ async def unresolve_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # ✅ 修改：只有 owner/admin 可以 unresolve
+    # 只有 owner/admin 可以 unresolve
     if not can_resolve_comment(db, comment.project_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -402,6 +434,12 @@ async def unresolve_comment(
     db.commit()
     db.refresh(comment)
 
+    await notify_comment_updated(comment.project_id, {
+        "id": comment.id,
+        "is_resolved": comment.is_resolved,
+        "updated_at": comment.updated_at.isoformat() if comment.updated_at else None,
+    })
+
     return comment
 
 # ==================== 获取评论统计 ====================
@@ -413,7 +451,7 @@ async def get_comment_count(
     current_user: User = Depends(get_current_user)
 ):
     """获取项目评论统计"""
-    # ✅ 修改：使用权限函数
+    # 使用权限函数
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")

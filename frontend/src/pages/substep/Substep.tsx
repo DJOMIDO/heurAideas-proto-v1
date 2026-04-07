@@ -23,6 +23,8 @@ import {
   syncUnsyncedCommentsToApi,
 } from "@/utils/commentState";
 
+import { useWebSocket } from "@/hooks/useWebSocket";
+
 export default function Substep() {
   const { projectId, stepId, substepId } = useParams<{
     projectId: string;
@@ -49,7 +51,7 @@ export default function Substep() {
     Record<string, boolean>
   >({});
 
-  const commentRefreshRef = useRef<number>(0);
+  const [commentRefreshKey, setCommentRefreshKey] = useState(0);
 
   // projectSubstepId 映射
   const [projectSubstepIdMap, setProjectSubstepIdMap] = useState<
@@ -142,7 +144,7 @@ export default function Substep() {
 
         if (count > 0) {
           await syncCommentsFromApi(projectIdNum, substepId, projectSubstepId);
-          commentRefreshRef.current += 1;
+          setCommentRefreshKey(prev => prev + 1);
         }
       } else {
         console.error("[Substep] projectSubstepId is undefined!");
@@ -424,6 +426,45 @@ export default function Substep() {
     return () => window.removeEventListener("resize", checkScreen);
   }, [viewMode]);
 
+  // WebSocket 实时刷新内容
+  useWebSocket({
+    projectId: projectIdNum,
+    enabled: !!substepId && !!projectIdNum,
+    onMessage: (message) => {
+      // 1. 处理内容保存（现有代码）
+      if (
+        message.type === "content_saved" &&
+        message.substep_id === substepId
+      ) {
+        if (!hasUnsavedChangesRef.current) {
+          isLoadingRef.current = true;
+          loadSubstepStateWithApi(projectIdNum, substepId!)
+            .then((saved) => {
+              if (saved) {
+                setFormData(saved.formData || {});
+                formDataMapRef.current.set(substepId!, saved.formData || {});
+              }
+              isLoadingRef.current = false;
+            })
+            .catch((error) => {
+              console.error("[Substep] WebSocket reload failed:", error);
+              isLoadingRef.current = false;
+            });
+        }
+      }
+
+      // 处理评论变更（触发评论 marker 刷新）
+      if (
+        ["comment_added", "comment_updated", "comment_deleted"].includes(
+          message.type,
+        )
+      ) {
+        // 增加 commentRefreshKey，触发 SubstepContentCard 重新加载评论
+        setCommentRefreshKey(prev => prev + 1);
+      }
+    },
+  });
+
   if (!step || !substep) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -506,7 +547,7 @@ export default function Substep() {
             isCommentMode={isCommentMode}
             setIsCommentMode={handleSetCommentMode}
             projectSubstepId={projectSubstepIdMap[substep.id]}
-            commentRefreshKey={commentRefreshRef.current}
+            commentRefreshKey={commentRefreshKey}
           />
         ) : (
           <div className="flex-1 flex flex-row overflow-hidden min-h-0">
@@ -528,7 +569,7 @@ export default function Substep() {
                 isCommentMode={isCommentMode}
                 setIsCommentMode={handleSetCommentMode}
                 projectSubstepId={projectSubstepIdMap[substep.id]}
-                commentRefreshKey={commentRefreshRef.current}
+                commentRefreshKey={commentRefreshKey}
               />
             </div>
 
@@ -550,7 +591,7 @@ export default function Substep() {
                 isCommentMode={isCommentMode}
                 setIsCommentMode={handleSetCommentMode}
                 projectSubstepId={projectSubstepIdMap[substep.id]}
-                commentRefreshKey={commentRefreshRef.current}
+                commentRefreshKey={commentRefreshKey}
               />
             </div>
           </div>
