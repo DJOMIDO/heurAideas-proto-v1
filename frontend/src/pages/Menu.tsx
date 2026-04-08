@@ -13,11 +13,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getUserInfo, signOut, isAuthenticated, getUserId, getToken } from "@/utils/auth";
+import {
+  getUserInfo,
+  signOut,
+  isAuthenticated,
+  getUserId,
+  getToken,
+} from "@/utils/auth";
 import { getProjects, createProject } from "@/api/projects";
 import { getLastEditedSubstep } from "@/utils/substepState";
 import TeamMemberSelector from "@/components/TeamMemberSelector";
-
 
 interface Project {
   id: number;
@@ -76,7 +81,10 @@ export default function Menu() {
     try {
       const now = new Date();
       const timestamp = now.toISOString().replace(/[:.]/g, "-").slice(0, 19);
-      const projectName = `New Project ${timestamp}`;
+      const projectName =
+        selectedMembers.length > 0
+          ? `[Shared] New Project ${timestamp}`
+          : `New Project ${timestamp}`;
 
       const newProject = await createProject({
         name: projectName,
