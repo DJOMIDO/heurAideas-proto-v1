@@ -1,5 +1,7 @@
 # backend/app/utils/websocket_utils.py
 
+from datetime import datetime
+
 from app.websocket.manager import manager
 
 async def notify_comment_added(project_id: int, comment_data: dict):
@@ -30,3 +32,15 @@ async def notify_content_saved(project_id: int, substep_id: str, content_data: d
         "substep_id": substep_id,
         "data": content_data
     })
+
+async def notify_user_typing(project_id: int, substep_id: str, field: str, user_id: int, username: str):
+    """通知其他用户某人正在编辑"""
+    await manager.broadcast(project_id, {
+        "type": "user_typing",
+        "substep_id": substep_id,
+        "field": field,
+        "user_id": user_id,
+        "username": username,
+        "timestamp": datetime.now().isoformat()
+    })
+    

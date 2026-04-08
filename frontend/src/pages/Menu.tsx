@@ -108,15 +108,11 @@ export default function Menu() {
                 role: member.role || "member",
               }),
             });
-            console.log(`Added member ${member.userId} as ${member.role}`);
           } catch (error) {
             console.error(`Failed to add member ${member.userId}:`, error);
           }
         }
       }
-
-      console.log("Selected members:", selectedMembers);
-      console.log("Project created:", newProject.id);
 
       setShowMemberSelector(false);
       navigate(`/overview`);
@@ -135,8 +131,6 @@ export default function Menu() {
     localStorage.setItem(storageKey, String(projectId));
 
     const lastEdited = getLastEditedSubstep(projectId);
-
-    console.log(`[Menu] Opening project ${projectId}, lastEdited:`, lastEdited);
 
     if (lastEdited) {
       // 确保 URL 中包含正确的 projectId
