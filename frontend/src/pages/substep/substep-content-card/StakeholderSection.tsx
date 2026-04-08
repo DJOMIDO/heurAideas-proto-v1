@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, X } from "lucide-react";
 import { getStakeholderRoles } from "@/api/projects";
 import { getInitials } from "@/utils/string";
+import TypingIndicator from "@/components/TypingIndicator";
 
 interface Stakeholder {
   id: string;
@@ -18,6 +19,13 @@ interface StakeholderSectionProps {
   formData: Record<string, any>;
   onFormDataChange: (field: string, value: any) => void;
   fieldPrefix: string;
+  editingUsers?: Record<
+    string,
+    { userId: number; username: string; timestamp: string }
+  >;
+  conflictFields?: Record<string, { username: string; timestamp: string }>;
+  currentUserId?: number;
+  onConflictResolve?: (field: string) => void;
 }
 
 const AVATAR_COLORS = [
@@ -59,6 +67,7 @@ export default function StakeholderSection({
   formData,
   onFormDataChange,
   fieldPrefix,
+  editingUsers = {},
 }: StakeholderSectionProps) {
   const [showAll, setShowAll] = useState(true);
   const [addingStakeholder, setAddingStakeholder] = useState<{
@@ -339,6 +348,13 @@ export default function StakeholderSection({
                 }}
                 className="w-full h-7 text-sm font-medium border-0 p-0 focus-visible:ring-0 bg-transparent placeholder-gray-400"
               />
+              {/* 显示编辑提示 */}
+              {addingStakeholder && (
+                <TypingIndicator
+                  editingUsers={editingUsers}
+                  fieldName={`${fieldPrefix}-stakeholder-role-${displayStakeholders.length}-name`}
+                />
+              )}
 
               {/* Role 输入框 */}
               <div className="relative">
@@ -377,6 +393,11 @@ export default function StakeholderSection({
                   }}
                   className="w-full h-8 text-xs text-gray-900 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white placeholder-gray-400 cursor-text"
                   tabIndex={0}
+                />
+                {/* 显示编辑提示 */}
+                <TypingIndicator
+                  editingUsers={editingUsers}
+                  fieldName={`${fieldPrefix}-stakeholder-role-adding-role`}
                 />
 
                 {/* 下拉列表 - 添加模式 */}
@@ -464,6 +485,11 @@ export default function StakeholderSection({
               <span className="block text-sm font-medium text-gray-800 truncate">
                 {stakeholder.name}
               </span>
+              {/* 显示编辑提示 */}
+              <TypingIndicator
+                editingUsers={editingUsers}
+                fieldName={`${fieldPrefix}-stakeholder-role-${idx}-name`}
+              />
 
               {/* Role 输入框 */}
               <div className="relative">

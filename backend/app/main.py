@@ -23,7 +23,7 @@ from app.models import (
 )
 
 # 导入路由
-from app.api import auth, users, projects, comments, members
+from app.api import auth, users, projects, comments, members, websocket
 
 # 创建数据库表
 Base.metadata.create_all(bind=engine)
@@ -37,7 +37,9 @@ app = FastAPI(
 # CORS 配置（允许前端访问）
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173",
+                   "ws://localhost:5173",
+                   "ws://localhost:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -49,6 +51,7 @@ app.include_router(users.router)
 app.include_router(projects.router)
 app.include_router(comments.router)
 app.include_router(members.router)
+app.include_router(websocket.router)
 
 @app.get("/")
 async def root():

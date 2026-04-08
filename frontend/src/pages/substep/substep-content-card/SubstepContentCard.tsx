@@ -14,6 +14,7 @@ import InfoSection from "./InfoSection";
 import PrimaryElementsTable from "./PrimaryElementsTable";
 import StakeholderSection from "./StakeholderSection";
 import SaveStatus from "./SaveStatus";
+import TypingIndicator from "@/components/TypingIndicator";
 
 interface SubstepContentCardProps {
   substep: Substep;
@@ -32,6 +33,13 @@ interface SubstepContentCardProps {
   projectSubstepId?: number;
   commentCount?: number;
   commentRefreshKey?: number;
+  parentCurrentUserId?: number;
+  editingUsers?: Record<
+    string,
+    { userId: number; username: string; timestamp: string }
+  >;
+  conflictFields?: Record<string, { username: string; timestamp: string }>;
+  onConflictResolve?: (field: string) => void;
 }
 
 export default function SubstepContentCard({
@@ -50,6 +58,11 @@ export default function SubstepContentCard({
   setIsCommentMode = () => {},
   projectSubstepId,
   commentRefreshKey = 0,
+  // 新增参数
+  parentCurrentUserId,
+  editingUsers = {},
+  conflictFields = {},
+  onConflictResolve,
 }: SubstepContentCardProps) {
   const {
     comments,
@@ -82,6 +95,8 @@ export default function SubstepContentCard({
     setIsCommentMode,
     commentRefreshKey,
   });
+
+  const effectiveCurrentUserId = parentCurrentUserId ?? currentUserId;
 
   const fieldPrefix = `${activeTab}`;
   const updateField = (field: string, value: any) => {
@@ -278,7 +293,7 @@ export default function SubstepContentCard({
                 popoverViewportPosition={popoverViewportPosition}
                 comments={comments}
                 currentComments={currentComments}
-                currentUserId={currentUserId}
+                currentUserId={effectiveCurrentUserId}
                 handleMarkerClick={handleMarkerClick}
                 handleSaveComment={handleSaveComment}
                 handleCloseInput={handleCloseInput}
@@ -318,6 +333,11 @@ export default function SubstepContentCard({
                 }
                 className="max-w-2xl"
               />
+              {/* 显示编辑提示 */}
+              <TypingIndicator
+                editingUsers={editingUsers}
+                fieldName={`${fieldPrefix}-activityName`}
+              />
             </div>
 
             <div className="space-y-2">
@@ -332,18 +352,31 @@ export default function SubstepContentCard({
                 }
                 className="max-w-2xl min-h-[80px]"
               />
+              {/* 显示编辑提示 */}
+              <TypingIndicator
+                editingUsers={editingUsers}
+                fieldName={`${fieldPrefix}-activityDefinition`}
+              />
             </div>
 
             <PrimaryElementsTable
               formData={formData}
               onFormDataChange={onFormDataChange!}
               fieldPrefix={fieldPrefix}
+              editingUsers={editingUsers}
+              conflictFields={conflictFields}
+              currentUserId={effectiveCurrentUserId}
+              onConflictResolve={onConflictResolve}
             />
 
             <StakeholderSection
               formData={formData}
               onFormDataChange={onFormDataChange!}
               fieldPrefix={fieldPrefix}
+              editingUsers={editingUsers}
+              conflictFields={conflictFields}
+              currentUserId={effectiveCurrentUserId}
+              onConflictResolve={onConflictResolve}
             />
 
             <div className="space-y-2">
@@ -358,6 +391,11 @@ export default function SubstepContentCard({
                   updateField("additionalStakeholders", e.target.value)
                 }
                 className="max-w-2xl min-h-[80px]"
+              />
+              {/* 显示编辑提示 */}
+              <TypingIndicator
+                editingUsers={editingUsers}
+                fieldName={`${fieldPrefix}-additionalStakeholders`}
               />
             </div>
 

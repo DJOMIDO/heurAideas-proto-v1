@@ -3,19 +3,27 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
+import TypingIndicator from "@/components/TypingIndicator";
 
 interface PrimaryElementsTableProps {
   formData: Record<string, any>;
   onFormDataChange: (field: string, value: any) => void;
   fieldPrefix: string;
+  editingUsers?: Record<
+    string,
+    { userId: number; username: string; timestamp: string }
+  >;
+  conflictFields?: Record<string, { username: string; timestamp: string }>;
+  currentUserId?: number;
+  onConflictResolve?: (field: string) => void;
 }
 
 export default function PrimaryElementsTable({
   formData,
   onFormDataChange,
   fieldPrefix,
+  editingUsers = {},
 }: PrimaryElementsTableProps) {
-
   const getRowCount = () => {
     const stored = formData[`${fieldPrefix}-element-row-count`];
     if (stored && typeof stored === "number" && stored >= 1) {
@@ -99,6 +107,11 @@ export default function PrimaryElementsTable({
                     onChange={(e) => updateField(row, "name", e.target.value)}
                     className="border-0 bg-transparent focus-visible:ring-0 p-0"
                   />
+                  {/* 显示编辑提示 */}
+                  <TypingIndicator
+                    editingUsers={editingUsers}
+                    fieldName={`${fieldPrefix}-element-${row}-name`}
+                  />
                 </td>
                 <td className="px-4 py-2">
                   <Input
@@ -108,6 +121,11 @@ export default function PrimaryElementsTable({
                       updateField(row, "definition", e.target.value)
                     }
                     className="border-0 bg-transparent focus-visible:ring-0 p-0"
+                  />
+                  {/* 显示编辑提示 */}
+                  <TypingIndicator
+                    editingUsers={editingUsers}
+                    fieldName={`${fieldPrefix}-element-${row}-definition`}
                   />
                 </td>
                 <td className="px-2 py-2">

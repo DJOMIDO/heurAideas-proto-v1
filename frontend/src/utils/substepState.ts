@@ -216,23 +216,21 @@ export async function saveSubstepStateWithApi(
 export async function loadSubstepStateWithApi(
   projectId: number,
   substepId: string,
+  forceReload: boolean = false,
 ): Promise<SubstepState | null> {
-  const localState = getSubstepState(projectId, substepId);
-
-  // 只要有 localStorage 状态就加载（不管 formData 是否为空）
-  if (localState) {
-    console.log(
-      `[substepState] Using localStorage state for ${substepId}`,
-      localState,
-    );
-    return localState;
+  // 只有非强制重载时才优先读 localStorage
+  if (!forceReload) {
+    const localState = getSubstepState(projectId, substepId);
+    if (localState) {
+      return localState;
+    }
   }
 
+  // 从 API 加载（强制重载时直接走这里）
   if (isAuthenticated()) {
     try {
       const apiContent = await getSubstepContent(projectId, substepId);
       if (apiContent) {
-        console.log(`[substepState] Using API state for ${substepId}`);
         const formData = apiContent.content_data
           ? convertToFormData(apiContent.content_data)
           : {};
@@ -304,7 +302,6 @@ export function saveSubstepState(
   try {
     const key = getStorageKey(projectId, substepId);
     localStorage.setItem(key, JSON.stringify(merged));
-    console.log(`[substepState] Saved state for ${substepId}:`, merged);
   } catch (error) {
     console.warn(`Failed to save substep state for ${substepId}:`, error);
   }

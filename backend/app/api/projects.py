@@ -20,8 +20,8 @@ from app.schemas.project import (
 )
 from app.api.auth import get_current_user
 from app.models.user import User
-# ✅ 新增：导入权限函数
 from app.utils.permissions import can_access_project  # pyright: ignore[reportMissingImports]
+from app.utils.websocket_utils import notify_content_saved
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -373,6 +373,18 @@ async def save_substep_content(
 
     db.commit()
     db.refresh(db_content)
+
+    # 推送给同一项目的其他客户端
+    await notify_content_saved(
+        project_id=project_id,
+        substep_id=substep_id,
+        content_data={
+            "substep_id": substep_id,
+            "updated_at": db_content.updated_at.isoformat() if db_content.updated_at else None,
+            "user_id": current_user.id,
+        }
+    )
+
     return db_content
 
 # ==================== 获取子步骤内容 ====================
