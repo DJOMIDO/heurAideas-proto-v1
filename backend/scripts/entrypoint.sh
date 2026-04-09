@@ -17,21 +17,75 @@ for i in {1..30}; do
     sleep 2
 done
 
-# Run template import (only on first startup)
+# Step 1: Create all database tables (idempotent - safe if tables already exist)
+echo "Ensuring database tables exist..."
+python << 'PYTHON_EOF'
+import sys
+import os
+
+# Add app to path
+sys.path.insert(0, '/app')
+
+# Set DATABASE_URL for container
+os.environ['DATABASE_URL'] = os.getenv('DATABASE_URL', 'postgresql://user:password@db:5432/aideas_db')
+
+from sqlalchemy import create_engine
+from app.database import Base
+
+# Import ALL models to register their tables with Base.metadata
+# This is required for create_all() to work
+from app.models import (
+    User,
+    ProjectTemplate,
+    TemplateStep,
+    TemplateSubstep,
+    TemplateSubtask,
+    Project,
+    ProjectStep,
+    ProjectSubstep,
+    ProjectSubtask,
+    SubstepContent,
+    Attachment,
+    Stakeholder,
+    ProjectMember,
+)
+
+# Create tables (idempotent: does nothing if tables already exist)
+engine = create_engine(os.environ['DATABASE_URL'])
+Base.metadata.create_all(bind=engine)
+print("Database tables ready!")
+PYTHON_EOF
+
+# Step 2: Run template import (only if no template data exists)
 echo "Checking template data..."
-python -c "
+TEMPLATE_COUNT=$(python -c "
+import sys
+import os
+sys.path.insert(0, '/app')
+os.environ['DATABASE_URL'] = os.getenv('DATABASE_URL', 'postgresql://user:password@db:5432/aideas_db')
 from app.database import SessionLocal
 from app.models.template import TemplateStep
-db = SessionLocal()
-count = db.query(TemplateStep).count()
-db.close()
-exit(0 if count > 0 else 1)
-" 2>/dev/null || {
-    echo "Template data not found, importing..."
-    python scripts/import_template.py
-    echo "Template import complete!"
-}
+try:
+    db = SessionLocal()
+    count = db.query(TemplateStep).count()
+    db.close()
+    print(count)
+except Exception as e:
+    print('0')
+" 2>/dev/null || echo "0")
 
-# Start the application
+if [ "$TEMPLATE_COUNT" = "0" ] || [ -z "$TEMPLATE_COUNT" ]; then
+    echo "Template data not found, importing..."
+    if python scripts/import_template.py 2>&1; then
+        echo "Template import complete!"
+    else
+        echo "Template import failed, but starting backend anyway..."
+        echo "Retry manually: docker-compose exec backend python scripts/import_template.py"
+    fi
+else
+    echo "Template data already exists ($TEMPLATE_COUNT steps)"
+fi
+
+# Step 3: Start the application
 echo "Starting Uvicorn server..."
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload

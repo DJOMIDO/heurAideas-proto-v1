@@ -17,13 +17,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code
+# This will copy scripts/entrypoint.sh to /app/scripts/entrypoint.sh
 COPY . .
 
-# Make the entrypoint script executable
-COPY scripts/entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+# Make the entrypoint script executable (correct path)
+RUN chmod +x /app/scripts/entrypoint.sh
 
 EXPOSE 8000
 
-# Set the entrypoint to run the application
-ENTRYPOINT ["/app/entrypoint.sh"]
+# Set the entrypoint to run the application (correct path)
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
