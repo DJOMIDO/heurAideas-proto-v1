@@ -33,8 +33,6 @@ services:
       - db
     volumes:
       - pgadmin_data:/var/lib/pgadmin
-    profiles:
-      - tools  # 按需启动：docker-compose --profile tools up
 
   # ========== FastAPI Backend ==========
   backend:
