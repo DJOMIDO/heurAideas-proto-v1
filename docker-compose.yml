@@ -1,7 +1,7 @@
 # docker-compose.yml
 
 services:
-  # PostgreSQL Database
+  # ========== PostgreSQL Database ==========
   db:
     image: postgres:15-alpine
     container_name: aideas-db
@@ -19,7 +19,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # pgAdmin 4
+  # ========== pgAdmin 4 (Optional) ==========
   pgadmin:
     image: dpage/pgadmin4
     container_name: aideas-pgadmin
@@ -33,10 +33,13 @@ services:
       - db
     volumes:
       - pgadmin_data:/var/lib/pgadmin
+    profiles:
+      - tools  # 按需启动：docker-compose --profile tools up
 
-  # FastAPI Backend
+  # ========== FastAPI Backend ==========
   backend:
     build: ./backend
+    container_name: heuraideas-backend
     ports:
       - "8000:8000"
     volumes:
@@ -48,10 +51,25 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: 720
       HOST: 0.0.0.0
       PORT: 8000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: user
+      DB_NAME: aideas_db
     depends_on:
       db:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # ========== React Frontend (Nginx) ==========
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: heuraideas-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: always
 
 volumes:
   postgres_data: {}
