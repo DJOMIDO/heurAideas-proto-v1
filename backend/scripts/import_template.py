@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# backend/scripts/import_template.py
+"""
+模板导入脚本（幂等版本）
+如果模板已存在，跳过导入
+"""
 
 import json
 import sys
@@ -6,11 +11,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlalchemy.orm import Session # pyright: ignore[reportMissingImports]
+from sqlalchemy.orm import Session  # pyright: ignore[reportMissingImports]
 from app.database import SessionLocal, engine, Base
 from app.models.template import ProjectTemplate, TemplateStep, TemplateSubstep, TemplateSubtask
 
-# 完整的 6 个 Steps 模板数据
+# ========== 完整的 6 个 Steps 模板数据（保持不变） ==========
 TEMPLATE_DATA = [
     # Step 1
     {
@@ -233,19 +238,26 @@ TEMPLATE_DATA = [
         ]
     }
 ]
+# ========== 模板数据结束 ==========
 
 
 def import_template(db: Session):
-    """导入模板数据"""
+    """导入模板数据（幂等：如果已存在则跳过）"""
     
-    # 1. 清理旧数据
-    print("🗑️  清理旧模板数据...")
+    # 幂等检查：如果已有模板数据，跳过导入
+    existing_count = db.query(TemplateStep).count()
+    if existing_count > 0:
+        print(f"Templates already exist ({existing_count} steps), skipping import")
+        return True
+    
+    # 1. 清理旧数据（只在首次导入时执行）
+    print("清理旧模板数据...")
     db.query(TemplateSubtask).delete()
     db.query(TemplateSubstep).delete()
     db.query(TemplateStep).delete()
     db.query(ProjectTemplate).delete()
     db.commit()
-    print("✅ 旧数据已清理")
+    print("旧数据已清理")
     
     # 2. 创建模板主记录
     template = ProjectTemplate(
@@ -259,7 +271,7 @@ def import_template(db: Session):
     db.commit()
     db.refresh(template)
     
-    print(f"\n✅ 创建模板：{template.name} (ID={template.id})")
+    print(f"\n创建模板：{template.name} (ID={template.id})")
     
     # 3. 遍历步骤数据
     total_substeps = 0
@@ -277,7 +289,7 @@ def import_template(db: Session):
         db.commit()
         db.refresh(step)
         
-        print(f"\n📌 步骤 {step.code}: {step.title}")
+        print(f"\n步骤 {step.code}: {step.title}")
         
         # 4. 遍历子步骤数据
         for substep_idx, substep_data in enumerate(step_data.get("substeps", [])):
@@ -327,7 +339,7 @@ def import_template(db: Session):
                 total_subtasks += 1
     
     print(f"\n{'='*60}")
-    print(f"✅ 模板导入完成！")
+    print(f"模板导入完成！")
     print(f"   模板 ID: {template.id}")
     print(f"   模板名称：{template.name}")
     print(f"   版本：{template.version}")
@@ -335,6 +347,7 @@ def import_template(db: Session):
     print(f"   子步骤数：{total_substeps}")
     print(f"   子任务数：{total_subtasks}")
     print(f"{'='*60}")
+    return True
 
 
 def main():
@@ -343,7 +356,7 @@ def main():
     try:
         import_template(db)
     except Exception as e:
-        print(f"❌ 导入失败：{e}")
+        print(f"导入失败：{e}")
         db.rollback()
         raise
     finally:
@@ -352,3 +365,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
