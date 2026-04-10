@@ -58,16 +58,18 @@ services:
         condition: service_healthy
 
   # ========== React Frontend (Nginx) ==========
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: heuraideas-frontend
-    ports:
-      - "5173:80"
-    depends_on:
-      - backend
-    restart: always
+  # Development: Run frontend locally with `npm run dev`
+  # Production: Uncomment below to run frontend in Docker
+  # frontend:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   container_name: heuraideas-frontend
+  #   ports:
+  #     - "5173:80"
+  #   depends_on:
+  #     - backend
+  #   restart: always
 
 volumes:
   postgres_data: {}
