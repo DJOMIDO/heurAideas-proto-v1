@@ -69,7 +69,9 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "https://*.netlify.app",
+        "https://heuraideas.netlify.app",
         "https://*.onrender.com",
+        "https://heuraideas-proto-v1.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
