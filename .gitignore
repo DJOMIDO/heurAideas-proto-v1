@@ -64,3 +64,13 @@ node_modules/
 # Vite
 .vite/
 
+# ============================
+# Environment Variables (Sensitive) - NEW
+# ============================
+# Frontend production env (Netlify uses UI variables, not files)
+frontend/.env.production
+frontend/.env*.local
+*.env.local
+
+# Never commit real API keys or secrets
+# Use Netlify UI / server env vars for production values
