@@ -68,6 +68,7 @@ node_modules/
 # Environment Variables (Sensitive) - NEW
 # ============================
 # Frontend production env (Netlify uses UI variables, not files)
+frontend/.env
 frontend/.env.production
 frontend/.env*.local
 *.env.local
