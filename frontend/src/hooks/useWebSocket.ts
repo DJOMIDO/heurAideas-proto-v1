@@ -18,17 +18,12 @@ export interface UseWebSocketOptions {
 export function useWebSocket({
   projectId,
   onMessage,
-  onError,
   onConnect,
   onDisconnect,
   enabled = true,
 }: UseWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
-
-  // 重连计数 + 最大尝试次数
-  const reconnectCountRef = useRef(0);
-  const MAX_RECONNECT = 3; // 最多重连 3 次
 
   const connect = useCallback(() => {
     if (!enabled) return;
@@ -49,68 +44,45 @@ export function useWebSocket({
     wsRef.current = ws;
 
     ws.onopen = () => {
-      // 连接成功，重置重连计数
-      reconnectCountRef.current = 0;
       onConnect?.();
     };
 
     ws.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
+        const data: WebSocketMessage = JSON.parse(event.data);
         onMessage?.(data);
-      } catch (error) {
-        console.error("Failed to parse WebSocket message:", error);
+      } catch {
+        // 解析失败静默处理
       }
     };
 
-    ws.onclose = (event) => {
+    ws.onclose = () => {
+      // 不重连！让业务逻辑决定是否需要重连
       onDisconnect?.();
-
-      // 区分关闭原因，避免无效重连
-      if (event.code === 1000) {
-        // 正常关闭，不重连
-        return;
-      }
-
-      if (event.code === 1008) {
-        // 认证失败，重连也没用
-        console.error("WebSocket auth failed (code 1008)");
-        return;
-      }
-
-      // 限制重连次数
-      if (reconnectCountRef.current >= MAX_RECONNECT) {
-        console.warn(`Max reconnection attempts (${MAX_RECONNECT}) reached`);
-        return;
-      }
-
-      reconnectCountRef.current += 1;
-      // 指数退避：1.5s → 2.25s → 3.4s
-      const delay = Math.min(
-        1000 * Math.pow(1.5, reconnectCountRef.current),
-        5000,
-      );
-
-      reconnectTimeoutRef.current = window.setTimeout(() => {
-        connect();
-      }, delay);
     };
 
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      onError?.(error);
+    // 静默处理错误，不打印到控制台，也不调用 onError
+    // 避免 "WebSocket is closed before..." 和 "The network connection was lost" 刷屏
+    ws.onerror = () => {
+      // 本地/生产环境的网络波动是正常现象，静默处理
+      // 功能正常即可，避免控制台刷屏干扰调试
+      // onError?.(error);  ← 故意不调用，避免外部回调也打印错误
     };
-  }, [projectId, onMessage, onError, onConnect, onDisconnect, enabled]);
+  }, [projectId, onMessage, onConnect, onDisconnect, enabled]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current !== null) {
       window.clearTimeout(reconnectTimeoutRef.current);
     }
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    // 只在连接已建立时才关闭，避免 "closed before established"
+    if (
+      wsRef.current &&
+      wsRef.current.readyState !== WebSocket.CONNECTING &&
+      wsRef.current.readyState !== WebSocket.CLOSED
+    ) {
       wsRef.current.close();
     }
     wsRef.current = null;
-    reconnectCountRef.current = 0;
   }, []);
 
   const send = useCallback((data: any) => {

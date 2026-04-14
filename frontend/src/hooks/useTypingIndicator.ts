@@ -26,7 +26,7 @@ export function useTypingIndicator({
     {},
   );
 
-  // 复用 useWebSocket 的连接，只负责监听
+  // 直接复用 useWebSocket 的主连接
   const { send } = useWebSocket({
     projectId,
     enabled: !!projectId && !!substepId,
@@ -50,7 +50,6 @@ export function useTypingIndicator({
     },
   });
 
-  // 发送时直接使用已连接的 send 函数，不再 new WebSocket()
   const sendTypingIndicator = useCallback(
     (field: string) => {
       const existingTimeout = typingTimeoutRef.current.get(field);
@@ -59,6 +58,7 @@ export function useTypingIndicator({
       }
 
       const timeoutId = window.setTimeout(() => {
+        // 直接使用 send，绝不创建新连接
         if (send) {
           send({
             type: "user_typing",
@@ -79,12 +79,10 @@ export function useTypingIndicator({
   useEffect(() => {
     const cleanup = setInterval(() => {
       const now = Date.now();
-      const timeout = 10000;
-
       setEditingUsers((prev) => {
         const updated: Record<string, EditingUser> = {};
         Object.entries(prev).forEach(([field, info]) => {
-          if (now - new Date(info.timestamp).getTime() < timeout) {
+          if (now - new Date(info.timestamp).getTime() < 10000) {
             updated[field] = info;
           }
         });
@@ -94,7 +92,6 @@ export function useTypingIndicator({
         return updated;
       });
     }, 1000);
-
     return () => clearInterval(cleanup);
   }, [onEditingUsersChange]);
 

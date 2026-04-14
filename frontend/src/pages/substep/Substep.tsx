@@ -23,7 +23,7 @@ import {
   syncUnsyncedCommentsToApi,
 } from "@/utils/commentState";
 
-import { useWebSocket } from "@/hooks/useWebSocket";
+import { useWebSocket, type WebSocketMessage } from "@/hooks/useWebSocket";
 
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 
@@ -272,13 +272,7 @@ export default function Substep() {
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [
-    substepId,
-    projectIdNum,
-    substepTabState,
-    viewMode,
-    splitViewTabs,
-  ]);
+  }, [substepId, projectIdNum, substepTabState, viewMode, splitViewTabs]);
 
   // 刷新/关闭页面前保存
   useEffect(() => {
@@ -461,16 +455,13 @@ export default function Substep() {
   useWebSocket({
     projectId: projectIdNum,
     enabled: !!substepId && !!projectIdNum,
-    onMessage: (message) => {
-      // =====================================================
-      // 1. 处理内容保存（其他用户保存了表单内容）
-      // =====================================================
+    onMessage: (message: WebSocketMessage) => {
+      // 1. 处理内容保存
       if (
         message.type === "content_saved" &&
         message.substep_id === substepId
       ) {
         if (!hasUnsavedChangesRef.current) {
-          // 标记正在同步，避免触发自动保存
           isSyncingFromWebSocketRef.current = true;
           isLoadingRef.current = true;
 
@@ -481,7 +472,6 @@ export default function Substep() {
                 formDataMapRef.current.set(substepId!, saved.formData || {});
               }
               isLoadingRef.current = false;
-              // 同步完成，清除标志
               isSyncingFromWebSocketRef.current = false;
             })
             .catch((error) => {
@@ -492,27 +482,19 @@ export default function Substep() {
         }
       }
 
-      // =====================================================
-      // 2. 处理评论变更（触发评论 marker 刷新）
-      // =====================================================
+      // 2. 处理评论变更
       if (
         ["comment_added", "comment_updated", "comment_deleted"].includes(
           message.type,
         )
       ) {
-        // 增加 commentRefreshKey，触发 SubstepContentCard 重新加载评论
         setCommentRefreshKey((prev) => prev + 1);
       }
 
-      // =====================================================
-      // 3. 处理编辑状态（检测冲突 + 显示"X is editing"提示）
-      // =====================================================
+      // 3. 处理编辑状态
       if (message.type === "user_typing" && message.substep_id === substepId) {
         const field = message.field;
-
-        // 不要直接 return，而是用 if 包裹后续逻辑
         if (message.user_id !== currentUserId) {
-          // 如果本地有未保存更改，且他人在编辑同一字段 → 冲突
           if (hasUnsavedChangesRef.current) {
             setConflictFields((prev) => ({
               ...prev,
@@ -523,7 +505,6 @@ export default function Substep() {
             }));
           }
 
-          // 更新编辑用户状态（用于显示"X is editing..."提示）
           setEditingUsers((prev) => {
             return {
               ...prev,
@@ -537,18 +518,14 @@ export default function Substep() {
         }
       }
 
-      // =====================================================
-      // 4. 处理编辑停止（可选：如果后端发送 stop_typing 消息）
-      // =====================================================
+      // 4. 处理编辑停止
       if (message.type === "stop_typing" && message.substep_id === substepId) {
         const field = message.field;
-
         setEditingUsers((prev) => {
           const updated = { ...prev };
           delete updated[field];
           return updated;
         });
-
         setConflictFields((prev) => {
           const updated = { ...prev };
           delete updated[field];
