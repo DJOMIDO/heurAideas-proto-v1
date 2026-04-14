@@ -73,6 +73,8 @@ export default function Substep() {
   const currentSubstepIdRef = useRef<string | undefined>(undefined);
   const isLoadingRef = useRef(false);
   const hasUnsavedChangesRef = useRef(false);
+  // 打破 WebSocket 同步与自动保存的循环
+  const isSyncingFromWebSocketRef = useRef(false);
 
   const step = stepsData.find((s) => s.id === Number(stepId));
   const substep = step?.substeps.find((s) => s.id === substepId);
@@ -229,10 +231,16 @@ export default function Substep() {
     localStorage.setItem(key, JSON.stringify(merged));
   }, [substepTabState, substepId, projectIdNum, viewMode, splitViewTabs]);
 
-  // 自动保存（500ms debounce）- 只保存 formData
+  // 自动保存（500ms debounce）
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (isLoadingRef.current || !substepId || !projectIdNum) {
+      // 如果正在从 WebSocket 同步，跳过自动保存
+      if (
+        isLoadingRef.current ||
+        !substepId ||
+        !projectIdNum ||
+        isSyncingFromWebSocketRef.current
+      ) {
         return;
       }
 
@@ -270,7 +278,6 @@ export default function Substep() {
     substepTabState,
     viewMode,
     splitViewTabs,
-    formData,
   ]);
 
   // 刷新/关闭页面前保存
@@ -462,11 +469,11 @@ export default function Substep() {
         message.type === "content_saved" &&
         message.substep_id === substepId
       ) {
-        // 只在用户没有编辑时刷新，避免覆盖本地输入
         if (!hasUnsavedChangesRef.current) {
+          // 标记正在同步，避免触发自动保存
+          isSyncingFromWebSocketRef.current = true;
           isLoadingRef.current = true;
 
-          // 添加 true 参数，强制从 API 加载最新数据
           loadSubstepStateWithApi(projectIdNum, substepId!, true)
             .then((saved) => {
               if (saved) {
@@ -474,10 +481,13 @@ export default function Substep() {
                 formDataMapRef.current.set(substepId!, saved.formData || {});
               }
               isLoadingRef.current = false;
+              // 同步完成，清除标志
+              isSyncingFromWebSocketRef.current = false;
             })
             .catch((error) => {
               console.error("[Substep] WebSocket reload failed:", error);
               isLoadingRef.current = false;
+              isSyncingFromWebSocketRef.current = false;
             });
         }
       }
@@ -547,6 +557,13 @@ export default function Substep() {
       }
     },
   });
+
+  useEffect(() => {
+    return () => {
+      isSyncingFromWebSocketRef.current = false;
+      isLoadingRef.current = false;
+    };
+  }, []);
 
   if (!step || !substep) {
     return (

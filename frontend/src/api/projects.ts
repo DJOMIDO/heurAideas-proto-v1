@@ -16,9 +16,7 @@ async function request<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-
   const token = getToken();
-
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -27,12 +25,10 @@ async function request<T>(
       ...options.headers,
     },
   });
-
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.detail || `HTTP ${response.status}`);
   }
-
   return response.json();
 }
 
@@ -43,7 +39,7 @@ export async function getProjects(): Promise<ProjectList[]> {
 export async function createProject(
   input: CreateProjectInput,
 ): Promise<Project> {
-  return request<Project>(API_ENDPOINTS.PROJECTS, {
+  return request(API_ENDPOINTS.PROJECTS, {
     method: "POST",
     body: JSON.stringify(input),
   });
@@ -61,7 +57,7 @@ export async function getSubstepContent(
     return await request<SubstepContent>(
       API_ENDPOINTS.SUBSTEP_CONTENT(projectId, substepId),
     );
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -73,23 +69,18 @@ export async function saveSubstepContent(
 ): Promise<SubstepContent> {
   return request<SubstepContent>(
     API_ENDPOINTS.SUBSTEP_CONTENT(projectId, substepId),
-    {
-      method: "POST",
-      body: JSON.stringify(content),
-    },
+    { method: "POST", body: JSON.stringify(content) },
   );
 }
 
-// 获取项目所有 Stakeholder（完整列表）
+// 获取 Stakeholder（修复路径）
 export async function getStakeholders(projectId: number): Promise<any[]> {
   return request<any[]>(`/projects/${projectId}/stakeholders`);
 }
 
-// 获取项目所有 Stakeholder Roles（去重数组）
 export async function getStakeholderRoles(
   projectId: number,
 ): Promise<string[]> {
-  // 使用 request 函数（自动处理 API_BASE_URL 和 token）
   return request<string[]>(
     `/projects/${projectId}/stakeholders?response_format=roles`,
   );
