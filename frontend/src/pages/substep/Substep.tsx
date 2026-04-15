@@ -1,5 +1,4 @@
 // src/pages/substep/Substep.tsx
-
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { stepsData } from "@/data/steps";
@@ -16,7 +15,7 @@ import StatusBar from "../overview/StatusBar";
 import SubstepMenu from "./SubstepMenu";
 import SubstepTabs from "./SubstepTabs";
 import SubstepContentCard from "./substep-content-card/SubstepContentCard";
-import { getUserId } from "@/utils/auth";
+import { getUserId, getUserInfo } from "@/utils/auth";
 import { getProjectDetail } from "@/api/projects";
 import {
   syncCommentsFromApi,
@@ -24,8 +23,8 @@ import {
 } from "@/utils/commentState";
 
 import { useWebSocket } from "@/hooks/useWebSocket";
-
 import { useTypingIndicator } from "@/hooks/useTypingIndicator";
+import type { WebSocketMessage } from "@/hooks/useWebSocket";
 
 export default function Substep() {
   const { projectId, stepId, substepId } = useParams<{
@@ -47,24 +46,26 @@ export default function Substep() {
   const [splitViewTabs, setSplitViewTabs] = useState<{
     left: string;
     right: string;
-  }>({ left: "", right: "" });
+  }>({
+    left: "",
+    right: "",
+  });
 
   const [commentModeState, setCommentModeState] = useState<
     Record<string, boolean>
   >({});
-
   const [commentRefreshKey, setCommentRefreshKey] = useState(0);
+
   // 编辑用户状态：{ fieldName: { userId, username, timestamp } }
+  // 这个状态 ONLY 由接收到的 WebSocket 消息更新（排除自己）
   const [editingUsers, setEditingUsers] = useState<
     Record<string, { userId: number; username: string; timestamp: string }>
   >({});
 
-  // 冲突字段状态：{ fieldName: { username, timestamp } }
   const [conflictFields, setConflictFields] = useState<
     Record<string, { username: string; timestamp: string }>
   >({});
 
-  // projectSubstepId 映射
   const [projectSubstepIdMap, setProjectSubstepIdMap] = useState<
     Record<string, number>
   >({});
@@ -74,18 +75,141 @@ export default function Substep() {
   const isLoadingRef = useRef(false);
   const hasUnsavedChangesRef = useRef(false);
 
+  // 用于存储打字状态的定时器，以便自动清除过期的编辑状态
+  const editingTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map(),
+  );
+
   const step = stepsData.find((s) => s.id === Number(stepId));
   const substep = step?.substeps.find((s) => s.id === substepId);
 
   const projectIdNum = projectId ? Number(projectId) : 0;
   const currentUserId = getUserId() ?? 0;
+  const userInfo = getUserInfo();
 
-  // 初始化编辑状态跟踪
+  // =====================================================
+  // 1. 定义 WebSocket 消息处理函数
+  // =====================================================
+  const handleWebSocketMessage = useCallback(
+    (message: WebSocketMessage) => {
+      if (!substepId) return;
+
+      // 1. 处理内容保存
+      if (
+        message.type === "content_saved" &&
+        message.substep_id === substepId
+      ) {
+        if (!hasUnsavedChangesRef.current) {
+          isLoadingRef.current = true;
+          loadSubstepStateWithApi(projectIdNum, substepId!, true)
+            .then((saved) => {
+              if (saved) {
+                setFormData(saved.formData || {});
+                formDataMapRef.current.set(substepId!, saved.formData || {});
+              }
+              isLoadingRef.current = false;
+            })
+            .catch((error) => {
+              console.error("[Substep] WebSocket reload failed:", error);
+              isLoadingRef.current = false;
+            });
+        }
+      }
+
+      // 2. 处理评论变更
+      if (
+        ["comment_added", "comment_updated", "comment_deleted"].includes(
+          message.type,
+        )
+      ) {
+        setCommentRefreshKey((prev) => prev + 1);
+      }
+
+      // 3. 处理编辑状态 (关键：只处理他人的状态)
+      if (message.type === "user_typing" && message.substep_id === substepId) {
+        const field = message.field;
+
+        // 只有当消息发送者不是自己时，才更新状态
+        if (message.user_id !== currentUserId) {
+          // 清除该字段之前的定时器
+          if (editingTimeoutsRef.current.has(field)) {
+            clearTimeout(editingTimeoutsRef.current.get(field)!);
+          }
+
+          // 更新状态：显示某人正在编辑
+          setEditingUsers((prev) => ({
+            ...prev,
+            [field]: {
+              userId: message.user_id,
+              username: message.username || "User",
+              timestamp: message.timestamp || new Date().toISOString(),
+            },
+          }));
+
+          // 设置定时器：3 秒后自动移除该状态（如果期间没有收到新的打字消息）
+          const timeoutId = setTimeout(() => {
+            setEditingUsers((prev) => {
+              const updated = { ...prev };
+              delete updated[field];
+              return updated;
+            });
+            editingTimeoutsRef.current.delete(field);
+          }, 3000);
+
+          editingTimeoutsRef.current.set(field, timeoutId);
+
+          // 冲突检测
+          if (hasUnsavedChangesRef.current) {
+            setConflictFields((prev) => ({
+              ...prev,
+              [field]: {
+                username: message.username || "User",
+                timestamp: message.timestamp || new Date().toISOString(),
+              },
+            }));
+          }
+        }
+      }
+
+      // 4. 处理停止编辑 (可选，如果后端显式发送 stop_typing)
+      if (message.type === "stop_typing" && message.substep_id === substepId) {
+        const field = message.field;
+        if (editingTimeoutsRef.current.has(field)) {
+          clearTimeout(editingTimeoutsRef.current.get(field)!);
+          editingTimeoutsRef.current.delete(field);
+        }
+        setEditingUsers((prev) => {
+          const updated = { ...prev };
+          delete updated[field];
+          return updated;
+        });
+        setConflictFields((prev) => {
+          const updated = { ...prev };
+          delete updated[field];
+          return updated;
+        });
+      }
+    },
+    [substepId, projectIdNum, currentUserId],
+  );
+
+  // =====================================================
+  // 2. 初始化 WebSocket
+  // =====================================================
+  const { send: sendMessage } = useWebSocket({
+    projectId: projectIdNum,
+    enabled: !!substepId && !!projectIdNum,
+    onMessage: handleWebSocketMessage,
+  });
+
+  // =====================================================
+  // 3. 初始化打字指示器 (只负责发送)
+  // =====================================================
   const { sendTypingIndicator } = useTypingIndicator({
     projectId: projectIdNum,
     substepId: substepId!,
     currentUserId,
-    onEditingUsersChange: setEditingUsers,
+    sendWsMessage: sendMessage,
   });
 
   const toggleSidebar = () => {
@@ -97,7 +221,6 @@ export default function Substep() {
 
   const handleTabChange = (value: string) => {
     if (!substepId) return;
-
     if (viewMode === "split") {
       setSplitViewTabs((prev) => ({ ...prev, left: value }));
     } else {
@@ -135,7 +258,6 @@ export default function Substep() {
     if (!substepId || !projectIdNum) return;
 
     setIsSaving(true);
-
     const currentFormData = formDataMapRef.current.get(substepId) || {};
     const stateToSave: Partial<SubstepState> = {
       activeTab: substepTabState[substepId] || "description",
@@ -143,31 +265,45 @@ export default function Substep() {
       viewMode,
       splitView:
         viewMode === "split"
-          ? {
-              leftTab: splitViewTabs.left,
-              rightTab: splitViewTabs.right,
-            }
+          ? { leftTab: splitViewTabs.left, rightTab: splitViewTabs.right }
           : undefined,
     };
 
     try {
       await saveSubstepStateWithApi(projectIdNum, substepId, stateToSave, true);
 
-      const projectSubstepId = projectSubstepIdMap[substepId];
+      // 通知其他用户内容已保存
+      if (sendMessage) {
+        sendMessage({
+          type: "content_saved",
+          project_id: projectIdNum,
+          substep_id: substepId,
+          user_id: currentUserId,
+          username: userInfo?.name || "User",
+          timestamp: new Date().toISOString(),
+        });
+      }
 
+      const projectSubstepId = projectSubstepIdMap[substepId];
       if (projectSubstepId) {
         const count = await syncUnsyncedCommentsToApi(
           projectIdNum,
           substepId,
           projectSubstepId,
         );
-
         if (count > 0) {
           await syncCommentsFromApi(projectIdNum, substepId, projectSubstepId);
           setCommentRefreshKey((prev) => prev + 1);
+
+          // 通知其他用户评论已更新
+          if (sendMessage) {
+            sendMessage({
+              type: "comment_added",
+              project_id: projectIdNum,
+              substep_id: substepId,
+            });
+          }
         }
-      } else {
-        console.error("[Substep] projectSubstepId is undefined!");
       }
 
       setLastSaved(new Date().toISOString());
@@ -186,12 +322,14 @@ export default function Substep() {
     splitViewTabs,
     stepId,
     projectSubstepIdMap,
+    sendMessage,
+    userInfo,
+    currentUserId,
   ]);
 
   // 监听 substepTabState 变化，自动保存到 localStorage
   useEffect(() => {
     if (!substepId || !projectIdNum || isLoadingRef.current) return;
-
     const currentTab = substepTabState[substepId];
     if (!currentTab) return;
 
@@ -215,10 +353,7 @@ export default function Substep() {
     const existingData = localStorage.getItem(key);
     const existing = existingData
       ? JSON.parse(existingData)
-      : {
-          activeTab: "description",
-          formData: {},
-        };
+      : { activeTab: "description", formData: {} };
 
     const merged = {
       ...existing,
@@ -229,15 +364,12 @@ export default function Substep() {
     localStorage.setItem(key, JSON.stringify(merged));
   }, [substepTabState, substepId, projectIdNum, viewMode, splitViewTabs]);
 
-  // 自动保存（500ms debounce）- 只保存 formData
+  // 自动保存（2s debounce）
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (isLoadingRef.current || !substepId || !projectIdNum) {
-        return;
-      }
+      if (isLoadingRef.current || !substepId || !projectIdNum) return;
 
       const currentFormData = formDataMapRef.current.get(substepId) || {};
-
       if (Object.keys(currentFormData).length > 0) {
         const stateToSave: Partial<SubstepState> = {
           activeTab: substepTabState[substepId] || "description",
@@ -245,10 +377,7 @@ export default function Substep() {
           viewMode,
           splitView:
             viewMode === "split"
-              ? {
-                  leftTab: splitViewTabs.left,
-                  rightTab: splitViewTabs.right,
-                }
+              ? { leftTab: splitViewTabs.left, rightTab: splitViewTabs.right }
               : undefined,
         };
 
@@ -256,6 +385,21 @@ export default function Substep() {
           .then(() => {
             setLastSaved(new Date().toISOString());
             hasUnsavedChangesRef.current = false;
+
+            // 自动保存成功后也通知其他人（可选，视需求而定，通常手动保存才通知以免太频）
+            // 如果希望实时同步更频繁，可以放开下面的注释
+            /*
+            if (sendMessage) {
+              sendMessage({
+                type: "content_saved",
+                project_id: projectIdNum,
+                substep_id: substepId,
+                user_id: currentUserId,
+                username: userInfo?.name || "User",
+                timestamp: new Date().toISOString(),
+              });
+            }
+            */
           })
           .catch((error) => {
             console.error("[Substep] Auto-save failed:", error);
@@ -289,10 +433,7 @@ export default function Substep() {
           viewMode,
           splitView:
             viewMode === "split"
-              ? {
-                  leftTab: splitViewTabs.left,
-                  rightTab: splitViewTabs.right,
-                }
+              ? { leftTab: splitViewTabs.left, rightTab: splitViewTabs.right }
               : undefined,
         };
 
@@ -321,7 +462,6 @@ export default function Substep() {
 
     if (prevSubstepId && prevSubstepId !== substepId) {
       const prevFormData = formDataMapRef.current.get(prevSubstepId) || {};
-
       saveSubstepStateWithApi(
         projectIdNum,
         prevSubstepId,
@@ -331,10 +471,7 @@ export default function Substep() {
           viewMode,
           splitView:
             viewMode === "split"
-              ? {
-                  leftTab: splitViewTabs.left,
-                  rightTab: splitViewTabs.right,
-                }
+              ? { leftTab: splitViewTabs.left, rightTab: splitViewTabs.right }
               : undefined,
         },
         false,
@@ -359,13 +496,7 @@ export default function Substep() {
           }));
           setFormData(saved.formData || {});
           setLastSaved(saved.lastSaved || null);
-
-          if (saved.viewMode) {
-            setViewMode(saved.viewMode);
-          } else {
-            setViewMode("single");
-          }
-
+          setViewMode(saved.viewMode || "single");
           if (saved.splitView) {
             setSplitViewTabs({
               left: saved.splitView.leftTab,
@@ -374,7 +505,6 @@ export default function Substep() {
           } else {
             setSplitViewTabs({ left: "", right: "" });
           }
-
           formDataMapRef.current.set(substepId, saved.formData || {});
         } else {
           setFormData({});
@@ -396,10 +526,8 @@ export default function Substep() {
       });
   }, [substepId, projectIdNum]);
 
-  // 获取项目结构，建立 substepId 映射
   useEffect(() => {
     if (!projectIdNum) return;
-
     getProjectDetail(projectIdNum)
       .then((detail) => {
         const map: Record<string, number> = {};
@@ -416,23 +544,18 @@ export default function Substep() {
   }, [projectIdNum]);
 
   const handleFormDataChange = (field: string, value: any) => {
-    sendTypingIndicator(field);
+    sendTypingIndicator(field); // 触发打字通知
 
     setFormData((prev) => {
       let newFormData: Record<string, any>;
-
       if (value === "" || value === null || value === undefined) {
         const { [field]: _, ...rest } = prev;
         newFormData = rest;
       } else {
         newFormData = { ...prev, [field]: value };
       }
-
       newFormData = cleanupEmptyFormDataFields(newFormData);
-
-      if (substepId) {
-        formDataMapRef.current.set(substepId, newFormData);
-      }
+      if (substepId) formDataMapRef.current.set(substepId, newFormData);
       hasUnsavedChangesRef.current = true;
       return newFormData;
     });
@@ -444,109 +567,20 @@ export default function Substep() {
         setViewMode("single");
       }
     };
-
     checkScreen();
     window.addEventListener("resize", checkScreen);
     return () => window.removeEventListener("resize", checkScreen);
   }, [viewMode]);
 
-  // WebSocket 实时刷新内容 + 评论 + 编辑冲突检测
-  useWebSocket({
-    projectId: projectIdNum,
-    enabled: !!substepId && !!projectIdNum,
-    onMessage: (message) => {
-      // =====================================================
-      // 1. 处理内容保存（其他用户保存了表单内容）
-      // =====================================================
-      if (
-        message.type === "content_saved" &&
-        message.substep_id === substepId
-      ) {
-        // 只在用户没有编辑时刷新，避免覆盖本地输入
-        if (!hasUnsavedChangesRef.current) {
-          isLoadingRef.current = true;
-
-          // 添加 true 参数，强制从 API 加载最新数据
-          loadSubstepStateWithApi(projectIdNum, substepId!, true)
-            .then((saved) => {
-              if (saved) {
-                setFormData(saved.formData || {});
-                formDataMapRef.current.set(substepId!, saved.formData || {});
-              }
-              isLoadingRef.current = false;
-            })
-            .catch((error) => {
-              console.error("[Substep] WebSocket reload failed:", error);
-              isLoadingRef.current = false;
-            });
-        }
-      }
-
-      // =====================================================
-      // 2. 处理评论变更（触发评论 marker 刷新）
-      // =====================================================
-      if (
-        ["comment_added", "comment_updated", "comment_deleted"].includes(
-          message.type,
-        )
-      ) {
-        // 增加 commentRefreshKey，触发 SubstepContentCard 重新加载评论
-        setCommentRefreshKey((prev) => prev + 1);
-      }
-
-      // =====================================================
-      // 3. 处理编辑状态（检测冲突 + 显示"X is editing"提示）
-      // =====================================================
-      if (message.type === "user_typing" && message.substep_id === substepId) {
-        const field = message.field;
-
-        // 不要直接 return，而是用 if 包裹后续逻辑
-        if (message.user_id !== currentUserId) {
-          // 如果本地有未保存更改，且他人在编辑同一字段 → 冲突
-          if (hasUnsavedChangesRef.current) {
-            setConflictFields((prev) => ({
-              ...prev,
-              [field]: {
-                username: message.username,
-                timestamp: message.timestamp,
-              },
-            }));
-          }
-
-          // 更新编辑用户状态（用于显示"X is editing..."提示）
-          setEditingUsers((prev) => {
-            return {
-              ...prev,
-              [field]: {
-                userId: message.user_id,
-                username: message.username,
-                timestamp: message.timestamp,
-              },
-            };
-          });
-        }
-      }
-
-      // =====================================================
-      // 4. 处理编辑停止（可选：如果后端发送 stop_typing 消息）
-      // =====================================================
-      if (message.type === "stop_typing" && message.substep_id === substepId) {
-        const field = message.field;
-
-        setEditingUsers((prev) => {
-          const updated = { ...prev };
-          delete updated[field];
-          return updated;
-        });
-
-        setConflictFields((prev) => {
-          const updated = { ...prev };
-          delete updated[field];
-          return updated;
-        });
-      }
-    },
-  });
+  // 组件卸载时清理所有编辑状态定时器
+  useEffect(() => {
+    return () => {
+      editingTimeoutsRef.current.forEach((timeoutId) =>
+        clearTimeout(timeoutId),
+      );
+      editingTimeoutsRef.current.clear();
+    };
+  }, []);
 
   if (!step || !substep) {
     return (
@@ -635,7 +669,6 @@ export default function Substep() {
             conflictFields={conflictFields}
             parentCurrentUserId={currentUserId}
             onConflictResolve={(field: string) => {
-              // 用户选择"保留我的" → 强制保存
               handleSave();
               setConflictFields((prev) => {
                 const updated = { ...prev };
@@ -669,7 +702,6 @@ export default function Substep() {
                 conflictFields={conflictFields}
                 parentCurrentUserId={currentUserId}
                 onConflictResolve={(field: string) => {
-                  // 用户选择"保留我的" → 强制保存
                   handleSave();
                   setConflictFields((prev) => {
                     const updated = { ...prev };
@@ -703,7 +735,6 @@ export default function Substep() {
                 conflictFields={conflictFields}
                 parentCurrentUserId={currentUserId}
                 onConflictResolve={(field: string) => {
-                  // 用户选择"保留我的" → 强制保存
                   handleSave();
                   setConflictFields((prev) => {
                     const updated = { ...prev };
