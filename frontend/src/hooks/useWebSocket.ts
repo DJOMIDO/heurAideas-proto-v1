@@ -1,6 +1,6 @@
 // frontend/src/hooks/useWebSocket.ts
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 
 export interface WebSocketMessage {
   type: string;
@@ -25,69 +25,127 @@ export function useWebSocket({
   enabled = true,
 }: UseWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
-  // 使用 number 代替 NodeJS.Timeout（浏览器环境）
-  // 传入初始值 null
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectAttemptsRef = useRef<number>(0);
+  const maxReconnectAttempts = 5;
+  const [isConnected, setIsConnected] = useState(false);
+
+  // 使用 ref 存储回调，避免回调变化触发 connect 重跑
+  const onMessageRef = useRef(onMessage);
+  const onErrorRef = useRef(onError);
+  const onConnectRef = useRef(onConnect);
+  const onDisconnectRef = useRef(onDisconnect);
+
+  // 同步最新的回调到 ref
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
+
+  useEffect(() => {
+    onConnectRef.current = onConnect;
+  }, [onConnect]);
+
+  useEffect(() => {
+    onDisconnectRef.current = onDisconnect;
+  }, [onDisconnect]);
+
+  // 断开连接辅助函数
+  const cleanup = useCallback(() => {
+    if (reconnectTimeoutRef.current !== null) {
+      window.clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+    if (wsRef.current) {
+      wsRef.current.onopen = null;
+      wsRef.current.onmessage = null;
+      wsRef.current.onclose = null;
+      wsRef.current.onerror = null;
+
+      if (wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
+      }
+      wsRef.current = null;
+    }
+    setIsConnected(false);
+  }, []);
 
   const connect = useCallback(() => {
     if (!enabled) return;
 
-    const token = localStorage.getItem("token");
-    if (!token) {
-      console.warn("No token found, WebSocket auth will fail");
+    // 如果已有连接且处于开放状态，直接返回，绝不重复创建
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       return;
     }
 
-    const wsUrl = `ws://localhost:8000/ws/${projectId}?token=${token}`;
+    const token = localStorage.getItem("token");
+    if (!token) {
+      return;
+    }
 
+    // 清理旧连接残留
+    cleanup();
+
+    const wsUrl = `ws://localhost:8000/ws/${projectId}?token=${token}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      onConnect?.();
+      reconnectAttemptsRef.current = 0;
+      setIsConnected(true);
+      onConnectRef.current?.();
     };
 
     ws.onmessage = (event) => {
       try {
         const data: WebSocketMessage = JSON.parse(event.data);
-        onMessage?.(data);
+        onMessageRef.current?.(data);
       } catch (error) {
-        console.error("⚠️ Failed to parse WebSocket message:", error);
+        // 静默失败
       }
     };
 
     ws.onclose = () => {
-      onDisconnect?.();
+      setIsConnected(false);
+      onDisconnectRef.current?.();
 
-      // 自动重连（5 秒后）
-      reconnectTimeoutRef.current = window.setTimeout(() => {
-        connect();
-      }, 5000);
+      // 智能重连机制
+      if (enabled && reconnectAttemptsRef.current < maxReconnectAttempts) {
+        reconnectAttemptsRef.current += 1;
+        const delay = Math.min(
+          1000 * Math.pow(2, reconnectAttemptsRef.current),
+          30000,
+        );
+
+        reconnectTimeoutRef.current = window.setTimeout(() => {
+          connect();
+        }, delay);
+      }
     };
 
     ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      onError?.(error);
+      onErrorRef.current?.(error);
     };
-  }, [projectId, onMessage, onError, onConnect, onDisconnect, enabled]);
+  }, [projectId, enabled, cleanup]);
 
   const disconnect = useCallback(() => {
-    // 检查是否为 null
-    if (reconnectTimeoutRef.current !== null) {
-      window.clearTimeout(reconnectTimeoutRef.current);
-    }
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.close();
-    }
-    wsRef.current = null;
-  }, []);
+    reconnectAttemptsRef.current = maxReconnectAttempts + 1;
+    cleanup();
+  }, [cleanup]);
 
   const send = useCallback((data: any) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(data));
-    } else {
-      console.warn("WebSocket not connected, message not sent");
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify(data));
+        return true;
+      } catch (error) {
+        return false;
+      }
     }
+    return false;
   }, []);
 
   useEffect(() => {
@@ -102,6 +160,6 @@ export function useWebSocket({
   return {
     send,
     disconnect,
-    isConnected: wsRef.current?.readyState === WebSocket.OPEN,
+    isConnected,
   };
 }
