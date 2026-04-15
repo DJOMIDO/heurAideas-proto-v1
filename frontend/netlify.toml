@@ -1,0 +1,21 @@
+# frontend/netlify.toml
+
+[build]
+  # Directory where package.json is located (relative to repo root)
+  base = "frontend"
+  
+  # Command to build the project
+  command = "npm run build"
+  
+  # Directory to publish (relative to base)
+  publish = "dist"
+
+[build.environment]
+  # Node.js version
+  NODE_VERSION = "18"
+
+# Redirects for React Router SPA (prevent 404 on page refresh)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
