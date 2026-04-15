@@ -128,13 +128,12 @@ async def health_check(db: Session = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "database": str(e)}
 
-@app.api_route("/ping", methods=["GET", "HEAD"])
+@app.get("/ping")
+@app.head("/ping")  # 显式支持 HEAD 请求
 async def ping():
-    """
-    心跳端点（防止 Render 免费层休眠）
-    支持 GET (浏览器测试) 和 HEAD (UptimeRobot)
-    """
-    return {"pong": "alive"}
+    """心跳端点（防止 Render 免费层休眠）"""
+    # 对于 HEAD 请求，FastAPI 会自动忽略返回体，只返回头
+    return {"pong": "alive", "timestamp": "now"}
 
 if __name__ == "__main__":
     import uvicorn # pyright: ignore[reportMissingImports]
