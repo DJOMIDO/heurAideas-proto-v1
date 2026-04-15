@@ -128,10 +128,13 @@ async def health_check(db: Session = Depends(get_db)):
     except Exception as e:
         return {"status": "error", "database": str(e)}
 
-@app.get("/ping")
+@app.api_route("/ping", methods=["GET", "HEAD"])
 async def ping():
-    """心跳端点（防止 Render 免费层休眠）"""
-    return {"pong": "alive", "timestamp": "now"}
+    """
+    心跳端点（防止 Render 免费层休眠）
+    支持 GET (浏览器测试) 和 HEAD (UptimeRobot)
+    """
+    return {"pong": "alive"}
 
 if __name__ == "__main__":
     import uvicorn # pyright: ignore[reportMissingImports]
