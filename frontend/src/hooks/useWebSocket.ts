@@ -1,5 +1,3 @@
-// frontend/src/hooks/useWebSocket.ts
-
 import { useEffect, useRef, useCallback, useState } from "react";
 
 export interface WebSocketMessage {
@@ -89,7 +87,30 @@ export function useWebSocket({
     // 清理旧连接残留
     cleanup();
 
-    const wsUrl = `ws://localhost:8000/ws/${projectId}?token=${token}`;
+    // 智能构建 WebSocket URL
+    // 1. 优先使用显式定义的 VITE_WS_URL (如果在 Netlify 环境变量中设置了)
+    // 2. 否则，基于 VITE_API_URL 自动推导 (https -> wss, http -> ws)
+    // 3. 最后回退到 localhost (本地开发)
+    let wsUrl: string;
+    const explicitWsUrl = import.meta.env.VITE_WS_URL;
+
+    if (explicitWsUrl) {
+      wsUrl = `${explicitWsUrl}/ws/${projectId}?token=${token}`;
+    } else {
+      const apiBaseUrl =
+        import.meta.env.VITE_API_URL || "http://localhost:8000";
+      try {
+        const urlObj = new URL(apiBaseUrl);
+        const protocol = urlObj.protocol === "https:" ? "wss:" : "ws:";
+        // 去掉末尾的斜杠，防止拼接错误
+        const host = urlObj.host;
+        wsUrl = `${protocol}//${host}/ws/${projectId}?token=${token}`;
+      } catch (e) {
+        // 如果解析失败，回退到 localhost
+        wsUrl = `ws://localhost:8000/ws/${projectId}?token=${token}`;
+      }
+    }
+
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
