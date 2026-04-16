@@ -1,3 +1,5 @@
+// frontend/src/data/steps.types.ts
+
 export interface Subtask {
   id: string;
   title: string;
@@ -6,6 +8,7 @@ export interface Subtask {
   actions?: string;
   recommendedDocumentation?: string;
   status?: "todo" | "in-progress" | "completed";
+  formType?: string;
 }
 
 export interface Substep {

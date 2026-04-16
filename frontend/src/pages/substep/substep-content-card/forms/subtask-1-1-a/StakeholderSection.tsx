@@ -1,4 +1,4 @@
-// src/pages/substep/substep-content-card/StakeholderSection.tsx
+// src/pages/substep/substep-content-card/forms/subtask-1-1-a/StakeholderSection.tsx
 
 import { useState, useRef, useEffect } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
