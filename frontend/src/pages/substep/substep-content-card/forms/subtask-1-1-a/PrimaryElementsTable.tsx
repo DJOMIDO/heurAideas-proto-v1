@@ -1,4 +1,4 @@
-// src/pages/substep/substep-content-card/PrimaryElementsTable.tsx
+// src/pages/substep/substep-content-card/forms/subtask-1-1-a/PrimaryElementsTable.tsx
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

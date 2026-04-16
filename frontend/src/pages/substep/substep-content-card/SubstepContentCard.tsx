@@ -1,20 +1,14 @@
 // frontend/src/pages/substep/substep-content-card/SubstepContentCard.tsx
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { type Substep, type Subtask } from "@/data/steps";
-
 import { CommentModeToggle, CommentOverlay } from "@/components/comment";
 import { useComment } from "@/hooks/useComment";
-
 import DescriptionTab from "./DescriptionTab";
 import SubtaskHeader from "./SubtaskHeader";
 import InfoSection from "./InfoSection";
-import PrimaryElementsTable from "./PrimaryElementsTable";
-import StakeholderSection from "./StakeholderSection";
 import SaveStatus from "./SaveStatus";
-import TypingIndicator from "@/components/TypingIndicator";
+import { getSubtaskFormComponent } from "./forms";
 
 interface SubstepContentCardProps {
   substep: Substep;
@@ -99,10 +93,6 @@ export default function SubstepContentCard({
   const effectiveCurrentUserId = parentCurrentUserId ?? currentUserId;
 
   const fieldPrefix = `${activeTab}`;
-  const updateField = (field: string, value: any) => {
-    onFormDataChange?.(`${fieldPrefix}-${field}`, value);
-  };
-  const getField = (field: string) => formData[`${fieldPrefix}-${field}`] || "";
 
   // 处理空 activeTab
   if (!activeTab || activeTab === "") {
@@ -306,7 +296,7 @@ export default function SubstepContentCard({
               />
             </div>
 
-            {/* 表单内容 */}
+            {/* InfoSection - 所有子任务共享 */}
             <InfoSection label="Objective" content={subtask.objective} />
             <InfoSection label="Actions" content={subtask.actions} />
             <InfoSection
@@ -316,88 +306,25 @@ export default function SubstepContentCard({
 
             <div className="my-6 border-t border-gray-200" />
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-800">
-                1. Register the activity of interest*
-              </label>
-              <p className="text-xs text-gray-500 italic">
-                *The name given for the activity will be automatically reused
-                for the rest of the activity. You can come back here to change
-                it.
-              </p>
-              <Input
-                placeholder="Enter the name of the activity"
-                value={getField("activityName")}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  updateField("activityName", e.target.value)
-                }
-                className="max-w-2xl"
-              />
-              {/* 显示编辑提示 */}
-              <TypingIndicator
-                editingUsers={editingUsers}
-                fieldName={`${fieldPrefix}-activityName`}
-              />
-            </div>
+            {/* 动态渲染对应的表单组件（策略模式核心） */}
+            {(() => {
+              // 从 subtask 获取 formType（来自 steps.json）
+              const formType = (subtask as any).formType;
+              // 获取对应的表单组件
+              const FormComponent = getSubtaskFormComponent(formType);
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-800">
-                2. Propose a short definition of this activity
-              </label>
-              <Textarea
-                placeholder="Enter the description of the activity"
-                value={getField("activityDefinition")}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                  updateField("activityDefinition", e.target.value)
-                }
-                className="max-w-2xl min-h-[80px]"
-              />
-              {/* 显示编辑提示 */}
-              <TypingIndicator
-                editingUsers={editingUsers}
-                fieldName={`${fieldPrefix}-activityDefinition`}
-              />
-            </div>
-
-            <PrimaryElementsTable
-              formData={formData}
-              onFormDataChange={onFormDataChange!}
-              fieldPrefix={fieldPrefix}
-              editingUsers={editingUsers}
-              conflictFields={conflictFields}
-              currentUserId={effectiveCurrentUserId}
-              onConflictResolve={onConflictResolve}
-            />
-
-            <StakeholderSection
-              formData={formData}
-              onFormDataChange={onFormDataChange!}
-              fieldPrefix={fieldPrefix}
-              editingUsers={editingUsers}
-              conflictFields={conflictFields}
-              currentUserId={effectiveCurrentUserId}
-              onConflictResolve={onConflictResolve}
-            />
-
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-gray-800">
-                5. Identify the stakeholders involved in the activity and that
-                might be concerned by the SoI use
-              </label>
-              <Textarea
-                placeholder="Enter additional stakeholder information..."
-                value={getField("additionalStakeholders")}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                  updateField("additionalStakeholders", e.target.value)
-                }
-                className="max-w-2xl min-h-[80px]"
-              />
-              {/* 显示编辑提示 */}
-              <TypingIndicator
-                editingUsers={editingUsers}
-                fieldName={`${fieldPrefix}-additionalStakeholders`}
-              />
-            </div>
+              return (
+                <FormComponent
+                  fieldPrefix={fieldPrefix}
+                  formData={formData}
+                  onFormDataChange={onFormDataChange!}
+                  editingUsers={editingUsers}
+                  conflictFields={conflictFields}
+                  currentUserId={effectiveCurrentUserId}
+                  onConflictResolve={onConflictResolve}
+                />
+              );
+            })()}
 
             <SaveStatus lastSaved={lastSaved} isSaving={isSaving} />
           </div>
