@@ -1,4 +1,5 @@
 // frontend/src/pages/substep/substep-content-card/forms/Subtask1_1_A.tsx
+
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import PrimaryElementsTable from "./subtask-1-1-a/PrimaryElementsTable";
