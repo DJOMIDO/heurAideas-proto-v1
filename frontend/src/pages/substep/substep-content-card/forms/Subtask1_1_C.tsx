@@ -1,10 +1,11 @@
-// frontend/src/pages/substep/substep-content-card/forms/Subtask1_1_B.tsx
+// frontend/src/pages/substep/substep-content-card/forms/Subtask1_1_C.tsx
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
 import TypingIndicator from "@/components/TypingIndicator";
+import { generateIdSequence } from "@/utils/generateIds";
 
 interface Subtask1_1_CProps {
   fieldPrefix: string;
@@ -30,18 +31,21 @@ export default function Subtask1_1_C({
     onFormDataChange(`${fieldPrefix}-${key}`, value);
   };
 
-  // Table 1 (Needs) State
+  // Table 1 (Needs) State - 2 rows by default
   const [needsRows, setNeedsRows] = useState(() => {
     let count = 0;
-    while (getField(`needs-${count}-id`) || getField(`needs-${count}-need`))
+    while (getField(`needs-${count}-need`) || getField(`needs-${count}-source`))
       count++;
     return Math.max(2, count);
   });
 
-  // Table 2 (Effects) State
+  // Table 2 (Effects) State - 2 rows by default
   const [effectsRows, setEffectsRows] = useState(() => {
     let count = 0;
-    while (getField(`effects-${count}-id`) || getField(`effects-${count}-name`))
+    while (
+      getField(`effects-${count}-name`) ||
+      getField(`effects-${count}-effects`)
+    )
       count++;
     return Math.max(2, count);
   });
@@ -50,7 +54,7 @@ export default function Subtask1_1_C({
   const addNeedRow = () => setNeedsRows((p) => p + 1);
   const removeNeedRow = (idx: number) => {
     if (needsRows <= 1) return;
-    const cols = ["id", "need", "source"];
+    const cols = ["need", "source"];
     cols.forEach((col) => updateField(`needs-${idx}-${col}`, ""));
     for (let i = idx + 1; i < needsRows; i++) {
       cols.forEach((col) =>
@@ -64,7 +68,7 @@ export default function Subtask1_1_C({
   const addEffectRow = () => setEffectsRows((p) => p + 1);
   const removeEffectRow = (idx: number) => {
     if (effectsRows <= 1) return;
-    const cols = ["id", "name", "effects", "quality", "measurement", "source"];
+    const cols = ["name", "effects", "quality", "measurement", "source"];
     cols.forEach((col) => updateField(`effects-${idx}-${col}`, ""));
     for (let i = idx + 1; i < effectsRows; i++) {
       cols.forEach((col) =>
@@ -115,17 +119,17 @@ export default function Subtask1_1_C({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {Array.from({ length: needsRows }).map((_, idx) => (
+              {/* Generate ID sequence */}
+              {useMemo(
+                () => generateIdSequence("N", needsRows),
+                [needsRows],
+              ).map((autoId, idx) => (
                 <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                  {/* ID */}
                   <td className="px-3 py-2">
-                    <Input
-                      placeholder="ID"
-                      value={getField(`needs-${idx}-id`)}
-                      onChange={(e) =>
-                        updateField(`needs-${idx}-id`, e.target.value)
-                      }
-                      className="h-8 text-xs"
-                    />
+                    <span className="text-xs font-mono text-gray-600">
+                      {autoId}
+                    </span>
                   </td>
                   <td className="px-3 py-2">
                     <Input
@@ -209,17 +213,17 @@ export default function Subtask1_1_C({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {Array.from({ length: effectsRows }).map((_, idx) => (
+              {/* Generate ID sequence */}
+              {useMemo(
+                () => generateIdSequence("E", effectsRows),
+                [effectsRows],
+              ).map((autoId, idx) => (
                 <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
+                  {/* ID */}
                   <td className="px-3 py-2">
-                    <Input
-                      placeholder="ID"
-                      value={getField(`effects-${idx}-id`)}
-                      onChange={(e) =>
-                        updateField(`effects-${idx}-id`, e.target.value)
-                      }
-                      className="h-8 text-xs"
-                    />
+                    <span className="text-xs font-mono text-gray-600">
+                      {autoId}
+                    </span>
                   </td>
                   <td className="px-3 py-2">
                     <Input
