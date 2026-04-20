@@ -105,9 +105,9 @@ export default function PrimaryElementsTable({
                     placeholder={`Element ${row + 1}`}
                     value={getField(row, "name")}
                     onChange={(e) => updateField(row, "name", e.target.value)}
-                    className="border-0 bg-transparent focus-visible:ring-0 p-0"
+                    className="border-0 bg-transparent focus-visible:ring-0 p-0 pl-3"
                   />
-                  {/* 显示编辑提示 */}
+                  {/* Display editing indicator */}
                   <TypingIndicator
                     editingUsers={editingUsers}
                     fieldName={`${fieldPrefix}-element-${row}-name`}
@@ -120,9 +120,8 @@ export default function PrimaryElementsTable({
                     onChange={(e) =>
                       updateField(row, "definition", e.target.value)
                     }
-                    className="border-0 bg-transparent focus-visible:ring-0 p-0"
+                    className="border-0 bg-transparent focus-visible:ring-0 p-0 pl-3"
                   />
-                  {/* 显示编辑提示 */}
                   <TypingIndicator
                     editingUsers={editingUsers}
                     fieldName={`${fieldPrefix}-element-${row}-definition`}
