@@ -89,15 +89,24 @@ export default function Subtask1_1_A({
       />
 
       {/* 4. Stakeholder Section */}
-      <StakeholderSection
-        formData={formData}
-        onFormDataChange={onFormDataChange}
-        fieldPrefix={fieldPrefix}
-        editingUsers={editingUsers}
-        conflictFields={conflictFields}
-        currentUserId={currentUserId}
-        onConflictResolve={onConflictResolve}
-      />
+      <div className="space-y-2">
+        <div>
+          <h3 className="text-sm font-semibold text-gray-800">
+            4. Identify the stakeholders involved in the activity and that might
+            be concerned by the SoI use *
+          </h3>
+        </div>
+
+        <StakeholderSection
+          formData={formData}
+          onFormDataChange={onFormDataChange}
+          fieldPrefix={fieldPrefix}
+          editingUsers={editingUsers}
+          conflictFields={conflictFields}
+          currentUserId={currentUserId}
+          onConflictResolve={onConflictResolve}
+        />
+      </div>
 
       {/* 5. Additional Stakeholders */}
       <div className="space-y-2">

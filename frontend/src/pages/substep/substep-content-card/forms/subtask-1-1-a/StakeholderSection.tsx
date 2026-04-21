@@ -306,16 +306,11 @@ export default function StakeholderSection({
   return (
     <div className="space-y-2">
       <div>
-        <h3 className="text-sm font-semibold text-gray-800">
-          4. Identify the stakeholders involved in the activity and that might
-          be concerned by the SoI use *
-        </h3>
         <p className="text-xs text-gray-500 mt-1 italic">
           * Enter up to 3 roles per stakeholder, separated by commas. Press
           Enter or click outside to save. Additional roles will not be saved.
         </p>
       </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Add Stakeholder 展开输入框 */}
         {addingStakeholder && (
