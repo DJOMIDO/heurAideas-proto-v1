@@ -156,7 +156,7 @@ export default function Subtask1_1_C({
                       <button
                         type="button"
                         onClick={() => removeNeedRow(idx)}
-                        className="inline-flex items-center justify-center rounded-md p-1 text-red-500 hover:bg-red-50 transition-colors"
+                        className="inline-flex items-center justify-center rounded-md p-1 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -283,7 +283,7 @@ export default function Subtask1_1_C({
                       <button
                         type="button"
                         onClick={() => removeEffectRow(idx)}
-                        className="inline-flex items-center justify-center rounded-md p-1 text-red-500 hover:bg-red-50 transition-colors"
+                        className="inline-flex items-center justify-center rounded-md p-1 text-red-500 hover:text-red-700 hover:bg-red-50 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
