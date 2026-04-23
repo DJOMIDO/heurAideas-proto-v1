@@ -30,6 +30,12 @@ export default function TaskStakeholders({
         Task stakeholders:
       </label>
 
+      {/* 
+        🔑 关键隔离逻辑：
+        fieldPrefix 在父组件中已拼接为 `${globalPrefix}-${taskId}`
+        最终键名示例: "2.1-T001-task-stakeholders-stakeholder-role-0"
+        确保每个 Task 的干系人数据完全独立，但角色推荐仍走项目级全局接口
+      */}
       <StakeholderSection
         formData={formData}
         onFormDataChange={onFormDataChange}

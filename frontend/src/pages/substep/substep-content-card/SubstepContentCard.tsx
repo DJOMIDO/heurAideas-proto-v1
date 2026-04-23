@@ -322,6 +322,7 @@ export default function SubstepContentCard({
                   conflictFields={conflictFields}
                   currentUserId={effectiveCurrentUserId}
                   onConflictResolve={onConflictResolve}
+                  projectId={projectId}
                 />
               );
             })()}

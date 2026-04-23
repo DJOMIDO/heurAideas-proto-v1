@@ -1,7 +1,7 @@
 # backend/app/api/projects.py
 
 from app.schemas.stakeholder import StakeholderListResponse
-from fastapi import ( # pyright: ignore[reportMissingImports]
+from fastapi import (  # pyright: ignore[reportMissingImports]
     APIRouter,
     Depends,
     HTTPException,
@@ -432,8 +432,10 @@ async def save_substep_content(
     )
 
     if db_content:
-        db_content.content_data = content_data
-        db_content.ui_state = content.ui_state
+        if db_content.content_data is None:
+            db_content.content_data = {}
+        db_content.content_data = {**db_content.content_data, **(content_data or {})}
+        db_content.ui_state = content.ui_state or db_content.ui_state
         db_content.user_id = current_user.id
     else:
         db_content = SubstepContent(
@@ -444,7 +446,7 @@ async def save_substep_content(
         )
         db.add(db_content)
 
-    await save_stakeholders(db, project_id, substep_id,current_user.id, content_data)
+    await save_stakeholders(db, project_id, substep_id, current_user.id, content_data)
 
     db.commit()
     db.refresh(db_content)
