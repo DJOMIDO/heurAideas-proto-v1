@@ -17,6 +17,7 @@ interface Subtask1_1_AProps {
   conflictFields?: Record<string, { username: string; timestamp: string }>;
   currentUserId?: number;
   onConflictResolve?: (field: string) => void;
+  projectId?: number;
 }
 
 export default function Subtask1_1_A({

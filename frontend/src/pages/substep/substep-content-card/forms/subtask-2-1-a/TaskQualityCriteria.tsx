@@ -20,7 +20,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { TaskData } from "./types";
+import type { TaskData, QualityCriteria } from "./types";
 
 function SortableCriterion({
   id,
@@ -45,10 +45,12 @@ function SortableCriterion({
     transition,
     isDragging,
   } = useSortable({ id });
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : 1,
   };
 
   return (
@@ -56,31 +58,36 @@ function SortableCriterion({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className="flex items-center gap-2 group bg-white p-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+      className="flex items-center gap-2 group bg-white p-2 rounded-lg border border-gray-200 hover:border-gray-300 transition-all shadow-sm hover:shadow-md"
     >
       <button
         {...listeners}
-        className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing p-1"
+        className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing p-1 shrink-0"
+        aria-label="Drag to reorder"
       >
         <GripVertical className="w-4 h-4" />
       </button>
-      <div className="flex items-center gap-2 flex-1 min-w-0">
-        <span className="text-xs text-gray-500 w-5 shrink-0">{index + 1}.</span>
-        <Input
-          placeholder="Quality criteria"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="flex-1 min-w-0 h-8 text-xs"
-        />
-        {canRemove && (
-          <button
-            onClick={onRemove}
-            className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        )}
-      </div>
+
+      <span className="text-xs text-gray-500 w-5 shrink-0 font-mono text-center">
+        {index + 1}.
+      </span>
+
+      <Input
+        placeholder="Quality criteria"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="flex-1 min-w-0 h-8 text-xs bg-transparent border-none focus-visible:ring-0 pl-2 pr-0 placeholder:text-gray-400"
+      />
+
+      {canRemove && (
+        <button
+          onClick={onRemove}
+          className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1 rounded-md transition-colors shrink-0"
+          title="Remove criteria"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 }
@@ -95,7 +102,11 @@ export default function TaskQualityCriteria({
   updateTask,
 }: TaskQualityCriteriaProps) {
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
@@ -103,22 +114,28 @@ export default function TaskQualityCriteria({
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+
     if (!over || active.id === over.id) return;
 
     const oldIndex = task.qualityCriteria.findIndex((c) => c.id === active.id);
     const newIndex = task.qualityCriteria.findIndex((c) => c.id === over.id);
-    updateTask({
-      qualityCriteria: arrayMove(task.qualityCriteria, oldIndex, newIndex),
-    });
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const sortedCriteria = arrayMove(
+        task.qualityCriteria,
+        oldIndex,
+        newIndex,
+      );
+      updateTask({ qualityCriteria: sortedCriteria });
+    }
   };
 
   const addQualityCriteria = () => {
-    updateTask({
-      qualityCriteria: [
-        ...task.qualityCriteria,
-        { id: `qc${Date.now()}`, value: "" },
-      ],
-    });
+    const newCriteria: QualityCriteria = {
+      id: `qc-${Date.now()}`,
+      value: "",
+    };
+    updateTask({ qualityCriteria: [...task.qualityCriteria, newCriteria] });
   };
 
   const removeQualityCriteria = (id: string) => {
@@ -136,7 +153,7 @@ export default function TaskQualityCriteria({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <label className="text-sm font-semibold text-gray-800">
         Task quality criteria:
       </label>
@@ -146,7 +163,7 @@ export default function TaskQualityCriteria({
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <SortableContext
             items={task.qualityCriteria.map((c) => c.id)}
             strategy={verticalListSortingStrategy}
@@ -168,9 +185,10 @@ export default function TaskQualityCriteria({
             variant="outline"
             size="sm"
             onClick={addQualityCriteria}
-            className="h-auto py-2 px-3 text-xs flex items-center justify-center"
+            className="col-span-1 sm:col-span-2 h-9 text-xs border-dashed border-gray-300 hover:border-teal-500 hover:text-teal-600 hover:bg-teal-50/50"
           >
-            <Plus className="w-3 h-3 mr-1" /> Add new quality criteria
+            <Plus className="w-3.5 h-3.5 mr-1.5" />
+            Add new quality criteria
           </Button>
         </div>
       </DndContext>

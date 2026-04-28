@@ -21,7 +21,7 @@ export default function TaskObjective({
         placeholder="Enter the objective of the task"
         value={task.objective}
         onChange={(e) => updateTask({ objective: e.target.value })}
-        className="min-h-[100px]"
+        className="min-h-[80px] bg-white"
       />
     </div>
   );

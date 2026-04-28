@@ -28,6 +28,10 @@ export default function SubtaskItem({
   onUpdateSubtask,
   onToggleExpand,
 }: SubtaskItemProps) {
+  const selectedCriteria = subtask.selectedCriteria || [];
+  const selectedStakeholders = subtask.selectedStakeholders || [];
+  const selectedConstraints = subtask.selectedConstraints || [];
+
   const toggleSelection = (
     type: "Criteria" | "Stakeholders" | "Constraints",
     id: string,
@@ -39,7 +43,13 @@ export default function SubtaskItem({
     } as const;
 
     const fieldName = fieldMap[type];
-    const currentList = subtask[fieldName];
+    const currentList =
+      type === "Criteria"
+        ? selectedCriteria
+        : type === "Stakeholders"
+          ? selectedStakeholders
+          : selectedConstraints;
+
     const newList = currentList.includes(id)
       ? currentList.filter((item) => item !== id)
       : [...currentList, id];
@@ -51,10 +61,8 @@ export default function SubtaskItem({
   };
 
   return (
-    <div className="border border-blue-200 rounded-lg overflow-hidden bg-white shadow-sm">
-      <div className="bg-blue-50 p-3 flex items-center gap-3">
-        <div className="w-1 h-8 bg-blue-400 rounded-full"></div>
-
+    <div className="border border-blue-200 rounded-lg bg-white overflow-hidden transition-all duration-200 hover:shadow-md">
+      <div className="flex items-center gap-3 p-3 bg-blue-50 border-b border-blue-100">
         <Select
           value={subtask.state}
           onValueChange={(v) => onUpdateSubtask({ ...subtask, state: v })}
@@ -64,7 +72,7 @@ export default function SubtaskItem({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="State">State</SelectItem>
-            <SelectItem value="...">...</SelectItem>
+            <SelectItem value="None">None</SelectItem>
           </SelectContent>
         </Select>
 
@@ -85,7 +93,7 @@ export default function SubtaskItem({
           variant="ghost"
           size="sm"
           onClick={onToggleExpand}
-          className="h-8 w-8 p-0"
+          className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
         >
           {subtask.isExpanded ? (
             <ChevronUp className="w-4 h-4" />
@@ -96,7 +104,8 @@ export default function SubtaskItem({
       </div>
 
       {subtask.isExpanded && (
-        <div className="p-4 space-y-6 border-t border-blue-100">
+        <div className="p-4 space-y-6 border-t border-blue-100 bg-white">
+          {/* 1. Quality Criteria */}
           <div className="space-y-2">
             <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
               Subtask Quality Criteria
@@ -108,19 +117,17 @@ export default function SubtaskItem({
                   <Badge
                     key={qc.id}
                     variant={
-                      subtask.selectedCriteria.includes(qc.value)
-                        ? "default"
-                        : "outline"
+                      selectedCriteria.includes(qc.id) ? "default" : "outline"
                     }
                     className={`cursor-pointer px-3 py-1.5 transition-all ${
-                      subtask.selectedCriteria.includes(qc.value)
-                        ? "bg-blue-600 text-white hover:bg-blue-700 border-transparent shadow-lg"
-                        : "bg-gray-50 text-gray-600 shadow-lg hover:border-gray-300 hover:shadow-lg border-gray-200"
+                      selectedCriteria.includes(qc.id)
+                        ? "bg-blue-600 text-white hover:bg-blue-700 border-transparent shadow-md"
+                        : "bg-gray-50 text-gray-600 hover:border-gray-300 hover:shadow-md border-gray-200"
                     }`}
-                    onClick={() => toggleSelection("Criteria", qc.value)}
+                    onClick={() => toggleSelection("Criteria", qc.id)}
                   >
                     {qc.value}
-                    {subtask.selectedCriteria.includes(qc.value) && (
+                    {selectedCriteria.includes(qc.id) && (
                       <Check className="w-3 h-3 ml-1" />
                     )}
                   </Badge>
@@ -144,9 +151,9 @@ export default function SubtaskItem({
                   key={sh.id}
                   onClick={() => toggleSelection("Stakeholders", sh.id)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-all ${
-                    subtask.selectedStakeholders.includes(sh.id)
-                      ? "border-blue-500 bg-blue-50 shadow-lg"
-                      : "border-gray-200 bg-white shadow-lg hover:shadow-lg hover:border-gray-300"
+                    selectedStakeholders.includes(sh.id)
+                      ? "border-blue-500 bg-blue-50 shadow-md"
+                      : "border-gray-200 bg-white hover:shadow-md hover:border-gray-300"
                   }`}
                 >
                   <div
@@ -157,7 +164,7 @@ export default function SubtaskItem({
                   <span className="text-xs font-medium text-gray-700">
                     {sh.name}
                   </span>
-                  {subtask.selectedStakeholders.includes(sh.id) && (
+                  {selectedStakeholders.includes(sh.id) && (
                     <Check className="w-3 h-3 text-blue-500" />
                   )}
                 </div>
@@ -175,31 +182,28 @@ export default function SubtaskItem({
               Subtask Constraints
             </label>
             <div className="flex flex-wrap gap-2">
-              {parentTask.constraints.map((c) => {
-                const label = c.value || "Description...";
-                return (
+              {parentTask.constraints
+                .filter((c) => c.value)
+                .map((c) => (
                   <Badge
                     key={c.id}
                     variant={
-                      subtask.selectedConstraints.includes(c.id)
-                        ? "default"
-                        : "outline"
+                      selectedConstraints.includes(c.id) ? "default" : "outline"
                     }
                     className={`cursor-pointer px-3 py-1.5 transition-all ${
-                      subtask.selectedConstraints.includes(c.id)
-                        ? "bg-blue-600 text-white hover:bg-blue-700 border-transparent shadow-lg"
-                        : "bg-gray-50 text-gray-600 shadow-lg hover:border-gray-300 hover:shadow-lg border-gray-200"
+                      selectedConstraints.includes(c.id)
+                        ? "bg-blue-600 text-white hover:bg-blue-700 border-transparent shadow-md"
+                        : "bg-gray-50 text-gray-600 hover:border-gray-300 hover:shadow-md border-gray-200"
                     }`}
                     onClick={() => toggleSelection("Constraints", c.id)}
                   >
-                    {label}
-                    {subtask.selectedConstraints.includes(c.id) && (
+                    {c.value}
+                    {selectedConstraints.includes(c.id) && (
                       <Check className="w-3 h-3 ml-1" />
                     )}
                   </Badge>
-                );
-              })}
-              {parentTask.constraints.length === 0 && (
+                ))}
+              {parentTask.constraints.filter((c) => c.value).length === 0 && (
                 <span className="text-xs text-gray-400 italic">
                   No constraints defined in task.
                 </span>

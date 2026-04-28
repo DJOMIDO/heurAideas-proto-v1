@@ -1,8 +1,8 @@
 // frontend/src/pages/substep/substep-content-card/forms/subtask-2-1-a/SubtaskList.tsx
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, ChevronUp } from "lucide-react";
+import { Plus } from "lucide-react";
 import SubtaskItem from "./SubtaskItem";
 import type { SubtaskData, TaskData, Stakeholder } from "./types";
 
@@ -19,10 +19,9 @@ export default function SubtaskList({
   fieldPrefix,
   formData,
 }: SubtaskListProps) {
-  const [isSubtasksExpanded, setIsSubtasksExpanded] = useState(true);
+  const subtasks = task.subtasks || [];
 
   const stakeholdersPrefix = `${fieldPrefix}-task-stakeholders`;
-
   const availableStakeholders: Stakeholder[] = useMemo(() => {
     const stakeholders: Stakeholder[] = [];
     const colors = [
@@ -50,9 +49,8 @@ export default function SubtaskList({
   }, [formData, stakeholdersPrefix]);
 
   const addSubtask = () => {
-    setIsSubtasksExpanded(true);
     const newSubtask: SubtaskData = {
-      id: `${task.id}.${task.subtasks.length + 1}`,
+      id: `${task.id}.${subtasks.length + 1}`,
       name: "",
       state: "State",
       isExpanded: true,
@@ -60,66 +58,54 @@ export default function SubtaskList({
       selectedStakeholders: [],
       selectedConstraints: [],
     };
-    updateTask({ subtasks: [...task.subtasks, newSubtask] });
+    updateTask({ subtasks: [...subtasks, newSubtask] });
   };
 
   const handleUpdateSubtask = (updatedSubtask: SubtaskData) => {
     updateTask({
-      subtasks: task.subtasks.map((st) =>
+      subtasks: subtasks.map((st) =>
         st.id === updatedSubtask.id ? updatedSubtask : st,
       ),
     });
   };
 
-  const handleToggleExpand = (subtaskId: string) => {
+  const handleToggleSubtaskExpand = (subtaskId: string) => {
     updateTask({
-      subtasks: task.subtasks.map((st) =>
+      subtasks: subtasks.map((st) =>
         st.id === subtaskId ? { ...st, isExpanded: !st.isExpanded } : st,
       ),
     });
   };
 
   return (
-    <div className="pt-4 border-t border-gray-200 space-y-4">
-      <button
-        onClick={() => setIsSubtasksExpanded(!isSubtasksExpanded)}
-        className="w-full flex items-center justify-between bg-gray-50 p-3 rounded-lg hover:bg-gray-100 transition-colors"
-      >
-        <h3 className="font-bold text-gray-800 text-sm uppercase tracking-wide">
-          Subtasks
-        </h3>
-        <ChevronUp
-          className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
-            isSubtasksExpanded ? "" : "-rotate-180"
-          }`}
-        />
-      </button>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+        <span className="text-sm font-semibold text-gray-700">
+          Subtasks ({subtasks.length})
+        </span>
+      </div>
 
-      {isSubtasksExpanded && (
-        <>
-          <div className="space-y-4">
-            {task.subtasks.map((subtask) => (
-              <SubtaskItem
-                key={subtask.id}
-                subtask={subtask}
-                parentTask={task}
-                availableStakeholders={availableStakeholders}
-                onUpdateSubtask={handleUpdateSubtask}
-                onToggleExpand={() => handleToggleExpand(subtask.id)}
-              />
-            ))}
-          </div>
+      <div className="space-y-4 pl-4 border-l-2 border-blue-100 ml-2">
+        {subtasks.map((subtask) => (
+          <SubtaskItem
+            key={subtask.id}
+            subtask={subtask}
+            parentTask={task}
+            availableStakeholders={availableStakeholders}
+            onUpdateSubtask={handleUpdateSubtask}
+            onToggleExpand={() => handleToggleSubtaskExpand(subtask.id)}
+          />
+        ))}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={addSubtask}
-            className="w-auto"
-          >
-            <Plus className="w-4 h-4 mr-2" /> Add subtasks
-          </Button>
-        </>
-      )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={addSubtask}
+          className="w-full mt-2 h-9 text-xs border-dashed border-gray-300 hover:border-teal-500 hover:text-teal-600 hover:bg-teal-50/50 transition-all"
+        >
+          <Plus className="w-3.5 h-3.5 mr-1.5" /> Add subtask
+        </Button>
+      </div>
     </div>
   );
 }

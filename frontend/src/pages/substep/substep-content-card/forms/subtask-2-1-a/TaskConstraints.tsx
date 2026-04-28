@@ -29,17 +29,20 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { TaskData, Constraint, ObservableElement } from "./types";
 
+// ==========================================
+// 🔹 可拖拽的单个约束组件 (包含内部 Observables)
+// ==========================================
 function SortableConstraint({
   constraint,
   index,
-  onUpdate,
-  onRemove,
+  onUpdateConstraint,
+  onRemoveConstraint,
   canRemove,
 }: {
   constraint: Constraint;
   index: number;
-  onUpdate: (field: keyof Constraint, value: any) => void;
-  onRemove: () => void;
+  onUpdateConstraint: (id: string, field: keyof Constraint, value: any) => void;
+  onRemoveConstraint: (id: string) => void;
   canRemove: boolean;
 }) {
   const {
@@ -50,29 +53,37 @@ function SortableConstraint({
     transition,
     isDragging,
   } = useSortable({ id: constraint.id });
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : 1,
   };
 
+  // 处理内部 Observables 的增删改
   const addObservable = () => {
-    const newObservable: ObservableElement = {
-      id: `oe${Date.now()}`,
+    const newObs: ObservableElement = {
+      id: `oe-${Date.now()}`,
       value: "",
     };
-    onUpdate("observables", [...constraint.observables, newObservable]);
+    onUpdateConstraint(constraint.id, "observables", [
+      ...constraint.observables,
+      newObs,
+    ]);
   };
 
   const removeObservable = (oeId: string) => {
-    onUpdate(
+    onUpdateConstraint(
+      constraint.id,
       "observables",
       constraint.observables.filter((o) => o.id !== oeId),
     );
   };
 
   const updateObservable = (oeId: string, value: string) => {
-    onUpdate(
+    onUpdateConstraint(
+      constraint.id,
       "observables",
       constraint.observables.map((o) => (o.id === oeId ? { ...o, value } : o)),
     );
@@ -83,81 +94,110 @@ function SortableConstraint({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+      className="flex flex-col gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-all shadow-sm"
     >
-      <button
-        {...listeners}
-        className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing p-1 shrink-0"
-      >
-        <GripVertical className="w-4 h-4" />
-      </button>
+      {/* 第一行：拖拽柄 + 序号 + 类型选择 + 描述输入 + 删除 */}
+      <div className="flex items-center gap-2">
+        {/* 拖拽手柄 */}
+        <button
+          {...listeners}
+          className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing p-1 shrink-0"
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
 
-      <span className="text-xs text-gray-500 w-5 shrink-0">{index + 1}.</span>
+        {/* 序号 */}
+        <span className="text-xs text-gray-500 w-5 shrink-0 font-mono text-center">
+          {index + 1}.
+        </span>
 
-      <div className="flex items-center gap-2 flex-[2] min-w-0">
+        {/* 类型选择 */}
         <Select
           value={constraint.type}
-          onValueChange={(v) => onUpdate("type", v)}
+          onValueChange={(v) => onUpdateConstraint(constraint.id, "type", v)}
         >
-          <SelectTrigger className="w-[120px] bg-white h-8 text-xs">
+          <SelectTrigger className="w-[100px] bg-white h-8 text-xs">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="Physical">Physical</SelectItem>
-            <SelectItem value="...">...</SelectItem>
+            <SelectItem value="Cognitive">Cognitive</SelectItem>
+            <SelectItem value="Temporal">Temporal</SelectItem>
+            <SelectItem value="Spatial">Spatial</SelectItem>
           </SelectContent>
         </Select>
+
+        {/* 描述输入 */}
         <Input
           placeholder="Description"
           value={constraint.value}
-          onChange={(e) => onUpdate("value", e.target.value)}
+          onChange={(e) =>
+            onUpdateConstraint(constraint.id, "value", e.target.value)
+          }
           className="flex-1 bg-white h-8 text-xs"
         />
+
+        {/* 删除按钮 */}
         {canRemove && (
           <button
-            onClick={onRemove}
-            className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0"
+            onClick={() => onRemoveConstraint(constraint.id)}
+            className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1 rounded-md transition-colors shrink-0"
+            title="Remove constraint"
           >
             <Trash2 className="w-4 h-4" />
           </button>
         )}
       </div>
 
-      <div className="w-px h-8 bg-gray-300 shrink-0" />
+      {/* 第二行：Observables 列表 */}
+      <div className="pl-8 space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
+            Observables:
+          </span>
+          <div className="flex-1 border-t border-gray-200" />
+        </div>
 
-      <div className="flex flex-col gap-1.5 flex-[2] min-w-0 w-full">
-        {constraint.observables.map((oe) => (
-          <div key={oe.id} className="flex items-center gap-1 w-full">
-            <Input
-              placeholder="Observable elements"
-              value={oe.value}
-              onChange={(e) => updateObservable(oe.id, e.target.value)}
-              className="flex-1 min-w-[120px] bg-white h-8 text-xs"
-            />
-            {constraint.observables.length > 1 && (
-              <button
-                onClick={() => removeObservable(oe.id)}
-                className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-        ))}
+        <div className="space-y-1.5">
+          {constraint.observables.map((oe) => (
+            <div key={oe.id} className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
+              <Input
+                placeholder="Observable element"
+                value={oe.value}
+                onChange={(e) => updateObservable(oe.id, e.target.value)}
+                className="flex-1 bg-white h-7 text-xs border-gray-200 focus-visible:ring-teal-500/20"
+              />
+              {constraint.observables.length > 1 && (
+                <button
+                  onClick={() => removeObservable(oe.id)}
+                  className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-0.5 rounded shrink-0"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* 添加 Observable 按钮 */}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={addObservable}
+          className="h-6 text-[10px] text-teal-600 hover:text-teal-700 hover:bg-teal-50 px-2 w-auto"
+        >
+          <Plus className="w-3 h-3 mr-1" /> Add observable
+        </Button>
       </div>
-
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={addObservable}
-        className="h-8 px-2 text-sm font-bold text-teal-600 hover:text-teal-700 hover:bg-teal-50 shrink-0"
-      >
-        <Plus className="w-3 h-3 mr-1" /> Add
-      </Button>
     </div>
   );
 }
 
+// ==========================================
+// 🔹 主组件：约束列表
+// ==========================================
 interface TaskConstraintsProps {
   task: TaskData;
   updateTask: (updates: Partial<TaskData>) => void;
@@ -168,42 +208,49 @@ export default function TaskConstraints({
   updateTask,
 }: TaskConstraintsProps) {
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
 
+  // 🔑 处理拖拽结束：重新排序并保存
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
     const oldIndex = task.constraints.findIndex((c) => c.id === active.id);
     const newIndex = task.constraints.findIndex((c) => c.id === over.id);
-    updateTask({
-      constraints: arrayMove(task.constraints, oldIndex, newIndex),
-    });
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      updateTask({
+        constraints: arrayMove(task.constraints, oldIndex, newIndex),
+      });
+    }
   };
 
+  // 🔑 添加新约束
   const addConstraint = () => {
+    const newConstraint: Constraint = {
+      id: `c-${Date.now()}`,
+      type: "Physical",
+      value: "",
+      observables: [{ id: `oe-${Date.now()}`, value: "" }],
+    };
+    updateTask({ constraints: [...task.constraints, newConstraint] });
+  };
+
+  // 🔑 删除指定约束
+  const removeConstraint = (id: string) => {
     updateTask({
-      constraints: [
-        ...task.constraints,
-        {
-          id: `c${Date.now()}`,
-          type: "Physical",
-          value: "",
-          observables: [{ id: `oe${Date.now()}`, value: "" }],
-        },
-      ],
+      constraints: task.constraints.filter((c) => c.id !== id),
     });
   };
 
-  const removeConstraint = (id: string) => {
-    updateTask({ constraints: task.constraints.filter((c) => c.id !== id) });
-  };
-
-  const updateConstraint = (
+  // 🔑 更新指定约束字段
+  const updateConstraintField = (
     id: string,
     field: keyof Constraint,
     value: any,
@@ -216,38 +263,44 @@ export default function TaskConstraints({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <label className="text-sm font-semibold text-gray-800">
         Task constraints:
       </label>
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <SortableContext
-          items={task.constraints.map((c) => c.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <div className="space-y-2">
+        <div className="space-y-3">
+          <SortableContext
+            items={task.constraints.map((c) => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
             {task.constraints.map((constraint, idx) => (
               <SortableConstraint
                 key={constraint.id}
                 constraint={constraint}
                 index={idx}
-                onUpdate={(field, value) =>
-                  updateConstraint(constraint.id, field, value)
-                }
-                onRemove={() => removeConstraint(constraint.id)}
+                onUpdateConstraint={updateConstraintField}
+                onRemoveConstraint={removeConstraint}
                 canRemove={task.constraints.length > 1}
               />
             ))}
-          </div>
-        </SortableContext>
+          </SortableContext>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={addConstraint}
+            className="w-full h-9 text-xs border-dashed border-gray-300 hover:border-teal-500 hover:text-teal-600 hover:bg-teal-50/50"
+          >
+            <Plus className="w-3.5 h-3.5 mr-1.5" />
+            Add constraints and observables
+          </Button>
+        </div>
       </DndContext>
-      <Button variant="outline" size="sm" onClick={addConstraint}>
-        <Plus className="w-4 h-4 mr-2" /> Add constraints and observables
-      </Button>
     </div>
   );
 }
