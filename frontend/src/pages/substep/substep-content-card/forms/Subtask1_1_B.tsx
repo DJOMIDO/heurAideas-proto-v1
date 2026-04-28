@@ -1,6 +1,6 @@
 // frontend/src/pages/substep/substep-content-card/forms/Subtask1_1_B.tsx
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -32,21 +32,41 @@ export default function Subtask1_1_B({
     onFormDataChange(`${fieldPrefix}-${key}`, value);
   };
 
-  // Point 2: Docs Table State -  2 rows by default
-  const [docRows, setDocRows] = useState(() => {
+  // Docs Table
+  const getDocRows = () => {
+    const stored = formData[`${fieldPrefix}-docs-row-count`];
+    if (stored && typeof stored === "number" && stored >= 2) {
+      return stored;
+    }
     let count = 0;
     while (getField(`docs-${count}-type`) || getField(`docs-${count}-title`))
       count++;
     return Math.max(2, count);
-  });
+  };
+  const docRows = getDocRows();
 
-  // Point 3: Parts Table State - 2 rows and 2 cols by default
-  const [partRows, setPartRows] = useState(() => {
+  const updateDocRows = (newCount: number) => {
+    onFormDataChange(`${fieldPrefix}-docs-row-count`, newCount);
+  };
+
+  // Parts Table
+  const getPartRows = () => {
+    const stored = formData[`${fieldPrefix}-parts-row-count`];
+    if (stored && typeof stored === "number" && stored >= 2) return stored;
     let count = 0;
     while (getField(`parts-${count}-0`)) count++;
     return Math.max(2, count);
-  });
-  const [partCols, setPartCols] = useState(() => {
+  };
+  const partRows = getPartRows();
+
+  const updatePartRows = (newCount: number) => {
+    onFormDataChange(`${fieldPrefix}-parts-row-count`, newCount);
+  };
+
+  // Parts Table
+  const getPartCols = () => {
+    const stored = formData[`${fieldPrefix}-parts-col-count`];
+    if (stored && typeof stored === "number" && stored >= 1) return stored;
     let maxCol = 1;
     for (let r = 0; r < 10; r++) {
       let c = 1;
@@ -54,10 +74,15 @@ export default function Subtask1_1_B({
       if (c > 1) maxCol = Math.max(maxCol, c - 1);
     }
     return maxCol;
-  });
+  };
+  const partCols = getPartCols();
+
+  const updatePartCols = (newCount: number) => {
+    onFormDataChange(`${fieldPrefix}-parts-col-count`, newCount);
+  };
 
   // Docs Table Handlers
-  const addDocRow = () => setDocRows((p) => p + 1);
+  const addDocRow = () => updateDocRows(docRows + 1);
   const removeDocRow = (idx: number) => {
     if (docRows <= 1) return;
     const cols = ["type", "title", "concepts", "definitions", "link"];
@@ -67,11 +92,11 @@ export default function Subtask1_1_B({
         updateField(`docs-${i - 1}-${col}`, getField(`docs-${i}-${col}`)),
       );
     }
-    setDocRows((p) => p - 1);
+    updateDocRows(docRows - 1);
   };
 
   // Parts Table Handlers
-  const addPartRow = () => setPartRows((p) => p + 1);
+  const addPartRow = () => updatePartRows(partRows + 1);
   const removePartRow = (idx: number) => {
     if (partRows <= 1) return;
     for (let c = 0; c <= partCols; c++) updateField(`parts-${idx}-${c}`, "");
@@ -80,9 +105,9 @@ export default function Subtask1_1_B({
         updateField(`parts-${i - 1}-${c}`, getField(`parts-${i}-${c}`));
       }
     }
-    setPartRows((p) => p - 1);
+    updatePartRows(partRows - 1);
   };
-  const addPartCol = () => setPartCols((p) => p + 1);
+  const addPartCol = () => updatePartCols(partCols + 1);
   const removePartCol = (idx: number) => {
     if (partCols <= 1) return;
     for (let r = 0; r < partRows; r++) {
@@ -96,11 +121,11 @@ export default function Subtask1_1_B({
     for (let r = 0; r < partRows; r++) {
       updateField(`parts-${r}-${partCols}`, "");
     }
-    setPartCols((p) => p - 1);
+    updatePartCols(partCols - 1);
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* 1. Register SoI */}
       <div className="space-y-2">
         <label className="text-sm font-bold text-black">
@@ -174,6 +199,10 @@ export default function Subtask1_1_B({
                         className="min-h-[80px] text-xs resize-y"
                         rows={3}
                       />
+                      <TypingIndicator
+                        editingUsers={editingUsers}
+                        fieldName={`${fieldPrefix}-docs-${idx}-type`}
+                      />
                     </td>
 
                     {/* Title */}
@@ -187,9 +216,13 @@ export default function Subtask1_1_B({
                         className="min-h-[80px] text-xs resize-y"
                         rows={3}
                       />
+                      <TypingIndicator
+                        editingUsers={editingUsers}
+                        fieldName={`${fieldPrefix}-docs-${idx}-title`}
+                      />
                     </td>
 
-                    {/* Core concepts / Definitions / Link */}
+                    {/* Core concepts */}
                     <td className="px-3 py-2 align-top">
                       <Textarea
                         placeholder="+ Add concepts"
@@ -200,7 +233,13 @@ export default function Subtask1_1_B({
                         className="min-h-[80px] text-xs resize-y"
                         rows={3}
                       />
+                      <TypingIndicator
+                        editingUsers={editingUsers}
+                        fieldName={`${fieldPrefix}-docs-${idx}-concepts`}
+                      />
                     </td>
+
+                    {/* Definitions */}
                     <td className="px-3 py-2 align-top">
                       <Textarea
                         placeholder="+ Add definition"
@@ -211,7 +250,13 @@ export default function Subtask1_1_B({
                         className="min-h-[80px] text-xs resize-y"
                         rows={3}
                       />
+                      <TypingIndicator
+                        editingUsers={editingUsers}
+                        fieldName={`${fieldPrefix}-docs-${idx}-definitions`}
+                      />
                     </td>
+
+                    {/* Link */}
                     <td className="px-3 py-2 align-top">
                       <Textarea
                         placeholder="+ Add to doc manager"
@@ -221,6 +266,10 @@ export default function Subtask1_1_B({
                         }
                         className="min-h-[80px] text-xs resize-y"
                         rows={3}
+                      />
+                      <TypingIndicator
+                        editingUsers={editingUsers}
+                        fieldName={`${fieldPrefix}-docs-${idx}-link`}
                       />
                     </td>
 
@@ -250,10 +299,6 @@ export default function Subtask1_1_B({
         >
           <Plus className="w-4 h-4 mr-2" /> Add Row
         </Button>
-        <TypingIndicator
-          editingUsers={editingUsers}
-          fieldName={`${fieldPrefix}-docs-table`}
-        />
       </div>
 
       {/* 3. Concepts & Parts Table */}
@@ -301,6 +346,7 @@ export default function Subtask1_1_B({
             <tbody className="divide-y divide-gray-200">
               {Array.from({ length: partRows }).map((_, r) => (
                 <tr key={r} className="hover:bg-gray-50/50 transition-colors">
+                  {/* Concepts column */}
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Concept"
@@ -310,7 +356,13 @@ export default function Subtask1_1_B({
                       }
                       className="h-8 text-xs font-medium"
                     />
+                    <TypingIndicator
+                      editingUsers={editingUsers}
+                      fieldName={`${fieldPrefix}-parts-${r}-0`}
+                    />
                   </td>
+
+                  {/* Part columns */}
                   {Array.from({ length: partCols }).map((_, c) => (
                     <td key={c} className="px-3 py-2">
                       <Input
@@ -321,8 +373,14 @@ export default function Subtask1_1_B({
                         }
                         className="h-8 text-xs"
                       />
+                      <TypingIndicator
+                        editingUsers={editingUsers}
+                        fieldName={`${fieldPrefix}-parts-${r}-${c + 1}`}
+                      />
                     </td>
                   ))}
+
+                  {/* Remove Button */}
                   <td className="px-2 py-2 text-center">
                     {partRows > 1 && (
                       <button
@@ -347,10 +405,6 @@ export default function Subtask1_1_B({
         >
           <Plus className="w-4 h-4 mr-2" /> Add Row
         </Button>
-        <TypingIndicator
-          editingUsers={editingUsers}
-          fieldName={`${fieldPrefix}-parts-table`}
-        />
       </div>
     </div>
   );
