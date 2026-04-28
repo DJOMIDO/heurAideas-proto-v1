@@ -94,3 +94,18 @@ export async function getStakeholderRoles(
     `/projects/${projectId}/stakeholders?response_format=roles`,
   );
 }
+
+// 获取项目成员列表（调用独立 /members 接口）
+export async function getProjectMembers(projectId: number) {
+  return request<{
+    total: number;
+    members: Array<{
+      id: number;
+      user_id: number;
+      username: string;
+      email: string;
+      role: string;
+      joined_at: string;
+    }>;
+  }>(`/projects/${projectId}/members`);
+}
