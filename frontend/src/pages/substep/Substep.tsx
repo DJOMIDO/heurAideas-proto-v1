@@ -16,7 +16,7 @@ import SubstepMenu from "./SubstepMenu";
 import SubstepTabs from "./SubstepTabs";
 import SubstepContentCard from "./substep-content-card/SubstepContentCard";
 import { getUserId, getUserInfo } from "@/utils/auth";
-import { getProjectDetail } from "@/api/projects";
+import { getProjectDetail, getProjectMembers } from "@/api/projects";
 import {
   syncCommentsFromApi,
   syncUnsyncedCommentsToApi,
@@ -55,6 +55,7 @@ export default function Substep() {
     Record<string, boolean>
   >({});
   const [commentRefreshKey, setCommentRefreshKey] = useState(0);
+  const [teamSize, setTeamSize] = useState(0);
 
   // 编辑用户状态：{ fieldName: { userId, username, timestamp } }
   // 这个状态 ONLY 由接收到的 WebSocket 消息更新（排除自己）
@@ -528,18 +529,32 @@ export default function Substep() {
 
   useEffect(() => {
     if (!projectIdNum) return;
-    getProjectDetail(projectIdNum)
-      .then((detail) => {
-        const map: Record<string, number> = {};
-        detail.steps.forEach((step) => {
-          step.substeps.forEach((substep) => {
-            map[substep.code] = substep.id;
+
+    // 并行获取项目详情和成员列表
+    Promise.all([
+      getProjectDetail(projectIdNum).catch(() => null),
+      getProjectMembers(projectIdNum).catch(() => ({ total: 0, members: [] })),
+    ])
+      .then(([detail, membersRes]) => {
+        // 原有 steps 映射逻辑
+        if (detail?.steps) {
+          const map: Record<string, number> = {};
+          detail.steps.forEach((step) => {
+            step.substeps.forEach((substep) => {
+              map[substep.code] = substep.id;
+            });
           });
-        });
-        setProjectSubstepIdMap(map);
+          setProjectSubstepIdMap(map);
+        }
+
+        // 提取真实团队人数
+        const count = membersRes?.total ?? membersRes?.members?.length ?? 0;
+        if (count > 0) {
+          setTeamSize(count);
+        }
       })
       .catch((error) => {
-        console.error("[Substep] Failed to load project detail:", error);
+        console.error("[Substep] Failed to load project data:", error);
       });
   }, [projectIdNum]);
 
@@ -668,6 +683,7 @@ export default function Substep() {
             editingUsers={editingUsers}
             conflictFields={conflictFields}
             parentCurrentUserId={currentUserId}
+            teamSize={teamSize}
             onConflictResolve={(field: string) => {
               handleSave();
               setConflictFields((prev) => {
@@ -701,6 +717,7 @@ export default function Substep() {
                 editingUsers={editingUsers}
                 conflictFields={conflictFields}
                 parentCurrentUserId={currentUserId}
+                teamSize={teamSize}
                 onConflictResolve={(field: string) => {
                   handleSave();
                   setConflictFields((prev) => {
@@ -734,6 +751,7 @@ export default function Substep() {
                 editingUsers={editingUsers}
                 conflictFields={conflictFields}
                 parentCurrentUserId={currentUserId}
+                teamSize={teamSize}
                 onConflictResolve={(field: string) => {
                   handleSave();
                   setConflictFields((prev) => {

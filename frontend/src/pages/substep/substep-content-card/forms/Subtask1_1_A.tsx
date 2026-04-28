@@ -18,6 +18,7 @@ interface Subtask1_1_AProps {
   currentUserId?: number;
   onConflictResolve?: (field: string) => void;
   projectId?: number;
+  teamSize?: number;
 }
 
 export default function Subtask1_1_A({

@@ -34,6 +34,7 @@ interface SubstepContentCardProps {
   >;
   conflictFields?: Record<string, { username: string; timestamp: string }>;
   onConflictResolve?: (field: string) => void;
+  teamSize?: number;
 }
 
 export default function SubstepContentCard({
@@ -52,11 +53,11 @@ export default function SubstepContentCard({
   setIsCommentMode = () => {},
   projectSubstepId,
   commentRefreshKey = 0,
-  // 新增参数
   parentCurrentUserId,
   editingUsers = {},
   conflictFields = {},
   onConflictResolve,
+  teamSize,
 }: SubstepContentCardProps) {
   const {
     comments,
@@ -323,6 +324,7 @@ export default function SubstepContentCard({
                   currentUserId={effectiveCurrentUserId}
                   onConflictResolve={onConflictResolve}
                   projectId={projectId}
+                  teamSize={teamSize}
                 />
               );
             })()}
