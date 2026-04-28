@@ -1,6 +1,6 @@
 // frontend/src/pages/substep/substep-content-card/forms/Subtask1_1_C.tsx
 
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
@@ -31,16 +31,25 @@ export default function Subtask1_1_C({
     onFormDataChange(`${fieldPrefix}-${key}`, value);
   };
 
-  // Table 1 (Needs) State - 2 rows by default
-  const [needsRows, setNeedsRows] = useState(() => {
+  // Needs Table
+  const getNeedsRows = () => {
+    const stored = formData[`${fieldPrefix}-needs-row-count`];
+    if (stored && typeof stored === "number" && stored >= 2) return stored;
     let count = 0;
     while (getField(`needs-${count}-need`) || getField(`needs-${count}-source`))
       count++;
     return Math.max(2, count);
-  });
+  };
+  const needsRows = getNeedsRows();
 
-  // Table 2 (Effects) State - 2 rows by default
-  const [effectsRows, setEffectsRows] = useState(() => {
+  const updateNeedsRows = (newCount: number) => {
+    onFormDataChange(`${fieldPrefix}-needs-row-count`, newCount);
+  };
+
+  // Effects Table
+  const getEffectsRows = () => {
+    const stored = formData[`${fieldPrefix}-effects-row-count`];
+    if (stored && typeof stored === "number" && stored >= 2) return stored;
     let count = 0;
     while (
       getField(`effects-${count}-name`) ||
@@ -48,10 +57,15 @@ export default function Subtask1_1_C({
     )
       count++;
     return Math.max(2, count);
-  });
+  };
+  const effectsRows = getEffectsRows();
+
+  const updateEffectsRows = (newCount: number) => {
+    onFormDataChange(`${fieldPrefix}-effects-row-count`, newCount);
+  };
 
   // Needs Handlers
-  const addNeedRow = () => setNeedsRows((p) => p + 1);
+  const addNeedRow = () => updateNeedsRows(needsRows + 1);
   const removeNeedRow = (idx: number) => {
     if (needsRows <= 1) return;
     const cols = ["need", "source"];
@@ -61,11 +75,11 @@ export default function Subtask1_1_C({
         updateField(`needs-${i - 1}-${col}`, getField(`needs-${i}-${col}`)),
       );
     }
-    setNeedsRows((p) => p - 1);
+    updateNeedsRows(needsRows - 1);
   };
 
   // Effects Handlers
-  const addEffectRow = () => setEffectsRows((p) => p + 1);
+  const addEffectRow = () => updateEffectsRows(effectsRows + 1);
   const removeEffectRow = (idx: number) => {
     if (effectsRows <= 1) return;
     const cols = ["name", "effects", "quality", "measurement", "source"];
@@ -75,11 +89,11 @@ export default function Subtask1_1_C({
         updateField(`effects-${i - 1}-${col}`, getField(`effects-${i}-${col}`)),
       );
     }
-    setEffectsRows((p) => p - 1);
+    updateEffectsRows(effectsRows - 1);
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* 1. Targeted Mission */}
       <div className="space-y-2">
         <label className="text-sm font-bold text-black">
@@ -119,7 +133,6 @@ export default function Subtask1_1_C({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {/* Generate ID sequence */}
               {useMemo(
                 () => generateIdSequence("N", needsRows),
                 [needsRows],
@@ -131,6 +144,8 @@ export default function Subtask1_1_C({
                       {autoId}
                     </span>
                   </td>
+
+                  {/* Need */}
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter need"
@@ -140,7 +155,13 @@ export default function Subtask1_1_C({
                       }
                       className="h-8 text-xs"
                     />
+                    <TypingIndicator
+                      editingUsers={editingUsers}
+                      fieldName={`${fieldPrefix}-needs-${idx}-need`}
+                    />
                   </td>
+
+                  {/* Source */}
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter source"
@@ -150,7 +171,13 @@ export default function Subtask1_1_C({
                       }
                       className="h-8 text-xs"
                     />
+                    <TypingIndicator
+                      editingUsers={editingUsers}
+                      fieldName={`${fieldPrefix}-needs-${idx}-source`}
+                    />
                   </td>
+
+                  {/* Remove Button */}
                   <td className="px-2 py-2 text-center">
                     {needsRows > 1 && (
                       <button
@@ -175,10 +202,6 @@ export default function Subtask1_1_C({
         >
           <Plus className="w-4 h-4 mr-2" /> Add Row
         </Button>
-        <TypingIndicator
-          editingUsers={editingUsers}
-          fieldName={`${fieldPrefix}-needs-table`}
-        />
       </div>
 
       {/* 3. Effects Table */}
@@ -213,7 +236,6 @@ export default function Subtask1_1_C({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {/* Generate ID sequence */}
               {useMemo(
                 () => generateIdSequence("E", effectsRows),
                 [effectsRows],
@@ -225,6 +247,8 @@ export default function Subtask1_1_C({
                       {autoId}
                     </span>
                   </td>
+
+                  {/* Name */}
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter name"
@@ -234,7 +258,13 @@ export default function Subtask1_1_C({
                       }
                       className="h-8 text-xs"
                     />
+                    <TypingIndicator
+                      editingUsers={editingUsers}
+                      fieldName={`${fieldPrefix}-effects-${idx}-name`}
+                    />
                   </td>
+
+                  {/* Effects */}
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter effects"
@@ -244,7 +274,13 @@ export default function Subtask1_1_C({
                       }
                       className="h-8 text-xs"
                     />
+                    <TypingIndicator
+                      editingUsers={editingUsers}
+                      fieldName={`${fieldPrefix}-effects-${idx}-effects`}
+                    />
                   </td>
+
+                  {/* Quality */}
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter quality criteria"
@@ -254,7 +290,13 @@ export default function Subtask1_1_C({
                       }
                       className="h-8 text-xs"
                     />
+                    <TypingIndicator
+                      editingUsers={editingUsers}
+                      fieldName={`${fieldPrefix}-effects-${idx}-quality`}
+                    />
                   </td>
+
+                  {/* Measurement */}
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter measurement methods"
@@ -267,7 +309,13 @@ export default function Subtask1_1_C({
                       }
                       className="h-8 text-xs"
                     />
+                    <TypingIndicator
+                      editingUsers={editingUsers}
+                      fieldName={`${fieldPrefix}-effects-${idx}-measurement`}
+                    />
                   </td>
+
+                  {/* Source */}
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter source"
@@ -277,7 +325,13 @@ export default function Subtask1_1_C({
                       }
                       className="h-8 text-xs"
                     />
+                    <TypingIndicator
+                      editingUsers={editingUsers}
+                      fieldName={`${fieldPrefix}-effects-${idx}-source`}
+                    />
                   </td>
+
+                  {/* Remove Button */}
                   <td className="px-2 py-2 text-center">
                     {effectsRows > 1 && (
                       <button
@@ -302,10 +356,6 @@ export default function Subtask1_1_C({
         >
           <Plus className="w-4 h-4 mr-2" /> Add Row
         </Button>
-        <TypingIndicator
-          editingUsers={editingUsers}
-          fieldName={`${fieldPrefix}-effects-table`}
-        />
       </div>
     </div>
   );
