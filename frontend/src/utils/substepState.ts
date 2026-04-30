@@ -153,6 +153,11 @@ function convertToFormData(
     Object.entries(fields).forEach(([fieldName, value]: [string, any]) => {
       if (fieldName === "primaryElements" && Array.isArray(value)) {
         value.forEach((elem: any, idx: number) => {
+          // 添加空值检查，避免 'elem.element' 报错
+          if (!elem || typeof elem !== "object") {
+            return; // 跳过无效元素
+          }
+
           if (elem.element) {
             formData[`subtask-${subtaskId}-element-${idx}-name`] = elem.element;
           }

@@ -15,6 +15,9 @@ interface UseSubtask2_1ASyncProps {
   substepId: string;
   userId: number;
   initialTasks?: TaskData[];
+  sendMessage?: (message: any) => void;
+  userInfo?: { name: string };
+  syncKey?: number;
 }
 
 export function useSubtask2_1ASync({
@@ -22,6 +25,9 @@ export function useSubtask2_1ASync({
   substepId,
   userId,
   initialTasks = [],
+  sendMessage,
+  userInfo,
+  syncKey = 0,
 }: UseSubtask2_1ASyncProps) {
   const [tasks, setTasks] = useState<TaskData[]>(initialTasks);
   const [isSaving, setIsSaving] = useState(false);
@@ -29,86 +35,60 @@ export function useSubtask2_1ASync({
   const [version, setVersion] = useState(1);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 清理子任务：只保留有实际内容的 Subtask
+  // 清理子任务：保留结构，仅修剪首尾空格（停止过滤空 Subtask）
   const deepCleanSubtasks = useCallback(
     (subtasks: SubtaskData[]): SubtaskData[] => {
-      return subtasks
-        .filter(
-          (st) =>
-            st?.name?.trim() ||
-            st?.selectedCriteria?.length ||
-            st?.selectedStakeholders?.length ||
-            st?.selectedConstraints?.length,
-        )
-        .map((st) => ({
-          id: st.id,
-          name: st.name?.trim() || "",
-          state: st.state || "State",
-          isExpanded: st.isExpanded !== undefined ? st.isExpanded : true,
-          selectedCriteria: st.selectedCriteria || [],
-          selectedStakeholders: st.selectedStakeholders || [],
-          selectedConstraints: st.selectedConstraints || [],
-        }));
+      return subtasks.map((st) => ({
+        id: st.id,
+        name: st.name?.trim() ?? "",
+        state: st.state || "State",
+        isExpanded: st.isExpanded !== undefined ? st.isExpanded : true,
+        selectedCriteria: st.selectedCriteria || [],
+        selectedStakeholders: st.selectedStakeholders || [],
+        selectedConstraints: st.selectedConstraints || [],
+      }));
     },
     [],
   );
 
-  // 清理任务：只保留有实际内容的 Task（末尾添加 .filter()）
+  // 停止过滤空字段，完整保留 UI 结构
   const deepCleanTasks = useCallback(
     (tasks: TaskData[]): TaskData[] => {
-      return (
-        tasks
-          .map((task) => {
-            // 清理 qualityCriteria
-            const cleanQC: QualityCriteria[] = (task.qualityCriteria || [])
-              .filter((qc) => qc?.value?.trim())
-              .map((qc) => ({ id: qc.id, value: qc.value.trim() }));
+      return tasks.map((task) => {
+        // 仅修剪字符串，不删除空值项
+        const cleanQC: QualityCriteria[] = (task.qualityCriteria || []).map(
+          (qc) => ({
+            id: qc.id,
+            value: qc.value?.trim() ?? "",
+          }),
+        );
 
-            // 清理 constraints
-            const cleanConstraints: Constraint[] = (task.constraints || [])
-              .filter((c) => c?.value?.trim())
-              .map((c) => ({
-                ...c,
-                value: c.value.trim(),
-                observables: (c.observables || [])
-                  .filter((oe) => oe?.value?.trim())
-                  .map((oe) => ({ id: oe.id, value: oe.value.trim() })),
-              }))
-              .filter((c) => c.observables.length > 0);
+        const cleanConstraints: Constraint[] = (task.constraints || []).map(
+          (c) => ({
+            ...c,
+            value: c.value?.trim() ?? "",
+            observables: (c.observables || []).map((oe) => ({
+              id: oe.id,
+              value: oe.value?.trim() ?? "",
+            })),
+          }),
+        );
 
-            // 递归清理 subtasks
-            const cleanSubtasks: SubtaskData[] = deepCleanSubtasks(
-              task.subtasks || [],
-            );
+        const cleanSubtasks: SubtaskData[] = deepCleanSubtasks(
+          task.subtasks || [],
+        );
 
-            // 构建干净对象（保留 isExpanded UI 状态）
-            const result: Record<string, any> = {
-              id: task.id,
-              name: task.name?.trim() || "",
-              state: task.state || "State",
-              objective: task.objective?.trim() || "",
-              isExpanded:
-                task.isExpanded !== undefined ? task.isExpanded : true,
-            };
-
-            if (cleanQC.length > 0) result.qualityCriteria = cleanQC;
-            if (cleanConstraints.length > 0)
-              result.constraints = cleanConstraints;
-            if (cleanSubtasks.length > 0) result.subtasks = cleanSubtasks;
-
-            return result as TaskData;
-          })
-          // 过滤掉"完全空的任务"（只有默认值，无实际内容）
-          .filter((task) => {
-            const hasRealContent =
-              task.name?.trim() ||
-              task.objective?.trim() ||
-              task.qualityCriteria?.length ||
-              task.constraints?.length ||
-              task.subtasks?.length;
-            return !!hasRealContent;
-          })
-      );
+        return {
+          id: task.id,
+          name: task.name?.trim() ?? "",
+          state: task.state || "State",
+          objective: task.objective?.trim() ?? "",
+          isExpanded: task.isExpanded !== undefined ? task.isExpanded : true,
+          qualityCriteria: cleanQC,
+          constraints: cleanConstraints,
+          subtasks: cleanSubtasks,
+        } as TaskData;
+      });
     },
     [deepCleanSubtasks],
   );
@@ -151,6 +131,40 @@ export function useSubtask2_1ASync({
     loadContent();
   }, [projectId, substepId]);
 
+  // 监听 syncKey 变化，自动拉取最新数据
+  useEffect(() => {
+    if (syncKey > 0) {
+      const loadRemote = async () => {
+        try {
+          const res = await getSubstepContent(projectId, substepId);
+          if (
+            res?.content_data?.tasks &&
+            Array.isArray(res.content_data.tasks)
+          ) {
+            setTasks(
+              res.content_data.tasks.map((task: any) => ({
+                id: task.id || "",
+                name: task.name || "",
+                state: task.state || "State",
+                objective: task.objective || "",
+                isExpanded:
+                  task.isExpanded !== undefined ? task.isExpanded : true,
+                subtasks: task.subtasks || [],
+                qualityCriteria: task.qualityCriteria || [],
+                constraints: task.constraints || [],
+              })),
+            );
+            setVersion(res.content_data.version || 1);
+            setLastSavedAt(res.updated_at || null);
+          }
+        } catch (err) {
+          console.warn(`[2.1.A] Remote sync failed:`, err);
+        }
+      };
+      loadRemote();
+    }
+  }, [syncKey, projectId, substepId]);
+
   // 2. 防抖自动保存
   const triggerSave = useCallback(
     async (tasksToSave: TaskData[]) => {
@@ -179,8 +193,21 @@ export function useSubtask2_1ASync({
           });
 
           setVersion(payload.version);
-          setLastSavedAt(new Date().toISOString());
+          const savedAt = new Date().toISOString();
+          setLastSavedAt(savedAt);
           setIsSaving(false);
+
+          // 保存成功后，发送 WebSocket 消息通知其他成员
+          if (sendMessage) {
+            sendMessage({
+              type: "content_saved",
+              project_id: projectId,
+              substep_id: substepId,
+              user_id: userId,
+              username: userInfo?.name || "User",
+              timestamp: savedAt,
+            });
+          }
         } catch (err) {
           console.error(`[2.1.A] Auto-save failed:`, err);
           setIsSaving(false);

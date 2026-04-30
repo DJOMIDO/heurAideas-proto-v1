@@ -32,11 +32,12 @@ interface Subtask1_2_AProps {
     string,
     { userId: number; username: string; timestamp: string }
   >;
-  currentUserId?: number;
-  teamSize?: number;
+  // 🔑 核心：必须传入当前用户 ID 与团队总人数，否则无法隔离
+  currentUserId: number;
+  teamSize: number;
 }
 
-// 团队知识聚合：均值映射法 (Average Mapping)
+// 🔑 团队知识聚合：均值映射法 (Average Mapping)
 const calculateTeamKnowledge = (
   submissions: Record<number, KnowledgeData>,
 ): KnowledgeData => {
@@ -78,10 +79,10 @@ export default function Subtask1_2_A({
   formData,
   onFormDataChange,
   editingUsers = {},
-  currentUserId = 0,
+  currentUserId,
   teamSize,
 }: Subtask1_2_AProps) {
-  // 1. 读取全局已提交数据
+  //  1. 读取全局已提交数据（按用户 ID 隔离存储）
   const submissionsKey = `${fieldPrefix}-knowledge_submissions`;
   const submissions: Record<number, KnowledgeData> =
     (formData[submissionsKey] as Record<number, KnowledgeData>) || {};
@@ -92,33 +93,20 @@ export default function Subtask1_2_A({
   // 2. 本地草稿状态（严格隔离：未提交前绝不触碰 formData）
   const [draftKnowledge, setDraftKnowledge] = useState<KnowledgeData>(() => {
     const init: KnowledgeData = {};
-    // 优先加载已提交记录，否则初始化全为 none
     KNOWLEDGE_DOMAINS.forEach((d) => (init[d] = mySubmission?.[d] || "none"));
     return init;
   });
 
-  // 3. 刷新/同步恢复逻辑
+  //  3. 刷新/同步恢复：仅当远程提交数据到达时，覆盖本地草稿
   useEffect(() => {
-    if (mySubmission) {
-      setDraftKnowledge(mySubmission);
+    if (mySubmission?.committedAt) {
+      if (draftKnowledge.committedAt !== mySubmission.committedAt) {
+        setDraftKnowledge(mySubmission);
+      }
     }
-  }, [mySubmission]);
+  }, [mySubmission?.committedAt]);
 
-  // 当前展示的数据源：未提交读草稿，已提交读锁定数据
-  const displayData = hasCommitted ? mySubmission : draftKnowledge;
-
-  // 4. 团队聚合数据（实时计算）
-  const teamKnowledge = useMemo(
-    () => calculateTeamKnowledge(submissions),
-    [submissions],
-  );
-
-  // 5. 状态统计
-  const submittedCount = Object.keys(submissions).length;
-  const missingCount = Math.max(0, (teamSize ?? 0) - submittedCount);
-  const allSubmitted = (teamSize ?? 0) > 0 && missingCount === 0;
-
-  // 6. 交互处理器
+  // 4. 交互处理器：仅更新本地草稿，不调用 onFormDataChange（彻底隔离）
   const handleDraftChange = (domain: KnowledgeDomain, level: string) => {
     if (hasCommitted) return; // 已提交禁止修改
     setDraftKnowledge((prev) => ({
@@ -127,18 +115,32 @@ export default function Subtask1_2_A({
     }));
   };
 
+  // 5. 提交逻辑：一次性将草稿写入全局 formData 的专属槽位
   const handleCommitToTeam = () => {
-    // 写入全局 formData，触发父组件自动保存 & WebSocket 广播
+    // 添加 _committed 标记，防止被 cleanupEmptyFormDataFields 清理
+    const submissionData = {
+      ...draftKnowledge,
+      committedAt: new Date().toISOString(),
+      _committed: true, // 永远非空的标记字段
+    };
+
     onFormDataChange(submissionsKey, {
       ...submissions,
-      [currentUserId]: {
-        ...draftKnowledge,
-        committedAt: new Date().toISOString(),
-      },
+      [currentUserId]: submissionData,
     });
   };
 
-  // 7. 表格渲染组件（支持只读/可编辑切换）
+  // 6. 数据源计算
+  const displayData = hasCommitted ? mySubmission : draftKnowledge;
+  const teamKnowledge = useMemo(
+    () => calculateTeamKnowledge(submissions),
+    [submissions],
+  );
+  const submittedCount = Object.keys(submissions).length;
+  const missingCount = Math.max(0, teamSize - submittedCount);
+  const allSubmitted = teamSize > 0 && missingCount === 0;
+
+  // 7. 表格组件（支持只读锁定）
   const KnowledgeTable = ({
     data,
     readOnly = false,
@@ -199,12 +201,6 @@ export default function Subtask1_2_A({
     </div>
   );
 
-  // 8. 团队知识图表数据源（按需求三段式）
-  const teamCardData = useMemo(() => {
-    if (!hasCommitted) return null;
-    return allSubmitted ? teamKnowledge : mySubmission;
-  }, [hasCommitted, allSubmitted, teamKnowledge, mySubmission]);
-
   return (
     <div className="space-y-6">
       {/* 顶部双卡片 */}
@@ -214,13 +210,10 @@ export default function Subtask1_2_A({
           <h3 className="text-base font-semibold text-gray-800 mb-4 text-center">
             Individual Knowledge
           </h3>
-          <KnowledgeLevelChart
-            data={displayData}
-            title="Individual Knowledge"
-          />
+          <KnowledgeLevelChart data={displayData} title="" />
         </div>
 
-        {/* Team Knowledge (三段式状态机) */}
+        {/* Team Knowledge */}
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <h3 className="text-base font-semibold text-gray-800 mb-4 text-center">
             Team Knowledge
@@ -233,14 +226,9 @@ export default function Subtask1_2_A({
               </p>
             </div>
           ) : (
-            // 已提交：显示对应图表（部分提交显示个人，全员提交显示团队）
             <KnowledgeLevelChart
-              data={teamCardData || {}}
-              title={
-                allSubmitted
-                  ? "Aggregated Team Knowledge"
-                  : "Your Submitted Knowledge"
-              }
+              data={allSubmitted ? teamKnowledge : mySubmission}
+              title=""
             />
           )}
         </div>
@@ -267,23 +255,24 @@ export default function Subtask1_2_A({
           self-assessment, commit your results to the team.
         </p>
 
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-gray-800">
-            Individual Knowledge Summary
-          </h4>
-          <Button
-            onClick={handleCommitToTeam}
-            disabled={hasCommitted}
-            className="px-4 py-2"
-          >
-            {hasCommitted ? "Committed" : "Commit to the team"}
-          </Button>
+        {/* Individual Knowledge Summary + Commit 按钮（带外层包装） */}
+        <div className="space-y-3 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200">
+            <h4 className="text-sm font-semibold text-gray-800">
+              Individual Knowledge Summary
+            </h4>
+            <Button
+              onClick={handleCommitToTeam}
+              disabled={hasCommitted}
+              className="px-4 py-2"
+            >
+              {hasCommitted ? "Committed" : "Commit to the team"}
+            </Button>
+          </div>
+          <KnowledgeTable data={displayData} readOnly={hasCommitted} />
         </div>
 
-        {/* 主表格（未提交可编辑，提交后只读锁定） */}
-        <KnowledgeTable data={displayData} readOnly={hasCommitted} />
-
-        {/* 底部团队知识状态栏 & 详情表（严格按需求条件渲染） */}
+        {/* 底部团队知识状态栏 & 详情表 */}
         {hasCommitted && (
           <div className="space-y-3 pt-4 border-t border-gray-200">
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
@@ -309,18 +298,10 @@ export default function Subtask1_2_A({
               )}
             </div>
 
-            {/* 条件渲染详情表：未全员显示我的，全员显示团队聚合 */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h5 className="text-sm font-semibold text-gray-800 mb-3">
-                {allSubmitted
-                  ? "Aggregated Team Knowledge"
-                  : "Your Submitted Knowledge"}
-              </h5>
-              <KnowledgeTable
-                data={allSubmitted ? teamKnowledge : mySubmission}
-                readOnly={true}
-              />
-            </div>
+            <KnowledgeTable
+              data={allSubmitted ? teamKnowledge : mySubmission}
+              readOnly={true}
+            />
           </div>
         )}
       </div>
