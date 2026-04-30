@@ -28,22 +28,29 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { TaskData, Constraint, ObservableElement } from "./types";
+import TypingIndicator from "@/components/TypingIndicator";
 
-// ==========================================
-// 🔹 可拖拽的单个约束组件 (包含内部 Observables)
-// ==========================================
 function SortableConstraint({
   constraint,
   index,
   onUpdateConstraint,
   onRemoveConstraint,
   canRemove,
+  fieldPrefix,
+  onFormDataChange,
+  editingUsers,
 }: {
   constraint: Constraint;
   index: number;
   onUpdateConstraint: (id: string, field: keyof Constraint, value: any) => void;
   onRemoveConstraint: (id: string) => void;
   canRemove: boolean;
+  fieldPrefix?: string;
+  onFormDataChange?: (field: string, value: any) => void;
+  editingUsers?: Record<
+    string,
+    { userId: number; username: string; timestamp: string }
+  >;
 }) {
   const {
     attributes,
@@ -53,7 +60,6 @@ function SortableConstraint({
     transition,
     isDragging,
   } = useSortable({ id: constraint.id });
-
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -61,7 +67,6 @@ function SortableConstraint({
     zIndex: isDragging ? 10 : 1,
   };
 
-  // 处理内部 Observables 的增删改
   const addObservable = () => {
     const newObs: ObservableElement = {
       id: `oe-${Date.now()}`,
@@ -72,7 +77,6 @@ function SortableConstraint({
       newObs,
     ]);
   };
-
   const removeObservable = (oeId: string) => {
     onUpdateConstraint(
       constraint.id,
@@ -80,7 +84,6 @@ function SortableConstraint({
       constraint.observables.filter((o) => o.id !== oeId),
     );
   };
-
   const updateObservable = (oeId: string, value: string) => {
     onUpdateConstraint(
       constraint.id,
@@ -88,6 +91,10 @@ function SortableConstraint({
       constraint.observables.map((o) => (o.id === oeId ? { ...o, value } : o)),
     );
   };
+
+  const constraintValueKey = fieldPrefix
+    ? `${fieldPrefix}-constraint-${constraint.id}-value`
+    : undefined;
 
   return (
     <div
@@ -98,7 +105,6 @@ function SortableConstraint({
     >
       {/* 第一行：拖拽柄 + 序号 + 类型选择 + 描述输入 + 删除 */}
       <div className="flex items-center gap-2">
-        {/* 拖拽手柄 */}
         <button
           {...listeners}
           className="text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing p-1 shrink-0"
@@ -106,13 +112,10 @@ function SortableConstraint({
         >
           <GripVertical className="w-4 h-4" />
         </button>
-
-        {/* 序号 */}
         <span className="text-xs text-gray-500 w-5 shrink-0 font-mono text-center">
           {index + 1}.
         </span>
 
-        {/* 类型选择 */}
         <Select
           value={constraint.type}
           onValueChange={(v) => onUpdateConstraint(constraint.id, "type", v)}
@@ -128,17 +131,28 @@ function SortableConstraint({
           </SelectContent>
         </Select>
 
-        {/* 描述输入 */}
         <Input
           placeholder="Description"
           value={constraint.value}
-          onChange={(e) =>
-            onUpdateConstraint(constraint.id, "value", e.target.value)
-          }
+          onChange={(e) => {
+            // 动作 1：触发打字通知
+            if (onFormDataChange && constraintValueKey) {
+              onFormDataChange(constraintValueKey, e.target.value);
+            }
+            // 动作 2：更新本地数据
+            onUpdateConstraint(constraint.id, "value", e.target.value);
+          }}
           className="flex-1 bg-white h-8 text-xs"
         />
 
-        {/* 删除按钮 */}
+        {/* 动作 3：显示输入提示 */}
+        {constraintValueKey && (
+          <TypingIndicator
+            editingUsers={editingUsers}
+            fieldName={constraintValueKey}
+          />
+        )}
+
         {canRemove && (
           <button
             onClick={() => onRemoveConstraint(constraint.id)}
@@ -160,28 +174,47 @@ function SortableConstraint({
         </div>
 
         <div className="space-y-1.5">
-          {constraint.observables.map((oe) => (
-            <div key={oe.id} className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
-              <Input
-                placeholder="Observable element"
-                value={oe.value}
-                onChange={(e) => updateObservable(oe.id, e.target.value)}
-                className="flex-1 bg-white h-7 text-xs border-gray-200 focus-visible:ring-teal-500/20"
-              />
-              {constraint.observables.length > 1 && (
-                <button
-                  onClick={() => removeObservable(oe.id)}
-                  className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-0.5 rounded shrink-0"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          ))}
+          {constraint.observables.map((oe) => {
+            const observableKey = fieldPrefix
+              ? `${fieldPrefix}-constraint-${constraint.id}-obs-${oe.id}`
+              : undefined;
+
+            return (
+              <div key={oe.id} className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
+                <Input
+                  placeholder="Observable element"
+                  value={oe.value}
+                  onChange={(e) => {
+                    // 动作 1：触发打字通知
+                    if (onFormDataChange && observableKey) {
+                      onFormDataChange(observableKey, e.target.value);
+                    }
+                    // 动作 2：更新本地数据
+                    updateObservable(oe.id, e.target.value);
+                  }}
+                  className="flex-1 bg-white h-7 text-xs border-gray-200 focus-visible:ring-teal-500/20"
+                />
+                {/* 动作 3：显示输入提示 */}
+                {observableKey && (
+                  <TypingIndicator
+                    editingUsers={editingUsers}
+                    fieldName={observableKey}
+                  />
+                )}
+                {constraint.observables.length > 1 && (
+                  <button
+                    onClick={() => removeObservable(oe.id)}
+                    className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-0.5 rounded shrink-0"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
 
-        {/* 添加 Observable 按钮 */}
         <Button
           variant="ghost"
           size="sm"
@@ -195,17 +228,23 @@ function SortableConstraint({
   );
 }
 
-// ==========================================
-// 🔹 主组件：约束列表
-// ==========================================
 interface TaskConstraintsProps {
   task: TaskData;
   updateTask: (updates: Partial<TaskData>) => void;
+  fieldPrefix: string;
+  onFormDataChange?: (field: string, value: any) => void;
+  editingUsers?: Record<
+    string,
+    { userId: number; username: string; timestamp: string }
+  >;
 }
 
 export default function TaskConstraints({
   task,
   updateTask,
+  fieldPrefix,
+  onFormDataChange,
+  editingUsers,
 }: TaskConstraintsProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -216,11 +255,10 @@ export default function TaskConstraints({
     }),
   );
 
-  // 🔑 处理拖拽结束：重新排序并保存
+  // 处理拖拽结束：重新排序并保存
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-
     const oldIndex = task.constraints.findIndex((c) => c.id === active.id);
     const newIndex = task.constraints.findIndex((c) => c.id === over.id);
 
@@ -231,7 +269,7 @@ export default function TaskConstraints({
     }
   };
 
-  // 🔑 添加新约束
+  // 添加新约束
   const addConstraint = () => {
     const newConstraint: Constraint = {
       id: `c-${Date.now()}`,
@@ -242,14 +280,14 @@ export default function TaskConstraints({
     updateTask({ constraints: [...task.constraints, newConstraint] });
   };
 
-  // 🔑 删除指定约束
+  // 删除指定约束
   const removeConstraint = (id: string) => {
     updateTask({
       constraints: task.constraints.filter((c) => c.id !== id),
     });
   };
 
-  // 🔑 更新指定约束字段
+  // 更新指定约束字段
   const updateConstraintField = (
     id: string,
     field: keyof Constraint,
@@ -267,7 +305,6 @@ export default function TaskConstraints({
       <label className="text-sm font-semibold text-gray-800">
         Task constraints:
       </label>
-
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -286,6 +323,9 @@ export default function TaskConstraints({
                 onUpdateConstraint={updateConstraintField}
                 onRemoveConstraint={removeConstraint}
                 canRemove={task.constraints.length > 1}
+                fieldPrefix={fieldPrefix}
+                onFormDataChange={onFormDataChange}
+                editingUsers={editingUsers}
               />
             ))}
           </SortableContext>

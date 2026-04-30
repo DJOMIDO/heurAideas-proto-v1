@@ -35,6 +35,9 @@ interface SubstepContentCardProps {
   conflictFields?: Record<string, { username: string; timestamp: string }>;
   onConflictResolve?: (field: string) => void;
   teamSize?: number;
+  sendMessage?: (message: any) => void;
+  userInfo?: { name: string } | null;
+  syncKey?: number
 }
 
 export default function SubstepContentCard({
@@ -58,6 +61,9 @@ export default function SubstepContentCard({
   conflictFields = {},
   onConflictResolve,
   teamSize,
+  sendMessage,
+  userInfo,
+  syncKey = 0,
 }: SubstepContentCardProps) {
   const {
     comments,
@@ -325,6 +331,9 @@ export default function SubstepContentCard({
                   onConflictResolve={onConflictResolve}
                   projectId={projectId}
                   teamSize={teamSize}
+                  sendMessage={sendMessage}
+                  userInfo={userInfo ?? undefined}
+                  syncKey={syncKey}
                 />
               );
             })()}

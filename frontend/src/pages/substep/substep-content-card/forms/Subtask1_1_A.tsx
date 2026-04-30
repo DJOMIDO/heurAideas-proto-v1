@@ -19,6 +19,9 @@ interface Subtask1_1_AProps {
   onConflictResolve?: (field: string) => void;
   projectId?: number;
   teamSize?: number;
+  sendMessage?: (message: any) => void;
+  userInfo?: { name: string } | null;
+  syncKey?: number;
 }
 
 export default function Subtask1_1_A({

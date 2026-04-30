@@ -20,6 +20,9 @@ interface Subtask2_1_AProps {
   currentUserId?: number;
   onConflictResolve?: (field: string) => void;
   projectId?: number;
+  sendMessage?: (message: any) => void;
+  userInfo?: { name: string } | null;
+  syncKey?: number;
 }
 
 export default function Subtask2_1_A({
@@ -31,6 +34,9 @@ export default function Subtask2_1_A({
   currentUserId,
   onConflictResolve,
   projectId: propProjectId,
+  sendMessage,
+  userInfo,
+  syncKey = 0,
 }: Subtask2_1_AProps) {
   const projectId = propProjectId ?? 123;
   const substepId = "2.1";
@@ -42,6 +48,9 @@ export default function Subtask2_1_A({
       substepId,
       userId: currentUserId || 0,
       initialTasks: [],
+      sendMessage,
+      userInfo: userInfo ?? undefined,
+      syncKey,
     });
 
   // 创建新任务的模板生成函数

@@ -55,6 +55,7 @@ export default function Substep() {
     Record<string, boolean>
   >({});
   const [commentRefreshKey, setCommentRefreshKey] = useState(0);
+  const [taskSyncKey, setTaskSyncKey] = useState(0);
   const [teamSize, setTeamSize] = useState(0);
 
   // 编辑用户状态：{ fieldName: { userId, username, timestamp } }
@@ -100,6 +101,11 @@ export default function Substep() {
         message.type === "content_saved" &&
         message.substep_id === substepId
       ) {
+        // 如果保存的是 2.1.A 子步骤，触发专用同步信号
+        if (substepId === "2.1") {
+          setTaskSyncKey((k) => k + 1);
+        }
+
         if (!hasUnsavedChangesRef.current) {
           isLoadingRef.current = true;
           loadSubstepStateWithApi(projectIdNum, substepId!, true)
@@ -692,6 +698,9 @@ export default function Substep() {
                 return updated;
               });
             }}
+            sendMessage={sendMessage}
+            userInfo={userInfo}
+            syncKey={taskSyncKey}
           />
         ) : (
           <div className="flex-1 flex flex-row overflow-hidden min-h-0">
@@ -726,6 +735,9 @@ export default function Substep() {
                     return updated;
                   });
                 }}
+                sendMessage={sendMessage}
+                userInfo={userInfo}
+                syncKey={taskSyncKey}
               />
             </div>
 
@@ -760,6 +772,9 @@ export default function Substep() {
                     return updated;
                   });
                 }}
+                sendMessage={sendMessage}
+                userInfo={userInfo}
+                syncKey={taskSyncKey}
               />
             </div>
           </div>

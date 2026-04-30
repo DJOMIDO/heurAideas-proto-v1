@@ -9,12 +9,12 @@ interface EditingUser {
 }
 
 interface TypingIndicatorProps {
-  editingUsers: Record<string, EditingUser>;
+  editingUsers?: Record<string, EditingUser>;
   fieldName: string;
 }
 
 export default function TypingIndicator({
-  editingUsers,
+  editingUsers = {},
   fieldName,
 }: TypingIndicatorProps) {
   const editingUser = editingUsers[fieldName];

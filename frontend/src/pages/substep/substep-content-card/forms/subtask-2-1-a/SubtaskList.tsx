@@ -11,6 +11,11 @@ interface SubtaskListProps {
   updateTask: (updates: Partial<TaskData>) => void;
   fieldPrefix: string;
   formData: Record<string, any>;
+  onFormDataChange?: (field: string, value: any) => void;
+  editingUsers?: Record<
+    string,
+    { userId: number; username: string; timestamp: string }
+  >;
 }
 
 export default function SubtaskList({
@@ -18,6 +23,8 @@ export default function SubtaskList({
   updateTask,
   fieldPrefix,
   formData,
+  onFormDataChange,
+  editingUsers,
 }: SubtaskListProps) {
   const subtasks = task.subtasks || [];
 
@@ -94,6 +101,9 @@ export default function SubtaskList({
             availableStakeholders={availableStakeholders}
             onUpdateSubtask={handleUpdateSubtask}
             onToggleExpand={() => handleToggleSubtaskExpand(subtask.id)}
+            fieldPrefix={fieldPrefix}
+            onFormDataChange={onFormDataChange}
+            editingUsers={editingUsers}
           />
         ))}
 

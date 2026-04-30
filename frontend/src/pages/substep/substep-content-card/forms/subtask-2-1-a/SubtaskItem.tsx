@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import TypingIndicator from "@/components/TypingIndicator";
 import type { SubtaskData, TaskData, Stakeholder } from "./types";
 
 interface SubtaskItemProps {
@@ -19,6 +20,12 @@ interface SubtaskItemProps {
   availableStakeholders: Stakeholder[];
   onUpdateSubtask: (updatedSubtask: SubtaskData) => void;
   onToggleExpand: () => void;
+  fieldPrefix?: string;
+  onFormDataChange?: (field: string, value: any) => void;
+  editingUsers?: Record<
+    string,
+    { userId: number; username: string; timestamp: string }
+  >;
 }
 
 export default function SubtaskItem({
@@ -27,10 +34,17 @@ export default function SubtaskItem({
   availableStakeholders,
   onUpdateSubtask,
   onToggleExpand,
+  fieldPrefix,
+  onFormDataChange,
+  editingUsers,
 }: SubtaskItemProps) {
   const selectedCriteria = subtask.selectedCriteria || [];
   const selectedStakeholders = subtask.selectedStakeholders || [];
   const selectedConstraints = subtask.selectedConstraints || [];
+
+  const fieldNameKey = fieldPrefix
+    ? `${fieldPrefix}-subtask-${subtask.id}-name`
+    : undefined;
 
   const toggleSelection = (
     type: "Criteria" | "Stakeholders" | "Constraints",
@@ -80,14 +94,28 @@ export default function SubtaskItem({
           {subtask.id}
         </span>
 
-        <Input
-          placeholder="Enter the name of the subtask"
-          value={subtask.name}
-          onChange={(e) =>
-            onUpdateSubtask({ ...subtask, name: e.target.value })
-          }
-          className="flex-1 bg-white border-blue-200 h-8 text-sm"
-        />
+        <div className="flex-1">
+          <Input
+            placeholder="Enter the name of the subtask"
+            value={subtask.name}
+            onChange={(e) => {
+              // 动作 1：触发打字通知
+              if (onFormDataChange && fieldNameKey) {
+                onFormDataChange(fieldNameKey, e.target.value);
+              }
+              // 动作 2：更新本地数据
+              onUpdateSubtask({ ...subtask, name: e.target.value });
+            }}
+            className="flex-1 bg-white border-blue-200 h-8 text-sm"
+          />
+          {/* 动作 3：显示提示（移到输入框下方） */}
+          {fieldNameKey && (
+            <TypingIndicator
+              editingUsers={editingUsers}
+              fieldName={fieldNameKey}
+            />
+          )}
+        </div>
 
         <Button
           variant="ghost"

@@ -21,6 +21,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { TaskData, QualityCriteria } from "./types";
+import TypingIndicator from "@/components/TypingIndicator";
 
 function SortableCriterion({
   id,
@@ -29,6 +30,9 @@ function SortableCriterion({
   onChange,
   onRemove,
   canRemove,
+  fieldPrefix,
+  onFormDataChange,
+  editingUsers,
 }: {
   id: string;
   value: string;
@@ -36,6 +40,12 @@ function SortableCriterion({
   onChange: (value: string) => void;
   onRemove: () => void;
   canRemove: boolean;
+  fieldPrefix?: string;
+  onFormDataChange?: (field: string, value: any) => void;
+  editingUsers?: Record<
+    string,
+    { userId: number; username: string; timestamp: string }
+  >;
 }) {
   const {
     attributes,
@@ -52,6 +62,9 @@ function SortableCriterion({
     opacity: isDragging ? 0.5 : 1,
     zIndex: isDragging ? 10 : 1,
   };
+
+  // 生成唯一字段 Key
+  const fieldNameKey = fieldPrefix ? `${fieldPrefix}-qc-${id}` : undefined;
 
   return (
     <div
@@ -75,9 +88,21 @@ function SortableCriterion({
       <Input
         placeholder="Quality criteria"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          // 动作 1：触发打字通知
+          if (onFormDataChange && fieldNameKey) {
+            onFormDataChange(fieldNameKey, e.target.value);
+          }
+          // 动作 2：更新本地数据
+          onChange(e.target.value);
+        }}
         className="flex-1 min-w-0 h-8 text-xs bg-transparent border-none focus-visible:ring-0 pl-2 pr-0 placeholder:text-gray-400"
       />
+
+      {/* 动作 3：显示输入提示 */}
+      {fieldNameKey && (
+        <TypingIndicator editingUsers={editingUsers} fieldName={fieldNameKey} />
+      )}
 
       {canRemove && (
         <button
@@ -95,11 +120,20 @@ function SortableCriterion({
 interface TaskQualityCriteriaProps {
   task: TaskData;
   updateTask: (updates: Partial<TaskData>) => void;
+  fieldPrefix: string;
+  onFormDataChange?: (field: string, value: any) => void;
+  editingUsers?: Record<
+    string,
+    { userId: number; username: string; timestamp: string }
+  >;
 }
 
 export default function TaskQualityCriteria({
   task,
   updateTask,
+  fieldPrefix,
+  onFormDataChange,
+  editingUsers,
 }: TaskQualityCriteriaProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -177,6 +211,9 @@ export default function TaskQualityCriteria({
                 onChange={(value) => updateQualityCriteria(qc.id, value)}
                 onRemove={() => removeQualityCriteria(qc.id)}
                 canRemove={task.qualityCriteria.length > 1}
+                fieldPrefix={fieldPrefix}
+                onFormDataChange={onFormDataChange}
+                editingUsers={editingUsers}
               />
             ))}
           </SortableContext>

@@ -13,7 +13,7 @@ interface TaskSectionProps {
   fieldPrefix: string;
   task: TaskData;
   updateTask: (updates: Partial<TaskData>) => void;
-  // 🔑 仅透传给 StakeholderSection，其他子组件不依赖
+  // 仅透传给 StakeholderSection，其他子组件不依赖
   formData: Record<string, any>;
   onFormDataChange: (field: string, value: any) => void;
   editingUsers?: Record<
@@ -38,14 +38,32 @@ export default function TaskSection({
 }: TaskSectionProps) {
   return (
     <Card className="border-2 border-gray-200 rounded-xl overflow-hidden">
-      <TaskHeader task={task} updateTask={updateTask} />
+      <TaskHeader
+        task={task}
+        updateTask={updateTask}
+        fieldPrefix={fieldPrefix}
+        onFormDataChange={onFormDataChange}
+        editingUsers={editingUsers}
+      />
 
       {task.isExpanded && (
         <CardContent className="p-6 space-y-6">
-          <TaskObjective task={task} updateTask={updateTask} />
-          <TaskQualityCriteria task={task} updateTask={updateTask} />
+          <TaskObjective
+            task={task}
+            updateTask={updateTask}
+            fieldPrefix={fieldPrefix}
+            onFormDataChange={onFormDataChange}
+            editingUsers={editingUsers}
+          />
+          <TaskQualityCriteria
+            task={task}
+            updateTask={updateTask}
+            fieldPrefix={fieldPrefix}
+            onFormDataChange={onFormDataChange}
+            editingUsers={editingUsers}
+          />
 
-          {/* 🔑 Stakeholder 走独立数据流，复用 1.1.A 组件 */}
+          {/* Stakeholder 走独立数据流，复用 1.1.A 组件 */}
           <TaskStakeholders
             fieldPrefix={fieldPrefix}
             formData={formData}
@@ -56,12 +74,20 @@ export default function TaskSection({
             onConflictResolve={onConflictResolve}
           />
 
-          <TaskConstraints task={task} updateTask={updateTask} />
+          <TaskConstraints
+            task={task}
+            updateTask={updateTask}
+            fieldPrefix={fieldPrefix}
+            onFormDataChange={onFormDataChange}
+            editingUsers={editingUsers}
+          />
           <SubtaskList
             task={task}
             updateTask={updateTask}
             fieldPrefix={fieldPrefix}
             formData={formData}
+            onFormDataChange={onFormDataChange}
+            editingUsers={editingUsers}
           />
         </CardContent>
       )}
