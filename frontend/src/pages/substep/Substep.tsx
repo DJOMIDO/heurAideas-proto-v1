@@ -96,16 +96,21 @@ export default function Substep() {
     (message: WebSocketMessage) => {
       if (!substepId) return;
 
-      // 1. 处理内容保存
       if (
         message.type === "content_saved" &&
         message.substep_id === substepId
       ) {
-        // 如果保存的是 2.1.A 子步骤，触发专用同步信号
-        if (substepId === "2.1") {
-          setTaskSyncKey((k) => k + 1);
+        // 跳过自己的消息（防止乐观锁状态丢失）
+        if (message.user_id === currentUserId) {
+          return; // 自己的提交不触发重载
         }
 
+        // 2.1.A 专用：触发 Task 同步信号
+        if (substepId === "2.1") {
+          setTaskSyncKey((k) => k + 1); // 仅 2.1.A 需要
+        }
+
+        // 其他人的提交：触发通用 formData 重载（协同同步）
         if (!hasUnsavedChangesRef.current) {
           isLoadingRef.current = true;
           loadSubstepStateWithApi(projectIdNum, substepId!, true)

@@ -32,12 +32,11 @@ interface Subtask1_2_AProps {
     string,
     { userId: number; username: string; timestamp: string }
   >;
-  // 🔑 核心：必须传入当前用户 ID 与团队总人数，否则无法隔离
   currentUserId: number;
   teamSize: number;
 }
 
-// 🔑 团队知识聚合：均值映射法 (Average Mapping)
+// 团队知识聚合：均值映射法 (Average Mapping)
 const calculateTeamKnowledge = (
   submissions: Record<number, KnowledgeData>,
 ): KnowledgeData => {
@@ -61,16 +60,13 @@ const calculateTeamKnowledge = (
     const values = Object.values(submissions)
       .map((sub) => levelToNum[sub[domain] || "none"])
       .filter((v) => !isNaN(v));
-
     if (values.length === 0) {
       teamData[domain] = "none";
       return;
     }
-
     const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
     teamData[domain] = numToLevel[Math.round(avg)] || "none";
   });
-
   return teamData;
 };
 
@@ -82,55 +78,35 @@ export default function Subtask1_2_A({
   currentUserId,
   teamSize,
 }: Subtask1_2_AProps) {
-  //  1. 读取全局已提交数据（按用户 ID 隔离存储）
   const submissionsKey = `${fieldPrefix}-knowledge_submissions`;
   const submissions: Record<number, KnowledgeData> =
     (formData[submissionsKey] as Record<number, KnowledgeData>) || {};
 
   const mySubmission = submissions[currentUserId];
-  const hasCommitted = !!mySubmission;
 
-  // 2. 本地草稿状态（严格隔离：未提交前绝不触碰 formData）
+  // 1. 乐观提交状态：点击后立即锁定，彻底杜绝生产环境渲染竞态
+  const [hasCommitted, setHasCommitted] = useState(false);
+
+  // 2. 同步机制：远程数据到达或页面刷新时，同步本地锁定状态
+  useEffect(() => {
+    if (mySubmission?.committedAt) {
+      setHasCommitted(true);
+    }
+  }, [mySubmission?.committedAt]);
+
+  // 3. 本地草稿状态（严格隔离）
   const [draftKnowledge, setDraftKnowledge] = useState<KnowledgeData>(() => {
     const init: KnowledgeData = {};
     KNOWLEDGE_DOMAINS.forEach((d) => (init[d] = mySubmission?.[d] || "none"));
     return init;
   });
 
-  //  3. 刷新/同步恢复：仅当远程提交数据到达时，覆盖本地草稿
   useEffect(() => {
-    if (mySubmission?.committedAt) {
-      if (draftKnowledge.committedAt !== mySubmission.committedAt) {
-        setDraftKnowledge(mySubmission);
-      }
+    if (mySubmission) {
+      setDraftKnowledge(mySubmission);
     }
-  }, [mySubmission?.committedAt]);
+  }, [mySubmission]);
 
-  // 4. 交互处理器：仅更新本地草稿，不调用 onFormDataChange（彻底隔离）
-  const handleDraftChange = (domain: KnowledgeDomain, level: string) => {
-    if (hasCommitted) return; // 已提交禁止修改
-    setDraftKnowledge((prev) => ({
-      ...prev,
-      [domain]: level as KnowledgeLevel,
-    }));
-  };
-
-  // 5. 提交逻辑：一次性将草稿写入全局 formData 的专属槽位
-  const handleCommitToTeam = () => {
-    // 添加 _committed 标记，防止被 cleanupEmptyFormDataFields 清理
-    const submissionData = {
-      ...draftKnowledge,
-      committedAt: new Date().toISOString(),
-      _committed: true, // 永远非空的标记字段
-    };
-
-    onFormDataChange(submissionsKey, {
-      ...submissions,
-      [currentUserId]: submissionData,
-    });
-  };
-
-  // 6. 数据源计算
   const displayData = hasCommitted ? mySubmission : draftKnowledge;
   const teamKnowledge = useMemo(
     () => calculateTeamKnowledge(submissions),
@@ -140,7 +116,36 @@ export default function Subtask1_2_A({
   const missingCount = Math.max(0, teamSize - submittedCount);
   const allSubmitted = teamSize > 0 && missingCount === 0;
 
-  // 7. 表格组件（支持只读锁定）
+  // 4. 交互处理器
+  const handleDraftChange = (domain: KnowledgeDomain, level: string) => {
+    if (hasCommitted) return;
+    setDraftKnowledge((prev) => ({
+      ...prev,
+      [domain]: level as KnowledgeLevel,
+    }));
+  };
+
+  // 5. 提交逻辑：乐观锁定 + 持久化
+  const handleCommitToTeam = () => {
+    if (hasCommitted) return; // 防止重复点击
+
+    // 立即锁定 UI（0ms 延迟，无视 React 批次）
+    setHasCommitted(true);
+
+    const submissionData = {
+      ...draftKnowledge,
+      committedAt: new Date().toISOString(),
+      _committed: true, // 防清理标记
+    };
+
+    // 写入全局 formData 触发持久化与协同广播
+    onFormDataChange(submissionsKey, {
+      ...submissions,
+      [currentUserId]: submissionData,
+    });
+  };
+
+  // 6. 表格组件
   const KnowledgeTable = ({
     data,
     readOnly = false,
@@ -255,7 +260,7 @@ export default function Subtask1_2_A({
           self-assessment, commit your results to the team.
         </p>
 
-        {/* Individual Knowledge Summary + Commit 按钮（带外层包装） */}
+        {/* Individual Knowledge Summary + Commit 按钮 */}
         <div className="space-y-3 pt-4 border-t border-gray-200">
           <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200">
             <h4 className="text-sm font-semibold text-gray-800">
@@ -297,7 +302,6 @@ export default function Subtask1_2_A({
                 </span>
               )}
             </div>
-
             <KnowledgeTable
               data={allSubmitted ? teamKnowledge : mySubmission}
               readOnly={true}
