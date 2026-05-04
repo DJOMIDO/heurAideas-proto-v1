@@ -181,7 +181,6 @@ function SortableConstraint({
 
             return (
               <div key={oe.id} className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
                 <Input
                   placeholder="Observable element"
                   value={oe.value}
