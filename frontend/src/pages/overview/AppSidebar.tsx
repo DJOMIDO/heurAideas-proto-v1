@@ -17,7 +17,6 @@ import {
   LogOut,
   ChevronDown,
 } from "lucide-react";
-// 新增：导入 auth 工具函数
 import { getUserInfo, signOut } from "@/utils/auth";
 
 interface AppSidebarProps {
@@ -165,6 +164,27 @@ export default function AppSidebar({
             >
               <User className="w-5 h-5" />
               <span className="ml-3">Review Project</span>
+            </Button>
+          )}
+
+          {/* Manage Documents */}
+          {isCollapsed ? (
+            <Button
+              variant="ghost"
+              className="w-12 h-12 p-0 justify-center text-white hover:bg-gray-700 transition-all duration-200"
+              title="Manage Documents"
+              onClick={() => onNavigate("/documents")}
+            >
+              <FileText className="w-5 h-5" />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              className="w-full justify-start px-4 py-3 text-white hover:bg-gray-700 transition-all duration-200"
+              onClick={() => onNavigate("/documents")}
+            >
+              <FileText className="w-5 h-5" />
+              <span className="ml-3">Manage Documents</span>
             </Button>
           )}
         </div>
