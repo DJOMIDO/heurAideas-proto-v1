@@ -1,6 +1,6 @@
 // src/pages/documents/DocumentTree.tsx
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FileText,
   ChevronRight,
@@ -10,6 +10,7 @@ import {
   MoreVertical,
   Trash2,
   Pencil,
+  Copy,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -24,6 +25,9 @@ interface DocumentTreePropsWithActions extends DocumentTreeProps {
   onRename?: (id: string, newName: string) => void;
   onDelete?: (id: string) => void;
   onDuplicate?: (id: string) => void;
+  uploadTargetId?: string | null;
+  onUploadTargetChange?: (id: string | null) => void;
+  autoExpandFolderId?: string | null;
 }
 
 export default function DocumentTree({
@@ -33,19 +37,39 @@ export default function DocumentTree({
   onToggleFolder,
   onRename,
   onDelete,
+  onDuplicate,
+  uploadTargetId,
+  onUploadTargetChange,
+  autoExpandFolderId,
 }: DocumentTreePropsWithActions) {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(
     new Set(["folder-1", "folder-2"]),
   );
 
+  // 自动展开逻辑
+  useEffect(() => {
+    if (autoExpandFolderId) {
+      setExpandedFolders((prev) => new Set(prev).add(autoExpandFolderId));
+    }
+  }, [autoExpandFolderId]);
+
+  // Esc 键取消选中
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onSelect?.(undefined);
+        onUploadTargetChange?.(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onSelect, onUploadTargetChange]);
+
   const toggleFolder = (id: string) => {
     setExpandedFolders((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
     onToggleFolder?.(id);
@@ -53,15 +77,13 @@ export default function DocumentTree({
 
   const handleRename = (node: DocumentNode) => {
     const newName = prompt("Enter new name:", node.name);
-    if (newName && newName.trim() !== "") {
+    if (newName && newName.trim() !== "" && newName.trim() !== node.name) {
       onRename?.(node.id, newName.trim());
     }
   };
 
   const handleDelete = (node: DocumentNode) => {
-    if (window.confirm(`Are you sure you want to delete "${node.name}"?`)) {
-      onDelete?.(node.id);
-    }
+    onDelete?.(node.id);
   };
 
   const ActionMenu = ({ node }: { node: DocumentNode }) => (
@@ -69,7 +91,7 @@ export default function DocumentTree({
       <DropdownMenuTrigger asChild>
         <button
           className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded transition-all"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()} // 阻止冒泡
         >
           <MoreVertical className="w-4 h-4 text-gray-600" />
         </button>
@@ -82,9 +104,19 @@ export default function DocumentTree({
             handleRename(node);
           }}
         >
-          <Pencil className="w-4 h-4 mr-2" />
-          Rename
+          <Pencil className="w-4 h-4 mr-2" /> Rename
         </DropdownMenuItem>
+        {onDuplicate && (
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate(node.id);
+            }}
+          >
+            <Copy className="w-4 h-4 mr-2" /> Duplicate
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="text-red-600 cursor-pointer"
@@ -93,8 +125,7 @@ export default function DocumentTree({
             handleDelete(node);
           }}
         >
-          <Trash2 className="w-4 h-4 mr-2" />
-          Delete
+          <Trash2 className="w-4 h-4 mr-2" /> Delete
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -103,6 +134,31 @@ export default function DocumentTree({
   const renderNode = (node: DocumentNode, level = 0, isLast = false) => {
     const isExpanded = expandedFolders.has(node.id);
     const isSelected = selectedId === node.id;
+    const isUploadTarget = uploadTargetId === node.id;
+
+    // 文件夹点击：阻止冒泡 + 互斥处理
+    const handleFolderClick = (e: React.MouseEvent) => {
+      e.stopPropagation(); // 阻止事件冒泡到容器
+      toggleFolder(node.id);
+      if (uploadTargetId === node.id) {
+        onUploadTargetChange?.(null);
+        onSelect?.(undefined);
+      } else {
+        onUploadTargetChange?.(node.id);
+        onSelect?.(undefined); // 选文件夹时清空文件预览
+      }
+    };
+
+    // 文件点击：阻止冒泡 + 互斥处理
+    const handleFileClick = (e: React.MouseEvent) => {
+      e.stopPropagation(); // 阻止事件冒泡到容器
+      if (selectedId === node.id) {
+        onSelect?.(undefined); // 再次点击取消
+      } else {
+        onSelect?.(node.id);
+        onUploadTargetChange?.(null); // 选文件时清空文件夹目标
+      }
+    };
 
     if (node.type === "folder") {
       return (
@@ -111,12 +167,14 @@ export default function DocumentTree({
             className={`group flex items-center gap-2 px-3 py-2 text-base transition-all cursor-pointer ${
               isSelected
                 ? "bg-blue-50 text-blue-700 font-medium"
-                : "hover:bg-gray-100 text-gray-900"
+                : isUploadTarget
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200 rounded"
+                  : "hover:bg-gray-100 text-gray-900"
             }`}
             style={{ paddingLeft: `${level * 16 + 12}px` }}
           >
             <button
-              onClick={() => toggleFolder(node.id)}
+              onClick={handleFolderClick}
               className="flex-1 flex items-center gap-2 text-left"
             >
               {isExpanded ? (
@@ -125,7 +183,7 @@ export default function DocumentTree({
                 <ChevronRight className="w-4 h-4 shrink-0 text-gray-500" />
               )}
               {isExpanded ? (
-                <FolderOpen className="w-4 h-4 shrink-0 text-blue-600" />
+                <FolderOpen className="w-4 h-4 shrink-0 text-emerald-600" />
               ) : (
                 <Folder className="w-4 h-4 shrink-0 text-blue-600" />
               )}
@@ -153,7 +211,7 @@ export default function DocumentTree({
           style={{ paddingLeft: `${level * 16 + 36}px` }}
         >
           <button
-            onClick={() => onSelect(node.id)}
+            onClick={handleFileClick}
             className="flex-1 flex items-center gap-2 text-left"
           >
             <FileText className="w-4 h-4 shrink-0 text-gray-500" />
