@@ -14,7 +14,7 @@ export interface DocumentNode {
 export interface DocumentTreeProps {
   documents: DocumentNode[];
   selectedId?: string;
-  onSelect: (id: string) => void;
+  onSelect: (id: string | undefined) => void;
   onToggleFolder?: (id: string) => void;
 }
 
