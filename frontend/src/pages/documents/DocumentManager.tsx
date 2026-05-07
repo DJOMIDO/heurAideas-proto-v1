@@ -413,7 +413,7 @@ export default function DocumentManager() {
           className="w-2 bg-gray-200 hover:bg-gray-400 transition-colors z-10 cursor-col-resize"
         />
 
-        <ResizablePanel defaultSize={70} className="h-full">
+        <ResizablePanel defaultSize={70} className="h-full min-h-0 overflow-hidden bg-white">
           <DocumentPreview document={selectedDoc} />
         </ResizablePanel>
       </ResizablePanelGroup>
