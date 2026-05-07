@@ -22,6 +22,7 @@ export function useLocalFileUpload() {
         updatedAt: new Date(file.lastModified).toISOString(),
         // 本地模式不生成 URL，后续接存储时再替换
         url: undefined,
+        file: file,
       }));
 
       setIsProcessing(false);
