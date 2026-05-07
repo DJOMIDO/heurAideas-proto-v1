@@ -1,6 +1,7 @@
 // frontend/src/pages/documents/DocumentManager.tsx
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Upload, FolderPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +22,7 @@ import DocumentTree from "./DocumentTree";
 import DocumentPreview from "./DocumentPreview";
 import type { DocumentNode } from "./types";
 import { useLocalFileUpload } from "@/hooks/useLocalFileUpload";
-import { getUserId } from "@/utils/auth";
+import { getUserId, isAuthenticated } from "@/utils/auth";
 
 // 复用 Menu.tsx 的 localStorage 逻辑，获取当前项目 ID
 const getCurrentProjectId = (): number | null => {
@@ -32,6 +33,15 @@ const getCurrentProjectId = (): number | null => {
 };
 
 export default function DocumentManager() {
+  const navigate = useNavigate();
+
+  // 认证守卫
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      navigate("/auth");
+    }
+  }, [navigate]);
+  
   // 1. 安全获取当前项目 ID
   const projectId = getCurrentProjectId();
 
