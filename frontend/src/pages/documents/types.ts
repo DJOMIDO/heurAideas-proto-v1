@@ -9,6 +9,7 @@ export interface DocumentNode {
   updatedAt?: string;
   url?: string;
   children?: DocumentNode[]; // for folders
+  file?: File;
 }
 
 export interface DocumentTreeProps {
