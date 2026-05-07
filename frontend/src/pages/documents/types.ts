@@ -10,6 +10,7 @@ export interface DocumentNode {
   url?: string;
   children?: DocumentNode[]; // for folders
   file?: File;
+  projectId: number;
 }
 
 export interface DocumentTreeProps {

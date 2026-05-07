@@ -1,3 +1,5 @@
+// frontend/src/pages/documents/DocumentManager.tsx
+
 import { useRef, useState, useCallback } from "react";
 import { Upload, FolderPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,100 +21,46 @@ import DocumentTree from "./DocumentTree";
 import DocumentPreview from "./DocumentPreview";
 import type { DocumentNode } from "./types";
 import { useLocalFileUpload } from "@/hooks/useLocalFileUpload";
+import { getUserId } from "@/utils/auth";
 
-// Mock data（保留作为初始值）
-const initialDocuments: DocumentNode[] = [
-  {
-    id: "folder-1",
-    name: "Projet Marketing",
-    type: "folder",
-    children: [
-      {
-        id: "file-1",
-        name: "presentation.pdf",
-        type: "file",
-        extension: "pdf",
-        size: 2048000,
-        updatedAt: "2024-01-15",
-      },
-      {
-        id: "file-2",
-        name: "rapport-annuel.pdf",
-        type: "file",
-        extension: "pdf",
-        size: 5120000,
-        updatedAt: "2024-01-10",
-      },
-    ],
-  },
-  {
-    id: "file-3",
-    name: "contrat-client.pdf",
-    type: "file",
-    extension: "pdf",
-    size: 1024000,
-    updatedAt: "2024-01-20",
-  },
-  {
-    id: "folder-2",
-    name: "Documentation",
-    type: "folder",
-    children: [
-      {
-        id: "file-4",
-        name: "guide-utilisateur.pdf",
-        type: "file",
-        extension: "pdf",
-        size: 3072000,
-        updatedAt: "2024-01-18",
-      },
-      {
-        id: "file-5",
-        name: "specifications.docx",
-        type: "file",
-        extension: "docx",
-        size: 512000,
-        updatedAt: "2024-01-12",
-      },
-      {
-        id: "file-6",
-        name: "schema-architecture.png",
-        type: "file",
-        extension: "png",
-        size: 256000,
-        updatedAt: "2024-01-08",
-      },
-    ],
-  },
-  {
-    id: "file-7",
-    name: "budget-2026.xlsx",
-    type: "file",
-    extension: "xlsx",
-    size: 128000,
-    updatedAt: "2024-01-22",
-  },
-  {
-    id: "file-8",
-    name: "notes-reunion.docx",
-    type: "file",
-    extension: "docx",
-    size: 64000,
-    updatedAt: "2024-01-25",
-  },
-];
+// 复用 Menu.tsx 的 localStorage 逻辑，获取当前项目 ID
+const getCurrentProjectId = (): number | null => {
+  const userId = getUserId();
+  const key = userId ? `currentProjectId-${userId}` : "currentProjectId";
+  const stored = localStorage.getItem(key);
+  return stored ? Number(stored) : null;
+};
 
 export default function DocumentManager() {
+  // 1. 安全获取当前项目 ID
+  const projectId = getCurrentProjectId();
+
+  // 2. 未选择项目时的友好提示
+  if (!projectId) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-gray-50">
+        <div className="text-center space-y-2">
+          <p className="text-lg font-semibold text-gray-700">
+            No active project
+          </p>
+          <p className="text-sm text-gray-500">
+            Please create or open a project from the Menu.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState<string | undefined>();
-  const [documents, setDocuments] = useState<DocumentNode[]>(initialDocuments);
-  const [uploadTargetId, setUploadTargetId] = useState<string | null>(null);
 
-  // 自动展开控制
+  // 3. 初始化为空数组 - 用户通过上传/创建来构建树
+  const [documents, setDocuments] = useState<DocumentNode[]>([]);
+
+  const [uploadTargetId, setUploadTargetId] = useState<string | null>(null);
   const [autoExpandFolderId, setAutoExpandFolderId] = useState<string | null>(
     null,
   );
-
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
 
@@ -123,17 +71,20 @@ export default function DocumentManager() {
     fileInputRef.current?.click();
   };
 
+  // 4. 上传文件时自动绑定 projectId
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = processFiles(e.target.files);
     if (newFiles.length > 0) {
+      // 强制新文件绑定当前项目
+      const filesWithProject = newFiles.map((f) => ({ ...f, projectId }));
       setDocuments((prev) =>
-        insertFilesToTarget(prev, newFiles, uploadTargetId),
+        insertFilesToTarget(prev, filesWithProject, uploadTargetId),
       );
     }
     e.target.value = "";
   };
 
-  // 创建文件夹（带自动展开 + 选中优化）
+  // 5. 创建文件夹时自动绑定 projectId
   const handleCreateFolder = useCallback(() => {
     if (!newFolderName.trim()) return;
 
@@ -142,6 +93,7 @@ export default function DocumentManager() {
       name: newFolderName.trim(),
       type: "folder",
       children: [],
+      projectId, // 核心绑定
     };
 
     setDocuments((prev) => {
@@ -161,7 +113,7 @@ export default function DocumentManager() {
 
     setNewFolderName("");
     setIsCreateFolderOpen(false);
-  }, [newFolderName, uploadTargetId]);
+  }, [newFolderName, uploadTargetId, projectId]);
 
   // 递归插入文件到目标文件夹
   const insertFilesToTarget = (
@@ -386,23 +338,34 @@ export default function DocumentManager() {
             <div
               className="flex-1 overflow-y-auto p-2 cursor-default"
               onClick={() => {
-                // 点击空白背景，取消所有选中状态
                 setSelectedDocId(undefined);
                 setUploadTargetId(null);
               }}
             >
-              {/* 内层 div 拦截冒泡，防止点击树内部时误触发取消 */}
               <div onClick={(e) => e.stopPropagation()}>
-                <DocumentTree
-                  documents={documents}
-                  selectedId={selectedDocId}
-                  onSelect={setSelectedDocId}
-                  uploadTargetId={uploadTargetId}
-                  onUploadTargetChange={setUploadTargetId}
-                  autoExpandFolderId={autoExpandFolderId}
-                  onRename={handleRename}
-                  onDelete={handleDelete}
-                />
+                {/* 空状态提示 */}
+                {documents.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8 text-center">
+                    <FolderPlus className="w-12 h-12 mb-4 opacity-50" />
+                    <p className="text-sm font-medium text-gray-600">
+                      No documents yet
+                    </p>
+                    <p className="text-xs mt-1 text-gray-500">
+                      Upload a file or create a folder to get started
+                    </p>
+                  </div>
+                ) : (
+                  <DocumentTree
+                    documents={documents}
+                    selectedId={selectedDocId}
+                    onSelect={setSelectedDocId}
+                    uploadTargetId={uploadTargetId}
+                    onUploadTargetChange={setUploadTargetId}
+                    autoExpandFolderId={autoExpandFolderId}
+                    onRename={handleRename}
+                    onDelete={handleDelete}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -413,7 +376,10 @@ export default function DocumentManager() {
           className="w-2 bg-gray-200 hover:bg-gray-400 transition-colors z-10 cursor-col-resize"
         />
 
-        <ResizablePanel defaultSize={70} className="h-full min-h-0 overflow-hidden bg-white">
+        <ResizablePanel
+          defaultSize={70}
+          className="h-full min-h-0 overflow-hidden bg-white"
+        >
           <DocumentPreview document={selectedDoc} />
         </ResizablePanel>
       </ResizablePanelGroup>
