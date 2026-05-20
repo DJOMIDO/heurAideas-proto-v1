@@ -36,6 +36,12 @@ class Project(Base):
         order_by="ProjectStep.order"
     )
 
+    documents = relationship(
+        "Document",
+        back_populates="project",
+        cascade="all, delete-orphan"
+    )
+
     def __repr__(self):
         return f"<Project(id={self.id}, name='{self.name}', creator_id={self.creator_id})>"
 

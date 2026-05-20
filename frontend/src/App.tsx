@@ -20,6 +20,7 @@ function App() {
         <Route path="/documents" element={<DocumentManager />} />
         <Route path="/substep/:projectId/:stepId/:substepId" element={<Substep />} />
         <Route path="/substep/:projectId/:stepId/:substepId/comments" element={<SubstepCommentsPage />} />
+        <Route path="/uploads/*" element={null} />
       </Routes>
     </>
   )
