@@ -18,4 +18,12 @@ export const API_ENDPOINTS = {
   COMMENT_RESOLVE: (commentId: number) => `/comments/${commentId}/resolve`,
   COMMENT_UNRESOLVE: (commentId: number) => `/comments/${commentId}/unresolve`,
   COMMENT_COUNT: (projectId: number) => `/comments/project/${projectId}/count`,
+
+  // Documents
+  DOCUMENTS: "/documents",
+  DOCUMENT_TREE: (projectId: number) => `/projects/${projectId}/documents/tree`,
+  DOCUMENT_UPLOAD: (projectId: number) => `/projects/${projectId}/documents/upload`,
+  DOCUMENT_FOLDER: (projectId: number) => `/projects/${projectId}/documents/folder`,
+  DOCUMENT_RENAME: (projectId: number, nodeId: string) => `/projects/${projectId}/documents/${nodeId}/rename`,
+  DOCUMENT_DELETE: (projectId: number, nodeId: string) => `/projects/${projectId}/documents/${nodeId}`,
 } as const;

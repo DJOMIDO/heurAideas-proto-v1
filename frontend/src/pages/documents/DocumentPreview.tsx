@@ -1,5 +1,4 @@
 // frontend/src/pages/documents/DocumentPreview.tsx
-
 import { useState, useEffect } from "react";
 import { FileText, Download, X, ZoomIn } from "lucide-react";
 import type { DocumentPreviewProps } from "./types";
@@ -28,9 +27,33 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
 
     if (document.url) {
       setPreviewUrl(document.url);
-      return;
+
+      // 如果是文本文件且有 URL，主动 fetch 内容
+      const ext = document.extension?.toLowerCase();
+      const isText = [
+        "txt",
+        "md",
+        "csv",
+        "json",
+        "xml",
+        "html",
+        "css",
+      ].includes(ext || "");
+
+      if (isText) {
+        fetch(document.url)
+          .then((res) => {
+            if (!res.ok) throw new Error("Failed to fetch");
+            return res.text();
+          })
+          .then(setTextContent)
+          .catch(() => setTextContent("Error loading content"));
+      }
+
+      return; // 处理完 URL 后退出
     }
 
+    // 处理本地上传的文件 (document.file)
     if (document.file) {
       const blobUrl = URL.createObjectURL(document.file);
       setPreviewUrl(blobUrl);
@@ -45,6 +68,7 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
         "html",
         "css",
       ].includes(extension || "");
+
       if (isText) {
         document.file
           .text()
@@ -89,7 +113,6 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
 
     return (
       <div className="h-full w-full flex flex-col bg-gray-100 overflow-hidden relative">
-        {/* 预览容器 */}
         <div
           className="flex-1 min-h-0 flex items-center justify-center p-4 overflow-hidden cursor-zoom-in group"
           onClick={() => setIsZoomed(true)}
@@ -100,32 +123,27 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
             className="block max-h-full max-w-full object-contain rounded-lg shadow-lg transition-transform group-hover:scale-[1.02]"
             style={{ maxHeight: "100%", maxWidth: "100%" }}
           />
-          {/* 放大提示图标 */}
           <div className="absolute bottom-6 right-6 bg-black/50 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
             <ZoomIn className="w-5 h-5" />
           </div>
         </div>
 
-        {/*  全屏放大 Modal */}
         {isZoomed && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 animate-in fade-in duration-200"
             onClick={() => setIsZoomed(false)}
           >
-            {/* 关闭按钮 */}
             <button
               className="absolute top-6 right-6 text-white/70 hover:text-white p-2 transition-colors"
               onClick={() => setIsZoomed(false)}
             >
               <X className="w-8 h-8" />
             </button>
-
-            {/* 大图 */}
             <img
               src={previewUrl}
               alt={document.name}
               className="max-w-full max-h-full object-contain cursor-zoom-out"
-              onClick={(e) => e.stopPropagation()} // 防止点击图片关闭
+              onClick={(e) => e.stopPropagation()}
             />
           </div>
         )}
