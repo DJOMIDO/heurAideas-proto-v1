@@ -1,9 +1,17 @@
 # backend/app/api/documents.py
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form  # pyright: ignore[reportMissingImports]
+from fastapi import ( # pyright: ignore[reportMissingImports]
+    APIRouter,
+    Depends,
+    HTTPException,
+    UploadFile,
+    File,
+    Form,
+)  # pyright: ignore[reportMissingImports]
 from sqlalchemy.orm import Session  # pyright: ignore[reportMissingImports]
 from typing import List, Optional
 import uuid
+from datetime import datetime
 
 from app.database import get_db
 from app.models.document import Document
@@ -12,11 +20,13 @@ from app.api.auth import get_current_user
 from app.utils.permissions import can_access_project
 from app.services.storage import storage_service
 from app.schemas.document import DocumentFolderCreate
+from app.websocket.manager import manager
 
 router = APIRouter(prefix="/projects/{project_id}/documents", tags=["Documents"])
 
 
 # ==================== 辅助函数 ====================
+
 
 def _doc_to_dict(doc: Document) -> dict:
     """将 ORM 对象转换为前端所需的字典格式"""
@@ -60,6 +70,7 @@ def _recursive_delete(db: Session, doc: Document):
 
 # ==================== API 路由 ====================
 
+
 @router.get("/tree")
 async def get_document_tree(
     project_id: int,
@@ -93,14 +104,16 @@ async def upload_document(
         raise HTTPException(status_code=403, detail="No access to this project")
 
     doc_id = f"file-{uuid.uuid4()}"
-    file_extension = file.filename.split(".")[-1].lower() if "." in file.filename else ""
+    file_extension = (
+        file.filename.split(".")[-1].lower() if "." in file.filename else ""
+    )
 
     try:
         storage_path = await storage_service.upload_file(
             project_id=project_id,
             file=file,
             file_id=doc_id,
-            parent_id=parent_id,  # 🔑 传入 parent_id
+            parent_id=parent_id,
         )
     except HTTPException as e:
         raise e
@@ -124,13 +137,28 @@ async def upload_document(
     db.commit()
     db.refresh(new_doc)
 
-    return _doc_to_dict(new_doc)
+    result = _doc_to_dict(new_doc)
+
+    # 广播创建事件（排除操作者自己）
+    await manager.broadcast(
+        project_id=project_id,
+        message={
+            "type": "document.created",
+            "data": result,
+            "user_id": current_user.id,
+            "username": getattr(current_user, "username", "User"),
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+        exclude_user_id=current_user.id,
+    )
+
+    return result
 
 
 @router.post("/folder")
 async def create_folder(
     project_id: int,
-    folder: DocumentFolderCreate,  # 🔑 接收 JSON 请求体
+    folder: DocumentFolderCreate,  # 接收 JSON 请求体
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -153,7 +181,22 @@ async def create_folder(
     db.commit()
     db.refresh(new_folder)
 
-    return _doc_to_dict(new_folder)
+    result = _doc_to_dict(new_folder)
+
+    # 广播创建事件
+    await manager.broadcast(
+        project_id=project_id,
+        message={
+            "type": "document.created",
+            "data": result,
+            "user_id": current_user.id,
+            "username": getattr(current_user, "username", "User"),
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+        exclude_user_id=current_user.id,
+    )
+
+    return result
 
 
 @router.patch("/{node_id}/rename")
@@ -168,9 +211,11 @@ async def rename_node(
     if not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=403, detail="No access to this project")
 
-    doc = db.query(Document).filter(
-        Document.id == node_id, Document.project_id == project_id
-    ).first()
+    doc = (
+        db.query(Document)
+        .filter(Document.id == node_id, Document.project_id == project_id)
+        .first()
+    )
 
     if not doc:
         raise HTTPException(status_code=404, detail="Node not found")
@@ -179,7 +224,22 @@ async def rename_node(
     db.commit()
     db.refresh(doc)
 
-    return _doc_to_dict(doc)
+    result = _doc_to_dict(doc)
+
+    # 广播更新事件
+    await manager.broadcast(
+        project_id=project_id,
+        message={
+            "type": "document.updated",
+            "data": result,
+            "user_id": current_user.id,
+            "username": getattr(current_user, "username", "User"),
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+        exclude_user_id=current_user.id,
+    )
+
+    return result
 
 
 @router.delete("/{node_id}")
@@ -193,9 +253,11 @@ async def delete_node(
     if not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=403, detail="No access to this project")
 
-    doc = db.query(Document).filter(
-        Document.id == node_id, Document.project_id == project_id
-    ).first()
+    doc = (
+        db.query(Document)
+        .filter(Document.id == node_id, Document.project_id == project_id)
+        .first()
+    )
 
     if not doc:
         raise HTTPException(status_code=404, detail="Node not found")
@@ -203,5 +265,18 @@ async def delete_node(
     _recursive_delete(db, doc)
     db.delete(doc)
     db.commit()
+
+    # 广播删除事件（只需传递被删除的节点 ID）
+    await manager.broadcast(
+        project_id=project_id,
+        message={
+            "type": "document.deleted",
+            "data": {"id": node_id},
+            "user_id": current_user.id,
+            "username": getattr(current_user, "username", "User"),
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+        exclude_user_id=current_user.id,
+    )
 
     return {"success": True}

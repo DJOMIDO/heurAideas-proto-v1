@@ -11,6 +11,7 @@ export interface DocumentNode {
   children?: DocumentNode[]; // for folders
   file?: File;
   projectId: number;
+  parentId?: string;
 }
 
 export interface DocumentTreeProps {
