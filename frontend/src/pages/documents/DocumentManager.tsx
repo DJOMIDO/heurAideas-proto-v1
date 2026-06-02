@@ -23,6 +23,9 @@ import DocumentPreview from "./DocumentPreview";
 import type { DocumentNode } from "./types";
 import { useLocalFileUpload } from "@/hooks/useLocalFileUpload";
 import { getUserId, isAuthenticated } from "@/utils/auth";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import type { WebSocketMessage } from "@/hooks/useWebSocket";
+
 // 导入 API 函数
 import {
   fetchDocuments,
@@ -52,6 +55,7 @@ export default function DocumentManager() {
 
   // 1. 安全获取当前项目 ID
   const projectId = getCurrentProjectId();
+  const currentUserId = getUserId() ?? 0;
 
   // 2. 未选择项目时的友好提示
   if (!projectId) {
@@ -78,16 +82,46 @@ export default function DocumentManager() {
 
   // 4. 初始化从 API 加载文档树
   const [documents, setDocuments] = useState<DocumentNode[]>([]);
-
   const [uploadTargetId, setUploadTargetId] = useState<string | null>(null);
   const [autoExpandFolderId, setAutoExpandFolderId] = useState<string | null>(
     null,
   );
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
-
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isProcessing, processFiles } = useLocalFileUpload();
+
+  // WebSocket 消息处理器
+  const handleWebSocketMessage = useCallback(
+    (msg: WebSocketMessage) => {
+      // 只处理文档相关事件
+      if (!msg.type?.startsWith("document.")) return;
+
+      // 忽略自己的操作回音（双重保险）
+      if (msg.user_id === currentUserId) return;
+
+      setDocuments((prev) => {
+        switch (msg.type) {
+          case "document.created":
+            return insertNodeToTree(prev, msg.data);
+          case "document.updated":
+            return updateNodeInTree(prev, msg.data.id, msg.data);
+          case "document.deleted":
+            return removeNodeFromTree(prev, msg.data.id);
+          default:
+            return prev;
+        }
+      });
+    },
+    [currentUserId],
+  );
+
+  // 集成 WebSocket Hook（只解构 isConnected，避免未使用警告）
+  useWebSocket({
+    projectId,
+    enabled: !!projectId,
+    onMessage: handleWebSocketMessage,
+  });
 
   // 5. 组件挂载时加载文档树
   useEffect(() => {
@@ -116,7 +150,6 @@ export default function DocumentManager() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = processFiles(e.target.files);
     if (newFiles.length === 0) return;
-
     try {
       // 乐观更新：先显示到本地
       const filesWithProject = newFiles.map((f) => ({ ...f, projectId }));
@@ -148,7 +181,6 @@ export default function DocumentManager() {
   // 7. 创建文件夹 - 调用 API + 乐观更新
   const handleCreateFolder = useCallback(async () => {
     if (!newFolderName.trim()) return;
-
     try {
       // 乐观更新：先创建本地节点
       const tempId = `temp-${Date.now()}`;
@@ -158,6 +190,7 @@ export default function DocumentManager() {
         type: "folder",
         children: [],
         projectId,
+        parentId: uploadTargetId || undefined, // 确保新文件夹有 parentId
       };
 
       setDocuments((prev) => {
@@ -193,6 +226,119 @@ export default function DocumentManager() {
       setDocuments(refreshed);
     }
   }, [newFolderName, uploadTargetId, projectId]);
+
+  // 8. 重命名 - 调用 API + 乐观更新
+  const handleRename = useCallback(
+    async (id: string, newName: string) => {
+      const trimmed = newName.trim();
+      if (!trimmed) return;
+      try {
+        // 乐观更新
+        setDocuments((prev) => {
+          const updated = renameNodeLocal(prev, id, trimmed);
+          if (selectedDocId === id) setSelectedDocId(id);
+          return updated;
+        });
+
+        // 调用 API
+        await renameNodeApi(projectId, id, trimmed);
+      } catch (err) {
+        console.error("Rename failed:", err);
+        alert("Failed to rename. Please try again.");
+        // 回滚
+        const refreshed = await fetchDocuments(projectId);
+        setDocuments(refreshed);
+      }
+    },
+    [projectId, selectedDocId],
+  );
+
+  // 9. 删除 - 调用 API + 乐观更新
+  const handleDelete = useCallback(
+    async (id: string) => {
+      const target = findDocumentById(documents, id);
+      if (!target) return;
+      if (target.type === "folder" && target.children?.length) {
+        if (
+          !window.confirm(
+            `Delete folder "${target.name}" and all ${target.children.length} item(s) inside?`,
+          )
+        )
+          return;
+      } else {
+        if (!window.confirm(`Delete "${target.name}"?`)) return;
+      }
+
+      try {
+        // 乐观更新
+        setDocuments((prev) => deleteNodeLocal(prev, id));
+        if (selectedDocId === id) setSelectedDocId(undefined);
+        if (uploadTargetId === id) setUploadTargetId(null);
+
+        // 调用 API
+        await deleteNodeApi(projectId, id);
+      } catch (err) {
+        console.error("Delete failed:", err);
+        alert("Failed to delete. Please try again.");
+        // 回滚
+        const refreshed = await fetchDocuments(projectId);
+        setDocuments(refreshed);
+      }
+    },
+    [projectId, documents, selectedDocId, uploadTargetId],
+  );
+
+  // 树操作辅助函数（用于乐观更新 + WS 同步）- 已有，确保签名正确
+  const insertNodeToTree = (
+    nodes: DocumentNode[],
+    newNode: DocumentNode,
+  ): DocumentNode[] => {
+    // 根节点：直接追加
+    if (!newNode.parentId) return [...nodes, newNode];
+
+    // 递归查找父文件夹并插入
+    return nodes.map((node) => {
+      if (node.id === newNode.parentId && node.type === "folder") {
+        return { ...node, children: [...(node.children || []), newNode] };
+      }
+      if (node.children) {
+        return {
+          ...node,
+          children: insertNodeToTree(node.children, newNode),
+        };
+      }
+      return node;
+    });
+  };
+
+  const updateNodeInTree = (
+    nodes: DocumentNode[],
+    id: string,
+    updates: Partial<DocumentNode>,
+  ): DocumentNode[] => {
+    return nodes.map((node) => {
+      if (node.id === id) return { ...node, ...updates };
+      if (node.children) {
+        return {
+          ...node,
+          children: updateNodeInTree(node.children, id, updates),
+        };
+      }
+      return node;
+    });
+  };
+
+  const removeNodeFromTree = (
+    nodes: DocumentNode[],
+    id: string,
+  ): DocumentNode[] => {
+    return nodes
+      .filter((node) => node.id !== id)
+      .map((node) => ({
+        ...node,
+        children: node.children ? removeNodeFromTree(node.children, id) : [],
+      }));
+  };
 
   // 辅助函数：替换临时节点为真实节点
   const replaceTempNode = (
@@ -254,33 +400,6 @@ export default function DocumentManager() {
     });
   };
 
-  // 8. 重命名 - 调用 API + 乐观更新
-  const handleRename = useCallback(
-    async (id: string, newName: string) => {
-      const trimmed = newName.trim();
-      if (!trimmed) return;
-
-      try {
-        // 乐观更新
-        setDocuments((prev) => {
-          const updated = renameNodeLocal(prev, id, trimmed);
-          if (selectedDocId === id) setSelectedDocId(id);
-          return updated;
-        });
-
-        // 调用 API
-        await renameNodeApi(projectId, id, trimmed);
-      } catch (err) {
-        console.error("Rename failed:", err);
-        alert("Failed to rename. Please try again.");
-        // 回滚
-        const refreshed = await fetchDocuments(projectId);
-        setDocuments(refreshed);
-      }
-    },
-    [projectId, selectedDocId],
-  );
-
   // 本地重命名辅助函数（用于乐观更新）
   const renameNodeLocal = (
     nodes: DocumentNode[],
@@ -311,42 +430,6 @@ export default function DocumentManager() {
     });
   };
 
-  // 9. 删除 - 调用 API + 乐观更新
-  const handleDelete = useCallback(
-    async (id: string) => {
-      const target = findDocumentById(documents, id);
-      if (!target) return;
-
-      if (target.type === "folder" && target.children?.length) {
-        if (
-          !window.confirm(
-            `Delete folder "${target.name}" and all ${target.children.length} item(s) inside?`,
-          )
-        )
-          return;
-      } else {
-        if (!window.confirm(`Delete "${target.name}"?`)) return;
-      }
-
-      try {
-        // 乐观更新
-        setDocuments((prev) => deleteNodeLocal(prev, id));
-        if (selectedDocId === id) setSelectedDocId(undefined);
-        if (uploadTargetId === id) setUploadTargetId(null);
-
-        // 调用 API
-        await deleteNodeApi(projectId, id);
-      } catch (err) {
-        console.error("Delete failed:", err);
-        alert("Failed to delete. Please try again.");
-        // 回滚
-        const refreshed = await fetchDocuments(projectId);
-        setDocuments(refreshed);
-      }
-    },
-    [projectId, documents, selectedDocId, uploadTargetId],
-  );
-
   // 本地删除辅助函数（用于乐观更新）
   const deleteNodeLocal = (
     nodes: DocumentNode[],
@@ -354,15 +437,10 @@ export default function DocumentManager() {
   ): DocumentNode[] => {
     return nodes
       .filter((node) => node.id !== targetId)
-      .map((node) => {
-        if (node.children) {
-          return {
-            ...node,
-            children: deleteNodeLocal(node.children, targetId),
-          };
-        }
-        return node;
-      });
+      .map((node) => ({
+        ...node,
+        children: node.children ? deleteNodeLocal(node.children, targetId) : [],
+      }));
   };
 
   const selectedDoc = findDocumentById(documents, selectedDocId);
@@ -408,7 +486,6 @@ export default function DocumentManager() {
         onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         onNavigate={(path) => (window.location.href = path)}
       />
-
       <ResizablePanelGroup orientation="horizontal" className="flex-1">
         <ResizablePanel defaultSize={30} minSize={250} className="bg-gray-50">
           <div className="flex flex-col h-full border-r border-gray-200">
