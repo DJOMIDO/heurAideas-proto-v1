@@ -117,7 +117,7 @@ export default function DocumentManager() {
   );
 
   // 集成 WebSocket Hook（只解构 isConnected，避免未使用警告）
-  const { isConnected } = useWebSocket({
+  useWebSocket({
     projectId,
     enabled: !!projectId,
     onMessage: handleWebSocketMessage,
