@@ -6,7 +6,8 @@ export interface WebSocketMessage {
 }
 
 export interface UseWebSocketOptions {
-  projectId: number;
+  projectId?: number;
+  userId?: number; // 用于用户级全局连接（如 Menu 页面）
   onMessage?: (message: WebSocketMessage) => void;
   onError?: (error: Event) => void;
   onConnect?: () => void;
@@ -16,6 +17,7 @@ export interface UseWebSocketOptions {
 
 export function useWebSocket({
   projectId,
+  userId,
   onMessage,
   onError,
   onConnect,
@@ -38,15 +40,12 @@ export function useWebSocket({
   useEffect(() => {
     onMessageRef.current = onMessage;
   }, [onMessage]);
-
   useEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
-
   useEffect(() => {
     onConnectRef.current = onConnect;
   }, [onConnect]);
-
   useEffect(() => {
     onDisconnectRef.current = onDisconnect;
   }, [onDisconnect]);
@@ -74,6 +73,9 @@ export function useWebSocket({
   const connect = useCallback(() => {
     if (!enabled) return;
 
+    // 既没有 userId 也没有 projectId，则不建立连接
+    if (!userId && !projectId) return;
+
     // 如果已有连接且处于开放状态，直接返回，绝不重复创建
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       return;
@@ -87,27 +89,31 @@ export function useWebSocket({
     // 清理旧连接残留
     cleanup();
 
-    // 智能构建 WebSocket URL
-    // 1. 优先使用显式定义的 VITE_WS_URL (如果在 Netlify 环境变量中设置了)
-    // 2. 否则，基于 VITE_API_URL 自动推导 (https -> wss, http -> ws)
-    // 3. 最后回退到 localhost (本地开发)
+    // 智能构建 WebSocket URL (支持项目级和用户级)
     let wsUrl: string;
     const explicitWsUrl = import.meta.env.VITE_WS_URL;
 
+    // 1. 确定连接路径
+    let wsPath = "";
+    if (userId) {
+      wsPath = "/ws/user"; // 用户级全局频道
+    } else if (projectId) {
+      wsPath = `/ws/${projectId}`; // 项目级频道
+    }
+
+    // 2. 拼接完整 URL
     if (explicitWsUrl) {
-      wsUrl = `${explicitWsUrl}/ws/${projectId}?token=${token}`;
+      wsUrl = `${explicitWsUrl}${wsPath}?token=${token}`;
     } else {
       const apiBaseUrl =
         import.meta.env.VITE_API_URL || "http://localhost:8000";
       try {
         const urlObj = new URL(apiBaseUrl);
         const protocol = urlObj.protocol === "https:" ? "wss:" : "ws:";
-        // 去掉末尾的斜杠，防止拼接错误
         const host = urlObj.host;
-        wsUrl = `${protocol}//${host}/ws/${projectId}?token=${token}`;
+        wsUrl = `${protocol}//${host}${wsPath}?token=${token}`;
       } catch (e) {
-        // 如果解析失败，回退到 localhost
-        wsUrl = `ws://localhost:8000/ws/${projectId}?token=${token}`;
+        wsUrl = `ws://localhost:8000${wsPath}?token=${token}`;
       }
     }
 
@@ -150,7 +156,7 @@ export function useWebSocket({
     ws.onerror = (error) => {
       onErrorRef.current?.(error);
     };
-  }, [projectId, enabled, cleanup]);
+  }, [projectId, userId, enabled, cleanup]); // 依赖项加入 userId
 
   const disconnect = useCallback(() => {
     reconnectAttemptsRef.current = maxReconnectAttempts + 1;
