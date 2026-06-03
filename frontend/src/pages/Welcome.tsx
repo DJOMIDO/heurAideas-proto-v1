@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { isAuthenticated } from "@/utils/auth";
 
 export default function Welcome() {
   const navigate = useNavigate();
@@ -20,12 +21,24 @@ export default function Welcome() {
             See more information
           </Button>
 
-          <Button
-            className="bg-black text-white hover:bg-gray-700 shadow-lg hover:shadow-xl transition-shadow" size="lg"
-            onClick={() => navigate("/auth")}
-          >
-            Connect to HeurAIDEAS
-          </Button>
+          {/* 根据登录态显示不同按钮 */}
+          {isAuthenticated() ? (
+            <Button
+              className="bg-white text-indigo-600 hover:bg-gray-100 shadow-lg hover:shadow-xl transition-shadow"
+              size="lg"
+              onClick={() => navigate("/menu", { replace: true })}
+            >
+              Enter App
+            </Button>
+          ) : (
+            <Button
+              className="bg-black text-white hover:bg-gray-700 shadow-lg hover:shadow-xl transition-shadow"
+              size="lg"
+              onClick={() => navigate("/auth")}
+            >
+              Connect to HeurAIDEAS
+            </Button>
+          )}
         </div>
       </div>
     </div>

@@ -29,7 +29,7 @@ export default function Auth() {
     setIsLoading(false);
 
     if (result.success) {
-      navigate("/menu");
+      navigate("/menu", { replace: true });
     } else {
       alert(result.error || "Login failed");
     }
