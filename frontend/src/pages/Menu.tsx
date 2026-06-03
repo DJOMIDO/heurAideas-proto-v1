@@ -1,11 +1,11 @@
 // frontend/src/pages/Menu.tsx
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Folder, LogOut } from "lucide-react";
-
+import { toast } from "sonner";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +23,8 @@ import {
 import { getProjects, createProject } from "@/api/projects";
 import { getLastEditedSubstep } from "@/utils/substepState";
 import TeamMemberSelector from "@/components/TeamMemberSelector";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import type { WebSocketMessage } from "@/hooks/useWebSocket";
 
 interface Project {
   id: number;
@@ -43,15 +45,7 @@ export default function Menu() {
   const [showMemberSelector, setShowMemberSelector] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      navigate("/auth");
-    }
-
-    loadProjects();
-  }, [navigate]);
-
-  const loadProjects = async () => {
+  const loadProjects = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await getProjects();
@@ -62,7 +56,53 @@ export default function Menu() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  // Toast 的版本
+  const handleWsMessage = useCallback(
+    (msg: WebSocketMessage) => {
+
+      if (msg.type === "project_added") {
+
+        // 刷新项目列表
+        loadProjects();
+
+        // 弹出 Toast 通知
+        toast.success(`You've been added to "${msg.project_name}"`, {
+          description: `Invited by ${msg.invited_by || "a team member"}`,
+          duration: 10000, // 10秒后自动关闭
+          // 添加一个 "Open" 按钮，点击直接跳转到该项目
+          action: {
+            label: "Open",
+            onClick: () => {
+              // 直接复用 handleOpenProject 的核心逻辑，避免闭包依赖问题
+              const storageKey = userId
+                ? `currentProjectId-${userId}`
+                : "currentProjectId";
+              localStorage.setItem(storageKey, String(msg.project_id));
+              navigate(`/overview`, { replace: true });
+            },
+          },
+        });
+      }
+    },
+    // 依赖数组里加上 userId 和 navigate
+    [loadProjects, userId, navigate],
+  );
+
+  // 初始化用户级 WebSocket 连接
+  useWebSocket({
+    userId: userId || undefined, // 传入 userId 触发 /ws/user 连接
+    enabled: !!userId,
+    onMessage: handleWsMessage,
+  });
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      navigate("/auth");
+    }
+    loadProjects();
+  }, [navigate, loadProjects]);
 
   // 打开团队成员选择器（替换原有的 handleCreateProject）
   const handleCreateProject = () => {

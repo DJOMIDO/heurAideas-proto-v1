@@ -7,7 +7,7 @@ import Substep from './pages/substep/Substep'
 import SubstepCommentsPage from "@/pages/substep-comments/SubstepCommentsPage";
 import DocumentManager from './pages/documents/DocumentManager'
 import './styles/animations.css';
-
+import { Toaster } from "@/components/ui/sonner";
 function App() {
 
   return (
@@ -22,6 +22,7 @@ function App() {
         <Route path="/substep/:projectId/:stepId/:substepId/comments" element={<SubstepCommentsPage />} />
         <Route path="/uploads/*" element={null} />
       </Routes>
+      <Toaster position="top-right" richColors />
     </>
   )
 }
