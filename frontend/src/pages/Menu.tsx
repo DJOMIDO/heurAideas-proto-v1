@@ -1,5 +1,4 @@
-// frontend/src/pages/Menu.tsx
-
+// frontend/src/pages/Menu.tsx (部分更新)
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -13,18 +12,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  getUserInfo,
-  signOut,
-  isAuthenticated,
-  getUserId,
-  getToken,
-} from "@/utils/auth";
-import { getProjects, createProject } from "@/api/projects";
+import { getUserInfo, signOut, isAuthenticated, getUserId } from "@/utils/auth";
+import { getProjects } from "@/api/projects";
 import { getLastEditedSubstep } from "@/utils/substepState";
-import TeamMemberSelector from "@/components/TeamMemberSelector";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import type { WebSocketMessage } from "@/hooks/useWebSocket";
+
+// 引入新组件
+import CreateProjectDialog from "@/components/CreateProjectDialog";
 
 interface Project {
   id: number;
@@ -36,14 +31,12 @@ interface Project {
 export default function Menu() {
   const navigate = useNavigate();
   const user = getUserInfo();
-  const userId = getUserId(); // 获取用户 ID
-
+  const userId = getUserId();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // 团队成员选择器状态（添加到现有 state 后面）
-  const [showMemberSelector, setShowMemberSelector] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  // 替换原有的 showMemberSelector
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const loadProjects = useCallback(async () => {
     setIsLoading(true);
@@ -58,24 +51,16 @@ export default function Menu() {
     }
   }, []);
 
-  // Toast 的版本
   const handleWsMessage = useCallback(
     (msg: WebSocketMessage) => {
-
       if (msg.type === "project_added") {
-
-        // 刷新项目列表
         loadProjects();
-
-        // 弹出 Toast 通知
         toast.success(`You've been added to "${msg.project_name}"`, {
           description: `Invited by ${msg.invited_by || "a team member"}`,
-          duration: 10000, // 10秒后自动关闭
-          // 添加一个 "Open" 按钮，点击直接跳转到该项目
+          duration: 10000,
           action: {
             label: "Open",
             onClick: () => {
-              // 直接复用 handleOpenProject 的核心逻辑，避免闭包依赖问题
               const storageKey = userId
                 ? `currentProjectId-${userId}`
                 : "currentProjectId";
@@ -86,13 +71,11 @@ export default function Menu() {
         });
       }
     },
-    // 依赖数组里加上 userId 和 navigate
     [loadProjects, userId, navigate],
   );
 
-  // 初始化用户级 WebSocket 连接
   useWebSocket({
-    userId: userId || undefined, // 传入 userId 触发 /ws/user 连接
+    userId: userId || undefined,
     enabled: !!userId,
     onMessage: handleWsMessage,
   });
@@ -104,90 +87,19 @@ export default function Menu() {
     loadProjects();
   }, [navigate, loadProjects]);
 
-  // 打开团队成员选择器（替换原有的 handleCreateProject）
-  const handleCreateProject = () => {
-    if (!isAuthenticated()) {
-      navigate("/auth");
-      return;
-    }
-    setShowMemberSelector(true);
-  };
-
-  // 创建项目并添加成员
-  const handleCreateProjectWithMembers = async (
-    selectedMembers: { userId: number; role: string }[],
-  ) => {
-    setIsCreating(true);
-    try {
-      const now = new Date();
-      const timestamp = now.toISOString().replace(/[:.]/g, "-").slice(0, 19);
-      const projectName =
-        selectedMembers.length > 0
-          ? `[Shared] New Project ${timestamp}`
-          : `New Project ${timestamp}`;
-
-      const newProject = await createProject({
-        name: projectName,
-        description: "Created from Menu",
-      });
-
-      const storageKey = userId
-        ? `currentProjectId-${userId}`
-        : "currentProjectId";
-      localStorage.setItem(storageKey, String(newProject.id));
-
-      // 调用成员 API 添加选中的成员
-      if (selectedMembers.length > 0) {
-        const token = getToken();
-        const API_BASE_URL =
-          import.meta.env.VITE_API_URL || "http://localhost:8000";
-
-        // 遍历选中的成员，逐个添加
-        for (const member of selectedMembers) {
-          try {
-            await fetch(`${API_BASE_URL}/projects/${newProject.id}/members`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                user_id: member.userId,
-                role: member.role || "member",
-              }),
-            });
-          } catch (error) {
-            console.error(`Failed to add member ${member.userId}:`, error);
-          }
-        }
-      }
-
-      setShowMemberSelector(false);
-      navigate(`/overview`);
-    } catch (error) {
-      console.error("Failed to create project:", error);
-      alert("Failed to create project. Please try again.");
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
   const handleOpenProject = (projectId: number) => {
     const storageKey = userId
       ? `currentProjectId-${userId}`
       : "currentProjectId";
     localStorage.setItem(storageKey, String(projectId));
-
     const lastEdited = getLastEditedSubstep(projectId);
 
     if (lastEdited) {
-      // 确保 URL 中包含正确的 projectId
       navigate(
         `/substep/${projectId}/${lastEdited.stepId}/${lastEdited.substepId}`,
         { replace: true },
       );
     } else {
-      // 跳转到 Overview，由 Overview 选择第一个 substep
       navigate(`/overview`, { replace: true });
     }
   };
@@ -248,7 +160,7 @@ export default function Menu() {
             <div className="h-[240px] flex items-center justify-center">
               <button
                 className="bg-transparent border-0 p-0 cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={handleCreateProject}
+                onClick={() => setShowCreateDialog(true)}
                 disabled={isLoading}
               >
                 <Plus className="w-34 h-34 text-green-500" />
@@ -291,11 +203,16 @@ export default function Menu() {
           </CardContent>
         </Card>
       </div>
-      <TeamMemberSelector
-        open={showMemberSelector}
-        onOpenChange={setShowMemberSelector}
-        onCreateProject={handleCreateProjectWithMembers}
-        isCreating={isCreating}
+
+      {/* 替换原有的 TeamMemberSelector */}
+      <CreateProjectDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        currentUser={{
+          id: Number(userId) || 0,
+          username: user?.name || "Guest",
+          email: user?.email || "",
+        }}
       />
     </div>
   );

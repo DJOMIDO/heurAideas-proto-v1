@@ -101,4 +101,5 @@ export interface CreateProjectInput {
   name: string;
   description?: string;
   template_id?: number;
+  visibility?: string;
 }
