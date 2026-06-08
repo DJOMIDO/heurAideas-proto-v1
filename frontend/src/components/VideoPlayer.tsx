@@ -1,22 +1,15 @@
 // frontend/src/components/VideoPlayer.tsx
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect, type ChangeEvent } from "react";
 import { Upload, Play, Pause, Volume2, Maximize } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import React from "react";
 
-interface VideoPlayerProps {
-  title?: string;
-}
-
-export default function VideoPlayer({
-  title = "Video Player",
-}: VideoPlayerProps) {
+export default function VideoPlayer() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [fileName, setFileName] = useState<string>("");
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       // 验证文件类型
@@ -53,8 +46,8 @@ export default function VideoPlayer({
     setIsPlaying(false);
   };
 
-  // 组件卸载时清理 URL
-  React.useEffect(() => {
+  // 🔑 将 React.useEffect 改为直接导入的 useEffect
+  useEffect(() => {
     return () => {
       if (videoUrl) {
         URL.revokeObjectURL(videoUrl);
