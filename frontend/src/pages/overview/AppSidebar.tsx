@@ -187,6 +187,27 @@ export default function AppSidebar({
               <span className="ml-3">Manage Documents</span>
             </Button>
           )}
+
+          {/* Evaluation */}
+          {isCollapsed ? (
+            <Button
+              variant="ghost"
+              className="w-12 h-12 p-0 justify-center text-white hover:bg-gray-700 transition-all duration-200"
+              title="Evaluation"
+              onClick={() => onNavigate("/evaluation")}
+            >
+              <FileText className="w-5 h-5" />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              className="w-full justify-start px-4 py-3 text-white hover:bg-gray-700 transition-all duration-200"
+              onClick={() => onNavigate("/evaluation")}
+            >
+              <FileText className="w-5 h-5" />
+              <span className="ml-3">Evaluation</span>
+            </Button>
+          )}
         </div>
       </div>
 

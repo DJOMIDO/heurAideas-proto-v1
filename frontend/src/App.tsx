@@ -7,9 +7,10 @@ import Overview from "./pages/overview/Overview";
 import Substep from "./pages/substep/Substep";
 import SubstepCommentsPage from "@/pages/substep-comments/SubstepCommentsPage";
 import DocumentManager from "./pages/documents/DocumentManager";
-import { ProtectedRoute, GuestRoute } from "@/components/ProtectedRoute"; // 🔑 引入路由守卫
+import { ProtectedRoute, GuestRoute } from "@/components/ProtectedRoute";
 import { Toaster } from "@/components/ui/sonner";
 import "./styles/animations.css";
+import Evaluation from "./pages/Evaluation";
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
           <Route path="/menu" element={<Menu />} />
           <Route path="/overview" element={<Overview />} />
           <Route path="/documents" element={<DocumentManager />} />
+          <Route path="/evaluation" element={<Evaluation />} />
           <Route
             path="/substep/:projectId/:stepId/:substepId"
             element={<Substep />}
