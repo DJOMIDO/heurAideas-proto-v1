@@ -5,12 +5,13 @@ from typing import Optional, List
 from datetime import datetime
 
 
-# ==================== 项目相关 ====================
+# ==================== Project Related ====================
 
 class ProjectCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200, description="Project Name")
     description: Optional[str] = Field(default=None, description="Project Description")
     template_id: Optional[int] = Field(default=None, description="Template ID")
+    visibility: str = Field(default="private", description="private, group, or public")
 
 
 class ProjectResponse(BaseModel):
@@ -20,6 +21,7 @@ class ProjectResponse(BaseModel):
     creator_id: int
     template_id: Optional[int]
     status: str
+    visibility: str
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -31,13 +33,14 @@ class ProjectListResponse(BaseModel):
     id: int
     name: str
     status: str
+    visibility: str
     created_at: datetime
 
     class Config:
         from_attributes = True
 
 
-# ==================== 步骤相关 ====================
+# ==================== Step Related ====================
 
 class ProjectStepResponse(BaseModel):
     id: int
@@ -51,7 +54,7 @@ class ProjectStepResponse(BaseModel):
         from_attributes = True
 
 
-# ==================== 子步骤相关 ====================
+# ==================== Substep Related ====================
 
 class ProjectSubtaskResponse(BaseModel):
     id: int
@@ -76,7 +79,7 @@ class ProjectSubstepResponse(BaseModel):
         from_attributes = True
 
 
-# ==================== 内容相关 ====================
+# ==================== Content Related ====================
 
 class SubstepContentCreate(BaseModel):
     content_data: Optional[dict] = Field(default=None, description="Substep Content Data")
@@ -94,10 +97,10 @@ class SubstepContentResponse(BaseModel):
         from_attributes = True
 
 
-# ==================== 完整项目树（嵌套结构） ====================
+# ==================== Project Detail ====================
 
 class ProjectStepDetail(BaseModel):
-    """步骤详情（包含子步骤列表）"""
+    """Project Step Detail (Substeps included)"""
     id: int
     code: str
     title: str
@@ -111,7 +114,7 @@ class ProjectStepDetail(BaseModel):
 
 
 class ProjectDetailResponse(BaseModel):
-    """项目详情响应（包含完整步骤树）"""
+    """Project Detail Response (includes complete step tree)"""
     id: int
     name: str
     description: Optional[str]

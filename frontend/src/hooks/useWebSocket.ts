@@ -7,7 +7,7 @@ export interface WebSocketMessage {
 
 export interface UseWebSocketOptions {
   projectId?: number;
-  userId?: number; // 用于用户级全局连接（如 Menu 页面）
+  userId?: number;
   onMessage?: (message: WebSocketMessage) => void;
   onError?: (error: Event) => void;
   onConnect?: () => void;
@@ -30,13 +30,11 @@ export function useWebSocket({
   const maxReconnectAttempts = 5;
   const [isConnected, setIsConnected] = useState(false);
 
-  // 使用 ref 存储回调，避免回调变化触发 connect 重跑
   const onMessageRef = useRef(onMessage);
   const onErrorRef = useRef(onError);
   const onConnectRef = useRef(onConnect);
   const onDisconnectRef = useRef(onDisconnect);
 
-  // 同步最新的回调到 ref
   useEffect(() => {
     onMessageRef.current = onMessage;
   }, [onMessage]);
@@ -50,7 +48,6 @@ export function useWebSocket({
     onDisconnectRef.current = onDisconnect;
   }, [onDisconnect]);
 
-  // 断开连接辅助函数
   const cleanup = useCallback(() => {
     if (reconnectTimeoutRef.current !== null) {
       window.clearTimeout(reconnectTimeoutRef.current);
@@ -61,7 +58,6 @@ export function useWebSocket({
       wsRef.current.onmessage = null;
       wsRef.current.onclose = null;
       wsRef.current.onerror = null;
-
       if (wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.close();
       }
@@ -72,36 +68,20 @@ export function useWebSocket({
 
   const connect = useCallback(() => {
     if (!enabled) return;
-
-    // 既没有 userId 也没有 projectId，则不建立连接
     if (!userId && !projectId) return;
-
-    // 如果已有连接且处于开放状态，直接返回，绝不重复创建
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      return;
-    }
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
 
     const token = localStorage.getItem("token");
-    if (!token) {
-      return;
-    }
+    if (!token) return;
 
-    // 清理旧连接残留
     cleanup();
 
-    // 智能构建 WebSocket URL (支持项目级和用户级)
     let wsUrl: string;
     const explicitWsUrl = import.meta.env.VITE_WS_URL;
-
-    // 1. 确定连接路径
     let wsPath = "";
-    if (userId) {
-      wsPath = "/ws/user"; // 用户级全局频道
-    } else if (projectId) {
-      wsPath = `/ws/${projectId}`; // 项目级频道
-    }
+    if (userId) wsPath = "/ws/user";
+    else if (projectId) wsPath = `/ws/${projectId}`;
 
-    // 2. 拼接完整 URL
     if (explicitWsUrl) {
       wsUrl = `${explicitWsUrl}${wsPath}?token=${token}`;
     } else {
@@ -139,14 +119,12 @@ export function useWebSocket({
       setIsConnected(false);
       onDisconnectRef.current?.();
 
-      // 智能重连机制
       if (enabled && reconnectAttemptsRef.current < maxReconnectAttempts) {
         reconnectAttemptsRef.current += 1;
         const delay = Math.min(
           1000 * Math.pow(2, reconnectAttemptsRef.current),
           30000,
         );
-
         reconnectTimeoutRef.current = window.setTimeout(() => {
           connect();
         }, delay);
@@ -156,7 +134,7 @@ export function useWebSocket({
     ws.onerror = (error) => {
       onErrorRef.current?.(error);
     };
-  }, [projectId, userId, enabled, cleanup]); // 依赖项加入 userId
+  }, [projectId, userId, enabled, cleanup]);
 
   const disconnect = useCallback(() => {
     reconnectAttemptsRef.current = maxReconnectAttempts + 1;
@@ -175,11 +153,29 @@ export function useWebSocket({
     return false;
   }, []);
 
+  // 监听页面可见性变化，解决浏览器后台标签页休眠导致 WebSocket 断开的问题
   useEffect(() => {
-    if (enabled) {
-      connect();
-    }
+    if (!enabled) return;
+
+    connect();
+
+    const handleVisibilityChange = () => {
+      // 当用户从后台切回当前标签页时
+      if (document.visibilityState === "visible") {
+        // 检查连接是否已断开
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+          console.log("[WebSocket] Page became visible. Reconnecting...");
+          // 重置重连次数，立即尝试重连
+          reconnectAttemptsRef.current = 0;
+          connect();
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       disconnect();
     };
   }, [connect, disconnect, enabled]);

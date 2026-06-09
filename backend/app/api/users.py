@@ -1,6 +1,11 @@
 # backend/app/api/users.py
 
-from fastapi import APIRouter, Depends, HTTPException, status  # pyright: ignore[reportMissingImports]
+from fastapi import ( # pyright: ignore[reportMissingImports]
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+)  # pyright: ignore[reportMissingImports]
 from sqlalchemy.orm import Session  # pyright: ignore[reportMissingImports]
 from typing import List
 from jose import JWTError, jwt  # pyright: ignore[reportMissingModuleSource]
@@ -9,25 +14,26 @@ from app.models.user import User
 from app.schemas.user import UserResponse
 from app.core.config import settings
 from app.core.security import decode_access_token
-from app.api.auth import get_current_user  # 使用现有的 auth 模块
+from app.api.auth import get_current_user
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
-# ==================== 获取所有用户列表 ====================
+
+# ==================== Get all users ====================
 @router.get("/", response_model=List[UserResponse])
 async def get_user_list(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
-    """获取所有用户列表（用于团队成员选择）"""
+    """Get all users (for team member selection)"""
     users = db.query(User).all()
-    # 排除当前用户（不需要选择自己）
+    # exclude current user from the list
     return [u for u in users if u.id != current_user.id]
 
-# ==================== 现有：获取当前用户信息 ====================
+
+# ==================== Get current user info ====================
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(token: str, db: Session = Depends(get_db)):
-    # 验证 Token
+
     payload = decode_access_token(token)
     if not payload:
         raise HTTPException(
@@ -39,15 +45,38 @@ async def get_current_user_info(token: str, db: Session = Depends(get_db)):
     if not username:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials"
+            detail="Invalid authentication credentials",
         )
 
-    # 查找用户
     user = db.query(User).filter(User.username == username).first()
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
         )
 
     return user
+
+
+# ==================== Search users ====================
+@router.get("/search")
+async def search_users(
+    query: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Search users by username or email (for inviting members when creating projects)"""
+    if len(query) < 2:
+        return []
+
+    # use ilike for case-insensitive search, and exclude current user from results
+    users = (
+        db.query(User)
+        .filter(
+            User.id != current_user.id,
+            (User.username.ilike(f"%{query}%")) | (User.email.ilike(f"%{query}%")),
+        )
+        .limit(10)
+        .all()
+    )
+
+    return [{"id": u.id, "username": u.username, "email": u.email} for u in users]

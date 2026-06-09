@@ -1,4 +1,5 @@
-// frontend/src/pages/Menu.tsx (部分更新)
+// frontend/src/pages/Menu.tsx
+
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -17,8 +18,6 @@ import { getProjects } from "@/api/projects";
 import { getLastEditedSubstep } from "@/utils/substepState";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import type { WebSocketMessage } from "@/hooks/useWebSocket";
-
-// 引入新组件
 import CreateProjectDialog from "@/components/CreateProjectDialog";
 
 interface Project {
@@ -34,8 +33,6 @@ export default function Menu() {
   const userId = getUserId();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-
-  // 替换原有的 showMemberSelector
   const [showCreateDialog, setShowCreateDialog] = useState(false);
 
   const loadProjects = useCallback(async () => {
@@ -204,7 +201,6 @@ export default function Menu() {
         </Card>
       </div>
 
-      {/* 替换原有的 TeamMemberSelector */}
       <CreateProjectDialog
         open={showCreateDialog}
         onOpenChange={setShowCreateDialog}

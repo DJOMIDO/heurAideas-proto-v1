@@ -1,4 +1,7 @@
+// frontend/src/components/CreateProjectDialog.tsx
+
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -55,16 +58,9 @@ const BUSINESS_ROLES = [
 ];
 
 const VISIBILITY_OPTIONS = [
-  { value: "group", label: "Group", desc: "Members only"},
-  { value: "private", label: "Private", desc: "Only you"},
-  { value: "public", label: "Public", desc: "Visible to all"},
-];
-
-const MOCK_USERS: User[] = [
-  { id: 101, username: "Alice Chen", email: "alice@example.com" },
-  { id: 102, username: "Bob Smith", email: "bob@example.com" },
-  { id: 103, username: "Charlie Davis", email: "charlie@example.com" },
-  { id: 104, username: "Alice Wang", email: "awang@example.com" }, // 测试连续添加
+  { value: "group", label: "Group", desc: "Members only" },
+  { value: "private", label: "Private", desc: "Only you" },
+  { value: "public", label: "Public", desc: "Visible to all" },
 ];
 
 export default function CreateProjectDialog({
@@ -72,9 +68,9 @@ export default function CreateProjectDialog({
   onOpenChange,
   currentUser,
 }: CreateProjectDialogProps) {
+  const navigate = useNavigate();
   const [projectName, setProjectName] = useState("");
   const [visibility, setVisibility] = useState("group");
-
   const [allMembers, setAllMembers] = useState<MemberItem[]>([
     {
       ...currentUser,
@@ -112,19 +108,12 @@ export default function CreateProjectDialog({
             data.filter((u: User) => !allMembers.some((m) => m.id === u.id)),
           );
         } else {
-          // Mock fallback
-          const filtered = MOCK_USERS.filter(
-            (u) =>
-              u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              u.email.toLowerCase().includes(searchQuery.toLowerCase()),
-          ).filter((u) => !allMembers.some((m) => m.id === u.id));
-          setSearchResults(filtered);
+          console.error("Failed to search users:", res.statusText);
+          setSearchResults([]);
         }
       } catch (error) {
-        const filtered = MOCK_USERS.filter((u) =>
-          u.username.toLowerCase().includes(searchQuery.toLowerCase()),
-        ).filter((u) => !allMembers.some((m) => m.id === u.id));
-        setSearchResults(filtered);
+        console.error("Network error while searching users:", error);
+        setSearchResults([]);
       } finally {
         setIsSearching(false);
       }
@@ -135,7 +124,6 @@ export default function CreateProjectDialog({
 
   const addMember = (user: User) => {
     if (allMembers.some((m) => m.id === user.id)) return;
-
     let newMembers = [...allMembers];
 
     if (selectedRole === "Project leader") {
@@ -173,7 +161,6 @@ export default function CreateProjectDialog({
   const handleSubmit = async () => {
     if (!projectName.trim()) return;
     setIsCreating(true);
-
     try {
       const newProject = await createProject({
         name: projectName.trim(),
@@ -226,7 +213,7 @@ export default function CreateProjectDialog({
       setSelectedRole(BUSINESS_ROLES[1]);
       onOpenChange(false);
 
-      window.location.href = "/overview";
+      navigate("/overview", { replace: true });
     } catch (error) {
       console.error("Failed to create project:", error);
       alert("Failed to create project. Please try again.");
@@ -250,7 +237,6 @@ export default function CreateProjectDialog({
         </DialogHeader>
 
         <div className="grid gap-6 py-4">
-
           <div className="grid gap-2">
             <Label htmlFor="name">
               Project Name <span className="text-red-500">*</span>
@@ -299,7 +285,6 @@ export default function CreateProjectDialog({
           <div className="grid gap-3">
             <Label>Invite Members</Label>
             <div className="flex border rounded-lg overflow-hidden h-[320px] bg-background">
-
               <div className="w-48 border-r bg-muted/20 p-2 flex flex-col gap-1 overflow-y-auto">
                 <p className="text-xs font-semibold text-muted-foreground px-2 py-1 uppercase">
                   Roles

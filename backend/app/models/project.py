@@ -14,15 +14,16 @@ class Project(Base):
     template_id = Column(Integer, ForeignKey("project_templates.id"), nullable=True)
     template_version = Column(String(50), nullable=True)
     status = Column(String(50), default="draft")  # draft, in_progress, completed, archived
-    workspace_id = Column(Integer, nullable=True)  # 预留：未来团队功能
+    visibility = Column(String(50), default="private")
+    workspace_id = Column(Integer, nullable=True)  # placeholder for future multi-workspace support
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # 关系
+    # Relationships
     creator = relationship("User", back_populates="projects")
     template = relationship("ProjectTemplate")
 
-    # 项目成员关系
+    # Relationships to members, steps, and documents
     members = relationship(
         "ProjectMember",
         back_populates="project",
@@ -60,7 +61,7 @@ class ProjectStep(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # 关系
+    # Relationships
     project = relationship("Project", back_populates="steps")
     substeps = relationship(
         "ProjectSubstep",
@@ -87,7 +88,7 @@ class ProjectSubstep(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # 关系
+    # Relationships
     step = relationship("ProjectStep", back_populates="substeps")
     subtasks = relationship(
         "ProjectSubtask",
@@ -122,7 +123,7 @@ class ProjectSubtask(Base):
     order = Column(Integer, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # 关系
+    # Relationships
     substep = relationship("ProjectSubstep", back_populates="subtasks")
 
     def __repr__(self):
@@ -135,12 +136,12 @@ class SubstepContent(Base):
     id = Column(Integer, primary_key=True, index=True)
     project_substep_id = Column(Integer, ForeignKey("project_substeps.id"), unique=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    content_data = Column(JSON, nullable=True)  # 所有 Subtask 的内容
-    ui_state = Column(JSON, nullable=True)  # Tab 状态、分屏状态等
+    content_data = Column(JSON, nullable=True)  # all content data stored as JSON, flexible for different content types
+    ui_state = Column(JSON, nullable=True)  # Tab state, etc.
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # 关系
+    # Relationships
     substep = relationship("ProjectSubstep", back_populates="content")
     editor = relationship("User")
 
@@ -160,7 +161,7 @@ class Attachment(Base):
     uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # 关系
+    # Relationships
     substep = relationship("ProjectSubstep", back_populates="attachments")
     uploader = relationship("User")
 
