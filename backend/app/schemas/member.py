@@ -4,31 +4,33 @@ from pydantic import BaseModel, Field, EmailStr  # pyright: ignore[reportMissing
 from typing import Optional, List
 from datetime import datetime
 
-# ==================== 成员创建 ====================
+# ==================== Member Create ====================
 
 class MemberCreate(BaseModel):
-    """添加成员请求"""
-    user_id: int = Field(..., description="用户 ID") 
-    role: Optional[str] = Field(default="member", description="角色：owner, admin, member")
+    """Add Member Request"""
+    user_id: int = Field(..., description="User ID") 
+    role: Optional[str] = Field(default="member", description="Permission role：owner, admin, member")
+    business_role: Optional[str] = Field(default=None, description="Business role：Project leader, etc.")
 
 class MemberAddResponse(BaseModel):
-    """添加成员响应"""
+    """Add Member Response"""
     project_id: int
     user_id: int
     role: str
     message: str
 
-# ==================== 成员响应 ====================
+# ==================== Member Response ====================
 
 class MemberResponse(BaseModel):
-    """成员信息响应"""
+    """Member Information Response"""
     id: int
     project_id: int
     user_id: int
     role: str
+    business_role: Optional[str] = None
     joined_at: datetime
     
-    # 用户信息（嵌套）
+    # User info
     user_email: str
     user_username: str
     
@@ -36,19 +38,19 @@ class MemberResponse(BaseModel):
         from_attributes = True
 
 class MemberListResponse(BaseModel):
-    """成员列表响应"""
+    """Member List Response"""
     total: int
     members: List[MemberResponse]
 
-# ==================== 角色枚举 ====================
+# ==================== Project Roles ====================
 
 class ProjectRole(BaseModel):
-    """项目角色"""
+    """Project Role"""
     role: str
     description: str
 
 ROLE_DESCRIPTIONS = {
-    "owner": "项目所有者，拥有所有权限",
-    "admin": "管理员，可管理成员和评论",
-    "member": "普通成员，可查看和编辑内容"
+    "owner": "Owner, full permissions including managing members and project settings",
+    "admin": "Admin, can manage members and comments",
+    "member": "Member, can view and edit content"
 }
