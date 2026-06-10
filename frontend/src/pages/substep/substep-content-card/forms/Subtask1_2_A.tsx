@@ -120,7 +120,7 @@ export default function Subtask1_2_A({
     draftData.comments || {},
   );
   const [draftFreedom, setDraftFreedom] = useState<MethodologicalFreedomData>(
-    draftData.freedom || {},
+    draftData.freedom || mySubmission?.freedom || {},
   );
 
   useEffect(() => {
