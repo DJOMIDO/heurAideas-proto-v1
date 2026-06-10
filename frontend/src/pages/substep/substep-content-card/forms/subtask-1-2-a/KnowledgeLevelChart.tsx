@@ -1,5 +1,4 @@
 // frontend/src/pages/substep/substep-content-card/forms/subtask-1-2-a/KnowledgeLevelChart.tsx
-
 import {
   BarChart,
   Bar,
@@ -10,32 +9,32 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import type { KnowledgeData, KnowledgeLevel } from "./types";
+import type { KnowledgeLevel } from "./types";
 import { LEVEL_COLORS, LEVEL_LABELS } from "./types";
 
 interface KnowledgeLevelChartProps {
-  data: KnowledgeData;
+  data: Record<string, any>;
   title: string;
 }
 
 const DOMAIN_LABELS: Record<string, string> = {
   "heuristics-evaluation": "Heuristics Evaluation",
-  "about-the-soi": "About the SoI",
+  "soi": "SoI",
   "systems-engineering": "Systems Engineering",
-  "inspected-criteria": "Inspected Criteria",
   "interaction-design": "Interaction Design",
+  "inspected-criteria": "Inspected Criteria",
 };
 
-// 将 level 字符串转换为数值索引 (0-4)
-const levelToIndex = (level: KnowledgeLevel): number => {
+const levelToIndex = (level: KnowledgeLevel | string): number => {
   const levels: KnowledgeLevel[] = [
     "none",
+    "very-low",
     "low",
     "medium",
     "high",
     "very-high",
   ];
-  return levels.indexOf(level);
+  return levels.indexOf(level as KnowledgeLevel);
 };
 
 export default function KnowledgeLevelChart({
@@ -48,25 +47,25 @@ export default function KnowledgeLevelChart({
       level: data["heuristics-evaluation"] || "none",
     },
     {
-      name: DOMAIN_LABELS["about-the-soi"],
-      level: data["about-the-soi"] || "none",
+      name: DOMAIN_LABELS["soi"],
+      level: data["soi"] || "none",
     },
     {
       name: DOMAIN_LABELS["systems-engineering"],
       level: data["systems-engineering"] || "none",
     },
     {
-      name: DOMAIN_LABELS["inspected-criteria"],
-      level: data["inspected-criteria"] || "none",
-    },
-    {
       name: DOMAIN_LABELS["interaction-design"],
       level: data["interaction-design"] || "none",
+    },
+    {
+      name: DOMAIN_LABELS["inspected-criteria"],
+      level: data["inspected-criteria"] || "none",
     },
   ].map((item) => ({
     ...item,
     levelIndex: levelToIndex(item.level),
-    fill: LEVEL_COLORS[item.level],
+    fill: LEVEL_COLORS[item.level as KnowledgeLevel] || LEVEL_COLORS.none,
   }));
 
   return (
@@ -74,8 +73,6 @@ export default function KnowledgeLevelChart({
       <h3 className="text-base font-semibold text-gray-800 mb-4 text-center">
         {title}
       </h3>
-
-      {/* 增加高度从 220 到 300 */}
       <ResponsiveContainer width="100%" height={300}>
         <BarChart
           data={chartData}
@@ -92,20 +89,19 @@ export default function KnowledgeLevelChart({
             interval={0}
           />
 
-          {/* 明确设置 domain 和所有 ticks */}
           <YAxis
-            domain={[0, 4]} // 强制显示完整范围 0-4
-            ticks={[0, 1, 2, 3, 4]} // 明确指定所有5个刻度
-            tick={{ fontSize: 11 }} // 稍微增大字体
+            domain={[0, 5]}
+            ticks={[0, 1, 2, 3, 4, 5]}
+            tick={{ fontSize: 11 }}
             tickFormatter={(value: number) =>
               LEVEL_LABELS[
-                ["none", "low", "medium", "high", "very-high"][
+                ["none", "very-low", "low", "medium", "high", "very-high"][
                   value
                 ] as KnowledgeLevel
-              ]
+              ] || ""
             }
-            width={80} // 增加宽度给纵坐标标签更多空间
-            allowDecimals={false} // 确保只显示整数
+            width={80}
+            allowDecimals={false}
           />
 
           <Tooltip
@@ -116,7 +112,9 @@ export default function KnowledgeLevelChart({
                   <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-2 text-xs">
                     <p className="font-semibold">{entry.name}</p>
                     <p className="text-gray-600">
-                      Level: {LEVEL_LABELS[entry.level as KnowledgeLevel]}
+                      Level:{" "}
+                      {LEVEL_LABELS[entry.level as KnowledgeLevel] ||
+                        entry.level}
                     </p>
                   </div>
                 );

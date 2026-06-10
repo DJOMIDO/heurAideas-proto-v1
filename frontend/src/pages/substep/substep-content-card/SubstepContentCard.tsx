@@ -38,6 +38,7 @@ interface SubstepContentCardProps {
   sendMessage?: (message: any) => void;
   userInfo?: { name: string } | null;
   syncKey?: number
+  onSyncAndSave?: (key: string, value: any) => void;
 }
 
 export default function SubstepContentCard({
@@ -64,6 +65,7 @@ export default function SubstepContentCard({
   sendMessage,
   userInfo,
   syncKey = 0,
+  onSyncAndSave,
 }: SubstepContentCardProps) {
   const {
     comments,
@@ -318,7 +320,7 @@ export default function SubstepContentCard({
               // 从 subtask 获取 formType（来自 steps.json）
               const formType = (subtask as any).formType;
               // 获取对应的表单组件
-              const FormComponent = getSubtaskFormComponent(formType);
+              const FormComponent = getSubtaskFormComponent(formType) as React.ComponentType<any>;
 
               return (
                 <FormComponent
@@ -334,6 +336,8 @@ export default function SubstepContentCard({
                   sendMessage={sendMessage}
                   userInfo={userInfo ?? undefined}
                   syncKey={syncKey}
+                  substepId={substep.id}
+                  onSyncAndSave={onSyncAndSave}
                 />
               );
             })()}

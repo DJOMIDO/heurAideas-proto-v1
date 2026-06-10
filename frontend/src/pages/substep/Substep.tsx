@@ -100,32 +100,33 @@ export default function Substep() {
         message.type === "content_saved" &&
         message.substep_id === substepId
       ) {
-        // 跳过自己的消息（防止乐观锁状态丢失）
-        if (message.user_id === currentUserId) {
-          return; // 自己的提交不触发重载
-        }
+        if (message.user_id === currentUserId) return; // 跳过自己
 
-        // 2.1.A 专用：触发 Task 同步信号
-        if (substepId === "2.1") {
-          setTaskSyncKey((k) => k + 1); // 仅 2.1.A 需要
-        }
+        if (substepId === "2.1") setTaskSyncKey((k) => k + 1);
 
-        // 其他人的提交：触发通用 formData 重载（协同同步）
-        if (!hasUnsavedChangesRef.current) {
-          isLoadingRef.current = true;
-          loadSubstepStateWithApi(projectIdNum, substepId!, true)
-            .then((saved) => {
-              if (saved) {
-                setFormData(saved.formData || {});
-                formDataMapRef.current.set(substepId!, saved.formData || {});
-              }
-              isLoadingRef.current = false;
-            })
-            .catch((error) => {
-              console.error("[Substep] WebSocket reload failed:", error);
-              isLoadingRef.current = false;
-            });
-        }
+        // 无论本地是否有未保存的更改，都必须拉取最新数据！
+        isLoadingRef.current = true;
+        loadSubstepStateWithApi(projectIdNum, substepId!, true)
+          .then((saved) => {
+            if (saved) {
+              const remoteFormData = saved.formData || {};
+              const localFormData =
+                formDataMapRef.current.get(substepId!) || {};
+
+              // 核心协同逻辑：深度合并！
+              // 以后端最新数据为准（确保别人的提交被同步），
+              // 但如果本地有某个 key 且远程没有（比如正在输入还没保存的 comment），则保留本地！
+              const mergedFormData = { ...localFormData, ...remoteFormData };
+
+              setFormData(mergedFormData);
+              formDataMapRef.current.set(substepId!, mergedFormData);
+            }
+            isLoadingRef.current = false;
+          })
+          .catch((error) => {
+            console.error("[Substep] WebSocket reload failed:", error);
+            isLoadingRef.current = false;
+          });
       }
 
       // 2. 处理评论变更
@@ -339,6 +340,55 @@ export default function Substep() {
     currentUserId,
   ]);
 
+  const handleSyncAndSave = useCallback(
+    async (key: string, value: any) => {
+      if (!substepId || !projectIdNum) return;
+      try {
+        // 1. 强制拉取后端最新状态
+        const latestState = await loadSubstepStateWithApi(
+          projectIdNum,
+          substepId,
+          true,
+        );
+        const latestFormData = latestState?.formData || {};
+
+        // 2. 合并：保留后端最新数据，只覆盖/更新指定的 key
+        const newFormData = { ...latestFormData, [key]: value };
+
+        // 3. 立即保存到后端！
+        await saveSubstepStateWithApi(
+          projectIdNum,
+          substepId,
+          { formData: newFormData },
+          true,
+        );
+
+        // 4. 更新本地状态
+        setFormData(newFormData);
+        formDataMapRef.current.set(substepId, newFormData);
+
+        // 5. 标记为已保存，阻止 2秒防抖再次覆盖
+        hasUnsavedChangesRef.current = false;
+
+        // 6. 广播给其他人
+        if (sendMessage) {
+          sendMessage({
+            type: "content_saved",
+            project_id: projectIdNum,
+            substep_id: substepId,
+            user_id: currentUserId,
+            username: userInfo?.name || "User",
+            timestamp: new Date().toISOString(),
+          });
+        }
+        setLastSaved(new Date().toISOString());
+      } catch (error) {
+        console.error("[Substep] Sync and save failed:", error);
+      }
+    },
+    [substepId, projectIdNum, currentUserId, sendMessage, userInfo],
+  );
+
   // 监听 substepTabState 变化，自动保存到 localStorage
   useEffect(() => {
     if (!substepId || !projectIdNum || isLoadingRef.current) return;
@@ -397,21 +447,6 @@ export default function Substep() {
           .then(() => {
             setLastSaved(new Date().toISOString());
             hasUnsavedChangesRef.current = false;
-
-            // 自动保存成功后也通知其他人（可选，视需求而定，通常手动保存才通知以免太频）
-            // 如果希望实时同步更频繁，可以放开下面的注释
-            /*
-            if (sendMessage) {
-              sendMessage({
-                type: "content_saved",
-                project_id: projectIdNum,
-                substep_id: substepId,
-                user_id: currentUserId,
-                username: userInfo?.name || "User",
-                timestamp: new Date().toISOString(),
-              });
-            }
-            */
           })
           .catch((error) => {
             console.error("[Substep] Auto-save failed:", error);
@@ -706,6 +741,7 @@ export default function Substep() {
             sendMessage={sendMessage}
             userInfo={userInfo}
             syncKey={taskSyncKey}
+            onSyncAndSave={handleSyncAndSave}
           />
         ) : (
           <div className="flex-1 flex flex-row overflow-hidden min-h-0">
@@ -743,6 +779,7 @@ export default function Substep() {
                 sendMessage={sendMessage}
                 userInfo={userInfo}
                 syncKey={taskSyncKey}
+                onSyncAndSave={handleSyncAndSave}
               />
             </div>
 
@@ -780,6 +817,7 @@ export default function Substep() {
                 sendMessage={sendMessage}
                 userInfo={userInfo}
                 syncKey={taskSyncKey}
+                onSyncAndSave={handleSyncAndSave}
               />
             </div>
           </div>
