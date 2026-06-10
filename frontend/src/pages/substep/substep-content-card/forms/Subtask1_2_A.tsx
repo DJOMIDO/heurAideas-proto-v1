@@ -1,28 +1,26 @@
 // frontend/src/pages/substep/substep-content-card/forms/Subtask1_2_A.tsx
-
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { AlertCircle, Hourglass, CheckCircle2 } from "lucide-react";
+import { Hourglass, CheckCircle2, ArrowRight, Eye } from "lucide-react";
+import { toast } from "sonner";
 import TypingIndicator from "@/components/TypingIndicator";
-import KnowledgeLevelChart from "./subtask-1-2-a/KnowledgeLevelChart";
+import KnowledgeDomainCard from "./subtask-1-2-a/KnowledgeDomainCard";
+import MethodologicalFreedomCard from "./subtask-1-2-a/MethodologicalFreedomCard";
+import TeamKnowledgeOverview from "./subtask-1-2-a/TeamKnowledgeOverview";
+import KnowledgeSummaryCharts from "./subtask-1-2-a/KnowledgeSummaryCharts";
 import type {
   KnowledgeData,
   KnowledgeDomain,
   KnowledgeLevel,
+  MethodologicalFreedomType,
+  MethodologicalFreedomData,
 } from "./subtask-1-2-a/types";
 import {
   KNOWLEDGE_DOMAINS,
-  KNOWLEDGE_LEVELS,
-  LEVEL_COLORS,
-  LEVEL_LABELS,
+  DOMAIN_TITLES,
+  METHODOLOGICAL_FREEDOM_QUESTIONS,
 } from "./subtask-1-2-a/types";
+import type { SubmissionData } from "./subtask-1-2-a/KnowledgeDistributionCard";
 
 interface Subtask1_2_AProps {
   fieldPrefix: string;
@@ -34,39 +32,51 @@ interface Subtask1_2_AProps {
   >;
   currentUserId: number;
   teamSize: number;
+  userInfo?: { name: string } | null;
+  substepId?: string;
+  projectId?: number;
+  sendMessage?: (message: any) => void;
+  onSyncAndSave?: (key: string, value: any) => void;
+  onManualSave?: () => Promise<void>;
 }
 
-// 团队知识聚合：均值映射法 (Average Mapping)
-const calculateTeamKnowledge = (
-  submissions: Record<number, KnowledgeData>,
+export const calculateTeamKnowledge = (
+  submissions: Record<number, SubmissionData>,
 ): KnowledgeData => {
   const teamData: KnowledgeData = {} as KnowledgeData;
   const levelToNum: Record<KnowledgeLevel, number> = {
     none: 0,
+    "very-low": 0.5,
     low: 1,
     medium: 2,
     high: 3,
     "very-high": 4,
   };
-  const numToLevel: KnowledgeLevel[] = [
-    "none",
-    "low",
-    "medium",
-    "high",
-    "very-high",
-  ];
 
   KNOWLEDGE_DOMAINS.forEach((domain) => {
     const values = Object.values(submissions)
       .map((sub) => levelToNum[sub[domain] || "none"])
       .filter((v) => !isNaN(v));
+
     if (values.length === 0) {
       teamData[domain] = "none";
       return;
     }
+
     const avg = values.reduce((sum, v) => sum + v, 0) / values.length;
-    teamData[domain] = numToLevel[Math.round(avg)] || "none";
+    const rounded = Math.round(avg * 2) / 2;
+
+    let finalLevel: KnowledgeLevel = "none";
+    if (rounded <= 0.25) finalLevel = "none";
+    else if (rounded <= 0.75) finalLevel = "very-low";
+    else if (rounded <= 1.5) finalLevel = "low";
+    else if (rounded <= 2.5) finalLevel = "medium";
+    else if (rounded <= 3.5) finalLevel = "high";
+    else finalLevel = "very-high";
+
+    teamData[domain] = finalLevel;
   });
+
   return teamData;
 };
 
@@ -77,37 +87,173 @@ export default function Subtask1_2_A({
   editingUsers = {},
   currentUserId,
   teamSize,
+  userInfo,
+  onSyncAndSave,
+  onManualSave,
 }: Subtask1_2_AProps) {
   const submissionsKey = `${fieldPrefix}-knowledge_submissions`;
-  const submissions: Record<number, KnowledgeData> =
-    (formData[submissionsKey] as Record<number, KnowledgeData>) || {};
+  const draftKey = `${fieldPrefix}-personal_draft_${currentUserId}`;
 
+  const submissions: Record<number, SubmissionData> =
+    (formData[submissionsKey] as Record<number, SubmissionData>) || {};
   const mySubmission = submissions[currentUserId];
+  const draftData =
+    (formData[draftKey] as {
+      knowledge?: KnowledgeData;
+      comments?: Record<string, string>;
+      freedom?: MethodologicalFreedomData;
+    }) || {};
 
-  // 1. 乐观提交状态：点击后立即锁定，彻底杜绝生产环境渲染竞态
-  const [hasCommitted, setHasCommitted] = useState(false);
+  const prevSubmissionsRef =
+    useRef<Record<number, SubmissionData>>(submissions);
 
-  // 2. 同步机制：远程数据到达或页面刷新时，同步本地锁定状态
-  useEffect(() => {
-    if (mySubmission?.committedAt) {
-      setHasCommitted(true);
-    }
-  }, [mySubmission?.committedAt]);
-
-  // 3. 本地草稿状态（严格隔离）
+  const [hasCommitted, setHasCommitted] = useState(!!mySubmission?.committedAt);
+  const [showOverview, setShowOverview] = useState(false);
   const [draftKnowledge, setDraftKnowledge] = useState<KnowledgeData>(() => {
     const init: KnowledgeData = {};
-    KNOWLEDGE_DOMAINS.forEach((d) => (init[d] = mySubmission?.[d] || "none"));
+    KNOWLEDGE_DOMAINS.forEach((d) => {
+      init[d] = draftData.knowledge?.[d] || mySubmission?.[d] || "none";
+    });
     return init;
   });
+  const [draftComments, setDraftComments] = useState<Record<string, string>>(
+    draftData.comments || {},
+  );
+  const [draftFreedom, setDraftFreedom] = useState<MethodologicalFreedomData>(
+    draftData.freedom || {},
+  );
 
   useEffect(() => {
-    if (mySubmission) {
-      setDraftKnowledge(mySubmission);
-    }
-  }, [mySubmission]);
+    if (mySubmission?.committedAt) setHasCommitted(true);
+  }, [mySubmission?.committedAt]);
 
-  const displayData = hasCommitted ? mySubmission : draftKnowledge;
+  useEffect(() => {
+    const prevSubmissions = prevSubmissionsRef.current;
+    const currSubmissions = submissions;
+
+    Object.keys(currSubmissions).forEach((userIdStr) => {
+      const userId = Number(userIdStr);
+
+      if (userId === currentUserId) return;
+
+      const prevData = prevSubmissions[userId];
+      const currData = currSubmissions[userId];
+
+      if (!prevData?.committedAt && currData?.committedAt) {
+        const submitterName = currData.username || `User ${userId}`;
+        toast.success(
+          `${submitterName} has submitted their knowledge assessment.`,
+        );
+      }
+    });
+
+    prevSubmissionsRef.current = currSubmissions;
+  }, [submissions, currentUserId]);
+
+  const handleKnowledgeChange = (
+    domain: KnowledgeDomain,
+    level: KnowledgeLevel,
+  ) => {
+    if (hasCommitted) return;
+    const newKnowledge = { ...draftKnowledge, [domain]: level };
+    setDraftKnowledge(newKnowledge);
+    saveDraft(newKnowledge, draftComments, draftFreedom);
+  };
+
+  const handleCommentChange = (domain: string, comment: string) => {
+    if (hasCommitted) return;
+    const newComments = { ...draftComments, [domain]: comment };
+    setDraftComments(newComments);
+    saveDraft(draftKnowledge, newComments, draftFreedom);
+  };
+
+  const handleFreedomChange = (
+    type: MethodologicalFreedomType,
+    value: "yes" | "no",
+  ) => {
+    if (hasCommitted) return;
+    const newFreedom = { ...draftFreedom, [type]: value };
+    setDraftFreedom(newFreedom);
+    saveDraft(draftKnowledge, draftComments, newFreedom);
+  };
+
+  const saveDraft = (
+    knowledge: KnowledgeData,
+    comments: Record<string, string>,
+    freedom: MethodologicalFreedomData,
+  ) => {
+    onFormDataChange(draftKey, { knowledge, comments, freedom });
+  };
+
+  const handleSubmit = async () => {
+    if (hasCommitted) return;
+    try {
+      // 先强制保存本地所有未保存的更改（防止自己的 comment 在拉取后端时被覆盖丢失）
+      if (onManualSave) {
+        await onManualSave();
+      }
+
+      setHasCommitted(true);
+      const submissionData = {
+        ...draftKnowledge,
+        freedom: draftFreedom,
+        committedAt: new Date().toISOString(),
+        username: userInfo?.name || `User ${currentUserId}`,
+      } as SubmissionData;
+
+      const mergedSubmissions = {
+        ...submissions,
+        [currentUserId]: submissionData,
+      };
+
+      if (onSyncAndSave) {
+        await onSyncAndSave(submissionsKey, mergedSubmissions);
+      } else {
+        onFormDataChange(submissionsKey, mergedSubmissions);
+      }
+
+      toast.success("Knowledge assessment submitted successfully!");
+    } catch (error) {
+      console.error("Submit failed:", error);
+      toast.error("Failed to submit. Please try again.");
+    }
+  };
+
+  const handleUnsubmit = async () => {
+    if (!hasCommitted) return;
+    try {
+      setHasCommitted(false);
+      setShowOverview(false);
+
+      const { [currentUserId]: _, ...rest } = submissions;
+
+      if (onSyncAndSave) {
+        await onSyncAndSave(submissionsKey, rest);
+      } else {
+        onFormDataChange(submissionsKey, rest);
+      }
+
+      toast.success("Submission withdrawn.");
+    } catch (error) {
+      console.error("Unsubmit failed:", error);
+      toast.error("Failed to withdraw submission.");
+    }
+  };
+
+  const handleSave = () => {
+    try {
+      saveDraft(draftKnowledge, draftComments, draftFreedom);
+      toast.success("Draft saved successfully.");
+    } catch (error) {
+      console.error("Save failed:", error);
+      toast.error("Failed to save draft.");
+    }
+  };
+
+  const displayData: Record<string, any> =
+    (hasCommitted && mySubmission ? mySubmission : draftKnowledge) ||
+    draftKnowledge;
+
   const teamKnowledge = useMemo(
     () => calculateTeamKnowledge(submissions),
     [submissions],
@@ -116,199 +262,129 @@ export default function Subtask1_2_A({
   const missingCount = Math.max(0, teamSize - submittedCount);
   const allSubmitted = teamSize > 0 && missingCount === 0;
 
-  // 4. 交互处理器
-  const handleDraftChange = (domain: KnowledgeDomain, level: string) => {
-    if (hasCommitted) return;
-    setDraftKnowledge((prev) => ({
-      ...prev,
-      [domain]: level as KnowledgeLevel,
-    }));
-  };
-
-  // 5. 提交逻辑：乐观锁定 + 持久化
-  const handleCommitToTeam = () => {
-    if (hasCommitted) return; // 防止重复点击
-
-    // 立即锁定 UI（0ms 延迟，无视 React 批次）
-    setHasCommitted(true);
-
-    const submissionData = {
-      ...draftKnowledge,
-      committedAt: new Date().toISOString(),
-      _committed: true, // 防清理标记
-    };
-
-    // 写入全局 formData 触发持久化与协同广播
-    onFormDataChange(submissionsKey, {
-      ...submissions,
-      [currentUserId]: submissionData,
-    });
-  };
-
-  // 6. 表格组件
-  const KnowledgeTable = ({
-    data,
-    readOnly = false,
-  }: {
-    data: KnowledgeData;
-    readOnly?: boolean;
-  }) => (
-    <div className="border border-gray-200 rounded-lg overflow-hidden">
-      <table className="w-full">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-4 py-3 text-left text-xs font-bold text-black">
-              Knowledge Domain
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-bold text-black">
-              Experience Level
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200">
-          {KNOWLEDGE_DOMAINS.map((domain) => (
-            <tr key={domain} className="hover:bg-gray-50/50">
-              <td className="px-4 py-3 text-sm text-gray-800">
-                {domain
-                  .replace(/-/g, " ")
-                  .replace(/\b\w/g, (l) => l.toUpperCase())}
-              </td>
-              <td className="px-4 py-3">
-                <Select
-                  value={data[domain] || "none"}
-                  onValueChange={(v) => handleDraftChange(domain, v)}
-                  disabled={readOnly}
-                >
-                  <SelectTrigger
-                    className={`w-full max-w-xs ${readOnly ? "bg-gray-100 cursor-not-allowed" : ""}`}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {KNOWLEDGE_LEVELS.map((level) => (
-                      <SelectItem key={level} value={level}>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: LEVEL_COLORS[level] }}
-                          />
-                          {LEVEL_LABELS[level]}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  if (showOverview && hasCommitted) {
+    return (
+      <div className="space-y-6">
+        <TeamKnowledgeOverview
+          submissions={submissions}
+          teamSize={teamSize}
+          onBack={() => setShowOverview(false)}
+          currentUserId={currentUserId}
+        />
+        <TypingIndicator
+          editingUsers={editingUsers}
+          fieldName={`${fieldPrefix}-knowledge-assessment`}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* 顶部双卡片 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Individual Knowledge */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h3 className="text-base font-semibold text-gray-800 mb-4 text-center">
-            Individual Knowledge
-          </h3>
-          <KnowledgeLevelChart data={displayData} title="" />
-        </div>
+    <div className="space-y-8">
+      <KnowledgeSummaryCharts
+        individualData={displayData}
+        teamData={allSubmitted ? teamKnowledge : displayData}
+        hasCommitted={hasCommitted}
+      />
 
-        {/* Team Knowledge */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h3 className="text-base font-semibold text-gray-800 mb-4 text-center">
-            Team Knowledge
-          </h3>
-          {!hasCommitted ? (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
-              <AlertCircle className="w-6 h-6 text-red-500 shrink-0" />
-              <p className="text-sm text-red-700">
-                You haven't committed your answer yet
-              </p>
-            </div>
-          ) : (
-            <KnowledgeLevelChart
-              data={allSubmitted ? teamKnowledge : mySubmission}
-              title=""
-            />
-          )}
-        </div>
-      </div>
+      <p className="text-sm text-gray-700">
+        <span className="font-semibold">1.</span> Evaluate your knowledge level
+        for each domain by referring to the descriptors below. Share your
+        results with the team once completed.
+      </p>
 
-      {/* 颜色图例 */}
-      <div className="flex flex-wrap items-center justify-center gap-4 py-4 bg-gray-50 rounded-lg border border-gray-200">
-        {KNOWLEDGE_LEVELS.map((level) => (
-          <div key={level} className="flex items-center gap-2">
-            <div
-              className="w-4 h-4 rounded-full border border-gray-300"
-              style={{ backgroundColor: LEVEL_COLORS[level] }}
-            />
-            <span className="text-sm text-gray-700">{LEVEL_LABELS[level]}</span>
-          </div>
+      <div className="space-y-4">
+        <h2 className="text-lg font-bold text-gray-900 uppercase tracking-wide">
+          Personal Knowledge
+        </h2>
+        {KNOWLEDGE_DOMAINS.map((domain) => (
+          <KnowledgeDomainCard
+            key={domain}
+            domain={domain}
+            title={DOMAIN_TITLES[domain]}
+            value={draftKnowledge[domain] || "none"}
+            onChange={(level: KnowledgeLevel) =>
+              handleKnowledgeChange(domain, level)
+            }
+            comment={draftComments[domain] || ""}
+            onCommentChange={(comment: string) =>
+              handleCommentChange(domain, comment)
+            }
+            isReadOnly={hasCommitted}
+          />
         ))}
       </div>
 
-      {/* 说明与操作区 */}
       <div className="space-y-4">
-        <p className="text-sm text-gray-700">
-          <span className="font-semibold">1. </span> Register your knowledge
-          level according to the pre-defined categories. After completing the
-          self-assessment, commit your results to the team.
-        </p>
+        <h2 className="text-lg font-bold text-gray-900 uppercase tracking-wide">
+          Methodological Freedom
+        </h2>
+        {METHODOLOGICAL_FREEDOM_QUESTIONS.map((type) => (
+          <MethodologicalFreedomCard
+            key={type}
+            questionType={type}
+            value={draftFreedom[type]}
+            onChange={(val: "yes" | "no") => handleFreedomChange(type, val)}
+            isReadOnly={hasCommitted}
+          />
+        ))}
+      </div>
 
-        {/* Individual Knowledge Summary + Commit 按钮 */}
-        <div className="space-y-3 pt-4 border-t border-gray-200">
-          <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg border border-gray-200">
-            <h4 className="text-sm font-semibold text-gray-800">
-              Individual Knowledge Summary
-            </h4>
+      <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
+        {hasCommitted ? (
+          <>
             <Button
-              onClick={handleCommitToTeam}
-              disabled={hasCommitted}
-              className="px-4 py-2"
+              variant="outline"
+              onClick={handleUnsubmit}
+              className="px-6 py-2 text-sm font-medium"
             >
-              {hasCommitted ? "Committed" : "Commit to the team"}
+              Unsubmit
             </Button>
-          </div>
-          <KnowledgeTable data={displayData} readOnly={hasCommitted} />
-        </div>
-
-        {/* 底部团队知识状态栏 & 详情表 */}
-        {hasCommitted && (
-          <div className="space-y-3 pt-4 border-t border-gray-200">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <div className="flex items-center gap-2">
-                {allSubmitted ? (
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
-                ) : (
-                  <Hourglass className="w-5 h-5 text-purple-500 shrink-0" />
-                )}
-                <span className="text-sm text-gray-700">
-                  <span className="font-semibold">
-                    Team Knowledge Summary:{" "}
-                  </span>{" "}
-                  {allSubmitted
-                    ? "All members have submitted"
-                    : `Waiting for ${missingCount} member${missingCount > 1 ? "s" : ""}`}
-                </span>
-              </div>
-              {!allSubmitted && (
-                <span className="text-xs text-purple-600 font-medium">
-                  {missingCount} pending
-                </span>
-              )}
-            </div>
-            <KnowledgeTable
-              data={allSubmitted ? teamKnowledge : mySubmission}
-              readOnly={true}
-            />
-          </div>
+            <Button
+              onClick={() => setShowOverview(true)}
+              className="px-6 py-2 text-sm font-medium bg-gray-900 hover:bg-gray-800 text-white flex items-center gap-2"
+            >
+              See detailed results <Eye className="w-4 h-4" />
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              variant="outline"
+              onClick={handleSave}
+              className="px-6 py-2 text-sm font-medium"
+            >
+              Save
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              className="px-6 py-2 text-sm font-medium bg-gray-900 hover:bg-gray-800 text-white flex items-center gap-2"
+            >
+              Submit <ArrowRight className="w-4 h-4" />
+            </Button>
+          </>
         )}
       </div>
+
+      {hasCommitted && (
+        <div className="space-y-3 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex items-center gap-2">
+              {allSubmitted ? (
+                <CheckCircle2 className="w-5 h-5 text-green-500" />
+              ) : (
+                <Hourglass className="w-5 h-5 text-purple-500 shrink-0" />
+              )}
+              <span className="text-sm text-gray-700">
+                <span className="font-semibold">Team Knowledge Summary:</span>{" "}
+                {allSubmitted
+                  ? "All members have submitted"
+                  : `Waiting for ${missingCount} member${missingCount > 1 ? "s" : ""}`}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <TypingIndicator
         editingUsers={editingUsers}
