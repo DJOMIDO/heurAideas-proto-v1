@@ -57,6 +57,13 @@ export default function Substep() {
   const [commentRefreshKey, setCommentRefreshKey] = useState(0);
   const [taskSyncKey, setTaskSyncKey] = useState(0);
   const [teamSize, setTeamSize] = useState(0);
+  const [teamMembers, setTeamMembers] = useState<
+    Array<{
+      id: number;
+      username: string;
+      email?: string;
+    }>
+  >([]);
 
   // 编辑用户状态：{ fieldName: { userId, username, timestamp } }
   // 这个状态 ONLY 由接收到的 WebSocket 消息更新（排除自己）
@@ -593,10 +600,12 @@ export default function Substep() {
           setProjectSubstepIdMap(map);
         }
 
-        // 提取真实团队人数
+        // 提取真实团队人数和成员列表
+        const members = membersRes?.members || [];
         const count = membersRes?.total ?? membersRes?.members?.length ?? 0;
         if (count > 0) {
           setTeamSize(count);
+          setTeamMembers(members);
         }
       })
       .catch((error) => {
@@ -730,6 +739,7 @@ export default function Substep() {
             conflictFields={conflictFields}
             parentCurrentUserId={currentUserId}
             teamSize={teamSize}
+            teamMembers={teamMembers}
             onConflictResolve={(field: string) => {
               handleSave();
               setConflictFields((prev) => {
@@ -768,6 +778,7 @@ export default function Substep() {
                 conflictFields={conflictFields}
                 parentCurrentUserId={currentUserId}
                 teamSize={teamSize}
+                teamMembers={teamMembers}
                 onConflictResolve={(field: string) => {
                   handleSave();
                   setConflictFields((prev) => {
@@ -806,6 +817,7 @@ export default function Substep() {
                 conflictFields={conflictFields}
                 parentCurrentUserId={currentUserId}
                 teamSize={teamSize}
+                teamMembers={teamMembers}
                 onConflictResolve={(field: string) => {
                   handleSave();
                   setConflictFields((prev) => {

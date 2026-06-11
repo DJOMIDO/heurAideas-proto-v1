@@ -35,9 +35,14 @@ interface SubstepContentCardProps {
   conflictFields?: Record<string, { username: string; timestamp: string }>;
   onConflictResolve?: (field: string) => void;
   teamSize?: number;
+  teamMembers?: Array<{
+    id: number;
+    username: string;
+    email?: string;
+  }>;
   sendMessage?: (message: any) => void;
   userInfo?: { name: string } | null;
-  syncKey?: number
+  syncKey?: number;
   onSyncAndSave?: (key: string, value: any) => void;
 }
 
@@ -62,6 +67,7 @@ export default function SubstepContentCard({
   conflictFields = {},
   onConflictResolve,
   teamSize,
+  teamMembers,
   sendMessage,
   userInfo,
   syncKey = 0,
@@ -320,7 +326,9 @@ export default function SubstepContentCard({
               // 从 subtask 获取 formType（来自 steps.json）
               const formType = (subtask as any).formType;
               // 获取对应的表单组件
-              const FormComponent = getSubtaskFormComponent(formType) as React.ComponentType<any>;
+              const FormComponent = getSubtaskFormComponent(
+                formType,
+              ) as React.ComponentType<any>;
 
               return (
                 <FormComponent
@@ -333,6 +341,7 @@ export default function SubstepContentCard({
                   onConflictResolve={onConflictResolve}
                   projectId={projectId}
                   teamSize={teamSize}
+                  teamMembers={teamMembers}
                   sendMessage={sendMessage}
                   userInfo={userInfo ?? undefined}
                   syncKey={syncKey}
