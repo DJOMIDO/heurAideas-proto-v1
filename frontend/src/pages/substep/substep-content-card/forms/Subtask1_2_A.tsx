@@ -1,7 +1,7 @@
 // frontend/src/pages/substep/substep-content-card/forms/Subtask1_2_A.tsx
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Hourglass, CheckCircle2, ArrowRight, Eye } from "lucide-react";
+import { Hourglass, CheckCircle2, ArrowRight, Eye, Save } from "lucide-react";
 import { toast } from "sonner";
 import TypingIndicator from "@/components/TypingIndicator";
 import KnowledgeDomainCard from "./subtask-1-2-a/KnowledgeDomainCard";
@@ -354,6 +354,7 @@ export default function Subtask1_2_A({
               onClick={handleSave}
               className="px-6 py-2 text-sm font-medium"
             >
+              <Save className="w-4 h-4" />
               Save
             </Button>
             <Button

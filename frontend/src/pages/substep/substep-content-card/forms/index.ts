@@ -6,6 +6,7 @@ import Subtask1_1_C from "./Subtask1_1_C";
 import Subtask1_2_A from "./Subtask1_2_A";
 import Subtask1_3_A from "./Subtask1_3_A";
 import Subtask1_3_B from "./Subtask1_3_B";
+import Subtask1_3_C from "./Subtask1_3_C";
 import Subtask2_1_A from "./Subtask2_1_A";
 
 // Form components mapping (Strategy Pattern)
@@ -19,6 +20,7 @@ export const SUBTASK_FORM_COMPONENTS: Record<
   "subtask-1-2-a": Subtask1_2_A,
   "subtask-1-3-a": Subtask1_3_A,
   "subtask-1-3-b": Subtask1_3_B,
+  "subtask-1-3-c": Subtask1_3_C,
   "subtask-2-1-a": Subtask2_1_A,
 };
 
