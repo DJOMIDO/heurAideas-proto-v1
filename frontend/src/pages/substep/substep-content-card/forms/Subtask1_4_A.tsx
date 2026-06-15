@@ -3,23 +3,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import {
-  ArrowRight,
-  Users,
-  BookOpen,
-  DollarSign,
-  Clock,
-  Save,
-} from "lucide-react";
+import { ArrowRight, Users, BookOpen, DollarSign, Clock } from "lucide-react";
 import TypingIndicator from "@/components/TypingIndicator";
 import ResourceSection from "./subtask-1-4-a/ResourceSection";
 import LevelSelectionCard from "./subtask-1-4-a/LevelSelectionCard";
 import OptionalTextInput from "./subtask-1-4-a/OptionalTextInput";
 import DocumentSelectButton from "./subtask-1-4-a/DocumentSelectButton";
-import type {
-  ResourcesData,
-  SubmissionData,
-} from "./subtask-1-4-a/types";
+import type { ResourcesData, SubmissionData } from "./subtask-1-4-a/types";
 
 interface Subtask1_4_AProps {
   fieldPrefix: string;
@@ -66,10 +56,16 @@ export default function Subtask1_4_A({
     (formData[submissionsKey] as Record<number, SubmissionData>) || {};
   const mySubmission = submissions[currentUserId];
   const draftData = (formData[draftKey] as { resources?: ResourcesData }) || {};
-
   const [hasCommitted, setHasCommitted] = useState(!!mySubmission?.committedAt);
   const [resources, setResources] = useState<ResourcesData>(() => {
-    return draftData.resources || mySubmission || createInitialData();
+    const initialData = createInitialData();
+    const { committedAt, username, ...restOfSubmission } = mySubmission || {};
+
+    return {
+      ...initialData,
+      ...draftData.resources,
+      ...restOfSubmission,
+    };
   });
 
   useEffect(() => {
@@ -134,16 +130,6 @@ export default function Subtask1_4_A({
     } catch (error) {
       console.error("Unsubmit failed:", error);
       toast.error("Failed to withdraw submission.");
-    }
-  };
-
-  const handleSave = () => {
-    try {
-      saveDraft(resources);
-      toast.success("Draft saved successfully.");
-    } catch (error) {
-      console.error("Save failed:", error);
-      toast.error("Failed to save draft.");
     }
   };
 
@@ -406,16 +392,6 @@ export default function Subtask1_4_A({
             Unsubmit
           </Button>
         ) : (
-          <Button
-            onClick={handleSave}
-            variant="outline"
-            className="px-6 py-2 text-sm font-medium mr-3"
-          >
-            <Save className="w-4 h-4" />
-            Save
-          </Button>
-        )}
-        {!hasCommitted && (
           <Button
             onClick={handleSubmit}
             className="px-8 py-2 text-sm font-medium bg-gray-900 hover:bg-gray-800 text-white flex items-center gap-2"

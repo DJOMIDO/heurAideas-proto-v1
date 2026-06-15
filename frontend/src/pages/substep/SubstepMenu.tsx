@@ -1,10 +1,9 @@
 // src/pages/substep/SubstepMenu.tsx
-
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save, CheckCircle2, Clock, Redo, Undo } from "lucide-react";
+import { ArrowLeft, Save, Redo, Undo } from "lucide-react";
 import { type Substep } from "@/data/steps";
-import { useState } from "react";
+import { toast } from "sonner";
 import "@/styles/animations.css";
 
 interface SubstepMenuProps {
@@ -23,25 +22,17 @@ export default function SubstepMenu({
   currentSubstepId,
   projectId,
   onSave,
-  isSaving: parentIsSaving = false,
+  isSaving = false,
 }: SubstepMenuProps) {
   const navigate = useNavigate();
 
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "success">(
-    "idle",
-  );
-
-  const isSaving = saveStatus === "saving" || parentIsSaving;
-
   const handleSave = async () => {
-    setSaveStatus("saving");
     try {
       await onSave?.();
-      setSaveStatus("success");
-      setTimeout(() => setSaveStatus("idle"), 2000);
+      toast.success("Progress saved successfully.");
     } catch (error) {
       console.error("Save failed:", error);
-      setSaveStatus("idle");
+      toast.error("Failed to save progress.");
     }
   };
 
@@ -60,33 +51,15 @@ export default function SubstepMenu({
           </Button>
 
           <Button
-            variant={saveStatus === "success" ? "default" : "outline"}
+            variant="outline"
             size="sm"
-            className={`flex-1 h-8 text-xs transition-all duration-300 ${
-              saveStatus === "success"
-                ? "bg-green-600 hover:bg-green-700 border-green-600 text-white animate-success-pulse"
-                : "border-gray-200 hover:bg-gray-100 hover:border-gray-300 text-gray-700"
-            } disabled:opacity-50`}
+            className="flex-1 h-8 text-xs border-gray-200 hover:bg-gray-100 hover:border-gray-300 text-gray-700 disabled:opacity-50"
             onClick={handleSave}
             disabled={isSaving}
             title="Save Progress"
           >
-            {saveStatus === "saving" ? (
-              <>
-                <Clock className="w-3 h-3 animate-spin" />
-                <span className="ml">Saving...</span>
-              </>
-            ) : saveStatus === "success" ? (
-              <>
-                <CheckCircle2 className="w-3 h-3" />
-                <span className="ml">Saved!</span>
-              </>
-            ) : (
-              <>
-                <Save className="w-3 h-3" />
-                <span className="ml">Save</span>
-              </>
-            )}
+            <Save className="w-3 h-3" />
+            <span className="ml-1">Save</span>
           </Button>
 
           <Button
