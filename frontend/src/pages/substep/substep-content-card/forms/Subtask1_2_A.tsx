@@ -1,7 +1,6 @@
-// frontend/src/pages/substep/substep-content-card/forms/Subtask1_2_A.tsx
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Hourglass, CheckCircle2, ArrowRight, Eye, Save } from "lucide-react";
+import { Hourglass, CheckCircle2, ArrowRight, Eye } from "lucide-react";
 import { toast } from "sonner";
 import TypingIndicator from "@/components/TypingIndicator";
 import KnowledgeDomainCard from "./subtask-1-2-a/KnowledgeDomainCard";
@@ -37,7 +36,6 @@ interface Subtask1_2_AProps {
   projectId?: number;
   sendMessage?: (message: any) => void;
   onSyncAndSave?: (key: string, value: any) => void;
-  onManualSave?: () => Promise<void>;
 }
 
 export const calculateTeamKnowledge = (
@@ -89,7 +87,6 @@ export default function Subtask1_2_A({
   teamSize,
   userInfo,
   onSyncAndSave,
-  onManualSave,
 }: Subtask1_2_AProps) {
   const submissionsKey = `${fieldPrefix}-knowledge_submissions`;
   const draftKey = `${fieldPrefix}-personal_draft_${currentUserId}`;
@@ -109,22 +106,29 @@ export default function Subtask1_2_A({
 
   const [hasCommitted, setHasCommitted] = useState(!!mySubmission?.committedAt);
   const [showOverview, setShowOverview] = useState(false);
+
   const [draftKnowledge, setDraftKnowledge] = useState<KnowledgeData>(() => {
     const init: KnowledgeData = {};
     KNOWLEDGE_DOMAINS.forEach((d) => {
-      init[d] = draftData.knowledge?.[d] || mySubmission?.[d] || "none";
+      if (mySubmission) {
+        init[d] = mySubmission[d] || "none";
+      } else {
+        init[d] = draftData.knowledge?.[d] || "none";
+      }
     });
     return init;
   });
+
   const [draftComments, setDraftComments] = useState<Record<string, string>>(
     draftData.comments || {},
   );
+
   const [draftFreedom, setDraftFreedom] = useState<MethodologicalFreedomData>(
-    draftData.freedom || mySubmission?.freedom || {},
+    mySubmission?.freedom || draftData.freedom || {},
   );
 
   useEffect(() => {
-    if (mySubmission?.committedAt) setHasCommitted(true);
+    setHasCommitted(!!mySubmission?.committedAt);
   }, [mySubmission?.committedAt]);
 
   useEffect(() => {
@@ -133,7 +137,6 @@ export default function Subtask1_2_A({
 
     Object.keys(currSubmissions).forEach((userIdStr) => {
       const userId = Number(userIdStr);
-
       if (userId === currentUserId) return;
 
       const prevData = prevSubmissions[userId];
@@ -188,11 +191,6 @@ export default function Subtask1_2_A({
   const handleSubmit = async () => {
     if (hasCommitted) return;
     try {
-      // 先强制保存本地所有未保存的更改（防止自己的 comment 在拉取后端时被覆盖丢失）
-      if (onManualSave) {
-        await onManualSave();
-      }
-
       setHasCommitted(true);
       const submissionData = {
         ...draftKnowledge,
@@ -206,10 +204,17 @@ export default function Subtask1_2_A({
         [currentUserId]: submissionData,
       };
 
+      onFormDataChange(submissionsKey, mergedSubmissions);
+
       if (onSyncAndSave) {
-        await onSyncAndSave(submissionsKey, mergedSubmissions);
-      } else {
-        onFormDataChange(submissionsKey, mergedSubmissions);
+        try {
+          await onSyncAndSave(submissionsKey, mergedSubmissions);
+        } catch (syncError) {
+          console.warn(
+            "[Subtask1_2_A] Sync failed, relying on auto-save:",
+            syncError,
+          );
+        }
       }
 
       toast.success("Knowledge assessment submitted successfully!");
@@ -227,26 +232,23 @@ export default function Subtask1_2_A({
 
       const { [currentUserId]: _, ...rest } = submissions;
 
+      onFormDataChange(submissionsKey, rest);
+
       if (onSyncAndSave) {
-        await onSyncAndSave(submissionsKey, rest);
-      } else {
-        onFormDataChange(submissionsKey, rest);
+        try {
+          await onSyncAndSave(submissionsKey, rest);
+        } catch (syncError) {
+          console.warn(
+            "[Subtask1_2_A] Unsubmit sync failed, relying on auto-save:",
+            syncError,
+          );
+        }
       }
 
       toast.success("Submission withdrawn.");
     } catch (error) {
       console.error("Unsubmit failed:", error);
       toast.error("Failed to withdraw submission.");
-    }
-  };
-
-  const handleSave = () => {
-    try {
-      saveDraft(draftKnowledge, draftComments, draftFreedom);
-      toast.success("Draft saved successfully.");
-    } catch (error) {
-      console.error("Save failed:", error);
-      toast.error("Failed to save draft.");
     }
   };
 
@@ -348,22 +350,12 @@ export default function Subtask1_2_A({
             </Button>
           </>
         ) : (
-          <>
-            <Button
-              variant="outline"
-              onClick={handleSave}
-              className="px-6 py-2 text-sm font-medium"
-            >
-              <Save className="w-4 h-4" />
-              Save
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              className="px-6 py-2 text-sm font-medium bg-gray-900 hover:bg-gray-800 text-white flex items-center gap-2"
-            >
-              Submit <ArrowRight className="w-4 h-4" />
-            </Button>
-          </>
+          <Button
+            onClick={handleSubmit}
+            className="px-6 py-2 text-sm font-medium bg-gray-900 hover:bg-gray-800 text-white flex items-center gap-2"
+          >
+            Submit <ArrowRight className="w-4 h-4" />
+          </Button>
         )}
       </div>
 
