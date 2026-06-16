@@ -190,19 +190,16 @@ export default function DocumentManager() {
         type: "folder",
         children: [],
         projectId,
-        parentId: uploadTargetId || undefined, // 确保新文件夹有 parentId
+        parentId: uploadTargetId || undefined,
       };
 
       setDocuments((prev) => {
         const updated = insertFolderToTarget(prev, newFolder, uploadTargetId);
         if (uploadTargetId) {
           setAutoExpandFolderId(uploadTargetId);
-          setSelectedDocId(tempId);
-          setUploadTargetId(tempId);
-        } else {
-          setSelectedDocId(tempId);
-          setUploadTargetId(tempId);
         }
+        setSelectedDocId(tempId);
+        setUploadTargetId(tempId);
         return updated;
       });
 
@@ -215,6 +212,12 @@ export default function DocumentManager() {
 
       // 替换临时节点为真实节点
       setDocuments((prev) => replaceTempNode(prev, tempId, created));
+
+      // 将 state 中的临时 ID 替换为后端返回的真实 ID
+      // 防止后续操作（如上传文件、创建子文件夹）把 temp-xxx 传给后端导致外键报错
+      setUploadTargetId((prev) => (prev === tempId ? created.id : prev));
+      setSelectedDocId((prev) => (prev === tempId ? created.id : prev));
+      setAutoExpandFolderId((prev) => (prev === tempId ? created.id : prev));
 
       setNewFolderName("");
       setIsCreateFolderOpen(false);
