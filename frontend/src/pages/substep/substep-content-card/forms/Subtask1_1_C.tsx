@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
 import TypingIndicator from "@/components/TypingIndicator";
 import { generateIdSequence } from "@/utils/generateIds";
+import DocumentLinkField from "@/components/DocumentSelector/DocumentLinkField";
 
 interface Subtask1_1_CProps {
   fieldPrefix: string;
@@ -18,6 +19,7 @@ interface Subtask1_1_CProps {
   conflictFields?: Record<string, { username: string; timestamp: string }>;
   currentUserId?: number;
   onConflictResolve?: (field: string) => void;
+  projectId?: number;
 }
 
 export default function Subtask1_1_C({
@@ -25,6 +27,7 @@ export default function Subtask1_1_C({
   formData,
   onFormDataChange,
   editingUsers = {},
+  projectId = 0,
 }: Subtask1_1_CProps) {
   const getField = (key: string) => formData[`${fieldPrefix}-${key}`] || "";
   const updateField = (key: string, value: any) => {
@@ -163,18 +166,20 @@ export default function Subtask1_1_C({
 
                   {/* Source */}
                   <td className="px-3 py-2">
-                    <Input
-                      placeholder="Enter source"
-                      value={getField(`needs-${idx}-source`)}
-                      onChange={(e) =>
-                        updateField(`needs-${idx}-source`, e.target.value)
-                      }
-                      className="h-8 text-xs"
-                    />
-                    <TypingIndicator
-                      editingUsers={editingUsers}
-                      fieldName={`${fieldPrefix}-needs-${idx}-source`}
-                    />
+                    <div className="space-y-1">
+                      <DocumentLinkField
+                        value={getField(`needs-${idx}-source`)}
+                        onChange={(val) =>
+                          updateField(`needs-${idx}-source`, val)
+                        }
+                        projectId={projectId}
+                        placeholder="Enter source"
+                      />
+                      <TypingIndicator
+                        editingUsers={editingUsers}
+                        fieldName={`${fieldPrefix}-needs-${idx}-source`}
+                      />
+                    </div>
                   </td>
 
                   {/* Remove Button */}
@@ -317,18 +322,20 @@ export default function Subtask1_1_C({
 
                   {/* Source */}
                   <td className="px-3 py-2">
-                    <Input
-                      placeholder="Enter source"
-                      value={getField(`effects-${idx}-source`)}
-                      onChange={(e) =>
-                        updateField(`effects-${idx}-source`, e.target.value)
-                      }
-                      className="h-8 text-xs"
-                    />
-                    <TypingIndicator
-                      editingUsers={editingUsers}
-                      fieldName={`${fieldPrefix}-effects-${idx}-source`}
-                    />
+                    <div className="space-y-1">
+                      <DocumentLinkField
+                        value={getField(`effects-${idx}-source`)}
+                        onChange={(val) =>
+                          updateField(`effects-${idx}-source`, val)
+                        }
+                        projectId={projectId}
+                        placeholder="Enter source"
+                      />
+                      <TypingIndicator
+                        editingUsers={editingUsers}
+                        fieldName={`${fieldPrefix}-effects-${idx}-source`}
+                      />
+                    </div>
                   </td>
 
                   {/* Remove Button */}

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
 import TypingIndicator from "@/components/TypingIndicator";
 import { generateIdSequence } from "@/utils/generateIds";
+import DocumentLinkField from "@/components/DocumentSelector/DocumentLinkField";
 
 interface Subtask1_1_BProps {
   fieldPrefix: string;
@@ -19,6 +20,7 @@ interface Subtask1_1_BProps {
   conflictFields?: Record<string, { username: string; timestamp: string }>;
   currentUserId?: number;
   onConflictResolve?: (field: string) => void;
+  projectId?: number;
 }
 
 export default function Subtask1_1_B({
@@ -26,6 +28,7 @@ export default function Subtask1_1_B({
   formData,
   onFormDataChange,
   editingUsers = {},
+  projectId = 0,
 }: Subtask1_1_BProps) {
   const getField = (key: string) => formData[`${fieldPrefix}-${key}`] || "";
   const updateField = (key: string, value: any) => {
@@ -258,19 +261,20 @@ export default function Subtask1_1_B({
 
                     {/* Link */}
                     <td className="px-3 py-2 align-top">
-                      <Textarea
-                        placeholder="+ Add to doc manager"
-                        value={getField(`docs-${idx}-link`)}
-                        onChange={(e) =>
-                          updateField(`docs-${idx}-link`, e.target.value)
-                        }
-                        className="min-h-[80px] text-xs resize-y"
-                        rows={3}
-                      />
-                      <TypingIndicator
-                        editingUsers={editingUsers}
-                        fieldName={`${fieldPrefix}-docs-${idx}-link`}
-                      />
+                      <div className="space-y-1">
+                        <DocumentLinkField
+                          value={getField(`docs-${idx}-link`)}
+                          onChange={(val) =>
+                            updateField(`docs-${idx}-link`, val)
+                          }
+                          projectId={projectId}
+                          placeholder="+ Add to doc manager"
+                        />
+                        <TypingIndicator
+                          editingUsers={editingUsers}
+                          fieldName={`${fieldPrefix}-docs-${idx}-link`}
+                        />
+                      </div>
                     </td>
 
                     {/* Remove Button */}

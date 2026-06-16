@@ -20,7 +20,12 @@ export interface ResourcesData {
   scientificDatabases: ResourceField;
   domainDocumentation: ResourceField;
   projectDocumentation: {
-    documents: string[];
+    documents: Array<{ 
+      id: string; 
+      name: string; 
+      extension?: string; 
+      url?: string; 
+    }>;
   };
 
   // Material & Financial Resources

@@ -10,6 +10,8 @@ import LevelSelectionCard from "./subtask-1-4-a/LevelSelectionCard";
 import OptionalTextInput from "./subtask-1-4-a/OptionalTextInput";
 import DocumentSelectButton from "./subtask-1-4-a/DocumentSelectButton";
 import type { ResourcesData, SubmissionData } from "./subtask-1-4-a/types";
+import DocumentSelectorModal from "@/components/DocumentSelector/DocumentSelectorModal";
+import type { DocumentNode } from "@/pages/documents/types";
 
 interface Subtask1_4_AProps {
   fieldPrefix: string;
@@ -46,6 +48,7 @@ export default function Subtask1_4_A({
   onFormDataChange,
   editingUsers = {},
   currentUserId,
+  projectId, // 👈 新增解构
   userInfo,
   onSyncAndSave,
 }: Subtask1_4_AProps) {
@@ -56,7 +59,10 @@ export default function Subtask1_4_A({
     (formData[submissionsKey] as Record<number, SubmissionData>) || {};
   const mySubmission = submissions[currentUserId];
   const draftData = (formData[draftKey] as { resources?: ResourcesData }) || {};
+
   const [hasCommitted, setHasCommitted] = useState(!!mySubmission?.committedAt);
+  const [isDocumentSelectorOpen, setIsDocumentSelectorOpen] = useState(false); // 👈 新增状态
+
   const [resources, setResources] = useState<ResourcesData>(() => {
     const initialData = createInitialData();
     const { committedAt, username, ...restOfSubmission } = mySubmission || {};
@@ -84,6 +90,23 @@ export default function Subtask1_4_A({
     const newData = { ...resources, [field]: value };
     setResources(newData);
     saveDraft(newData);
+  };
+
+  // 👇 新增：处理文档选择
+  const handleDocumentSelect = (selectedDocs: DocumentNode[]) => {
+    const docMetadata = selectedDocs.map((doc) => ({
+      id: doc.id,
+      name: doc.name,
+      extension: doc.extension,
+      url: doc.url,
+    }));
+
+    updateField("projectDocumentation", {
+      ...resources.projectDocumentation,
+      documents: docMetadata,
+    });
+
+    toast.success(`Selected ${selectedDocs.length} document(s)`);
   };
 
   const handleSubmit = async () => {
@@ -295,13 +318,29 @@ export default function Subtask1_4_A({
             Link existing documents accessible to the team — requirements,
             analyses, standards, technical specs.
           </p>
+
+          {/* 👇 修改：打开文档选择器 Modal */}
           <DocumentSelectButton
-            onClick={() => {
-              // TODO: Implement document selection modal
-              toast.info("Document selection feature coming soon!");
-            }}
+            onClick={() => setIsDocumentSelectorOpen(true)}
             isReadOnly={hasCommitted}
           />
+
+          {/* 可选：显示已选文档列表 */}
+          {resources.projectDocumentation.documents.length > 0 && (
+            <div className="mt-3 space-y-1">
+              <p className="text-xs font-medium text-gray-500">
+                Selected documents:
+              </p>
+              <ul className="text-xs text-gray-700 space-y-1 pl-2">
+                {resources.projectDocumentation.documents.map((doc) => (
+                  <li key={doc.id} className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                    {doc.name}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </ResourceSection>
 
@@ -400,6 +439,14 @@ export default function Subtask1_4_A({
           </Button>
         )}
       </div>
+
+      {/* 👇 新增：渲染文档选择器 Modal */}
+      <DocumentSelectorModal
+        open={isDocumentSelectorOpen}
+        onOpenChange={setIsDocumentSelectorOpen}
+        onConfirm={handleDocumentSelect}
+        projectId={projectId || 0}
+      />
 
       <TypingIndicator
         editingUsers={editingUsers}
