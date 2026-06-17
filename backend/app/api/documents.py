@@ -21,6 +21,7 @@ from app.utils.permissions import can_access_project
 from app.services.storage import storage_service
 from app.schemas.document import DocumentFolderCreate
 from app.websocket.manager import manager
+from pydantic import BaseModel # pyright: ignore[reportMissingImports]
 
 router = APIRouter(prefix="/projects/{project_id}/documents", tags=["Documents"])
 
@@ -40,9 +41,12 @@ def _doc_to_dict(doc: Document) -> dict:
         "size": doc.file_size,
         "updatedAt": doc.updated_at.isoformat() if doc.updated_at else None,
         "url": doc._get_public_url() if doc.storage_path else None,
+        "tags": doc.tags or [],
         "children": [],
     }
 
+class TagUpdateRequest(BaseModel):
+    tags: List[str]
 
 def _build_tree(nodes: List[Document]) -> List[dict]:
     """递归构建树形结构"""
@@ -280,3 +284,41 @@ async def delete_node(
     )
 
     return {"success": True}
+
+@router.patch("/{node_id}/tags")
+async def update_node_tags(
+    project_id: int,
+    node_id: str,
+    body: TagUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """更新文件或文件夹的标签"""
+    if not can_access_project(db, project_id, current_user.id):
+        raise HTTPException(status_code=403, detail="No access to this project")
+
+    doc = db.query(Document).filter(Document.id == node_id, Document.project_id == project_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Node not found")
+
+    # 更新 tags
+    doc.tags = body.tags
+    db.commit()
+    db.refresh(doc)
+
+    result = _doc_to_dict(doc)
+
+    # 广播更新事件
+    await manager.broadcast(
+        project_id=project_id,
+        message={
+            "type": "document.updated",
+            "data": result,
+            "user_id": current_user.id,
+            "username": getattr(current_user, "username", "User"),
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+        exclude_user_id=current_user.id,
+    )
+
+    return result

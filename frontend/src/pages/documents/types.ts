@@ -12,6 +12,7 @@ export interface DocumentNode {
   file?: File;
   projectId: number;
   parentId?: string;
+  tags?: string[];
 }
 
 export interface DocumentTreeProps {

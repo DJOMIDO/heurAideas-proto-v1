@@ -4,7 +4,7 @@ import { API_BASE_URL, API_ENDPOINTS } from "./config";
 import type { DocumentNode } from "@/pages/documents/types";
 import { getToken } from "@/utils/auth";
 
-// 内部请求封装（复用 projects.ts 的逻辑）
+// 内部请求封装
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
@@ -55,7 +55,7 @@ export async function createFolder(
     method: "POST",
     body: JSON.stringify({
       name,
-      parent_id: parentId, // 后端通常期望 parent_id
+      parent_id: parentId,
     }),
   });
 }
@@ -91,7 +91,7 @@ export async function renameNode(
   return request<DocumentNode>(
     API_ENDPOINTS.DOCUMENT_RENAME(projectId, nodeId),
     {
-      method: "PATCH", // 或 PUT，视后端实现而定
+      method: "PATCH",
       body: JSON.stringify({ name: newName }),
     },
   );
@@ -110,4 +110,22 @@ export async function deleteNode(
       method: "DELETE",
     },
   );
+}
+
+/**
+ * 更新文档标签 - 复用 request 封装
+ */
+export async function updateDocumentTags(
+  projectId: number,
+  nodeId: string,
+  tags: string[],
+): Promise<DocumentNode> {
+  // 注意：这里需要确保 config.ts 中有对应的端点定义，或者手动拼接路径
+  // 假设你的 API_ENDPOINTS 有 DOCUMENT_TAGS 方法，如果没有可以这样写：
+  const endpoint = `/projects/${projectId}/documents/${nodeId}/tags`;
+
+  return request<DocumentNode>(endpoint, {
+    method: "PATCH",
+    body: JSON.stringify({ tags }),
+  });
 }
