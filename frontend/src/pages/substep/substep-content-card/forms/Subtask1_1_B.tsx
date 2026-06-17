@@ -35,7 +35,6 @@ export default function Subtask1_1_B({
     onFormDataChange(`${fieldPrefix}-${key}`, value);
   };
 
-  // Docs Table
   const getDocRows = () => {
     const stored = formData[`${fieldPrefix}-docs-row-count`];
     if (stored && typeof stored === "number" && stored >= 2) {
@@ -52,7 +51,6 @@ export default function Subtask1_1_B({
     onFormDataChange(`${fieldPrefix}-docs-row-count`, newCount);
   };
 
-  // Parts Table
   const getPartRows = () => {
     const stored = formData[`${fieldPrefix}-parts-row-count`];
     if (stored && typeof stored === "number" && stored >= 2) return stored;
@@ -66,7 +64,6 @@ export default function Subtask1_1_B({
     onFormDataChange(`${fieldPrefix}-parts-row-count`, newCount);
   };
 
-  // Parts Table
   const getPartCols = () => {
     const stored = formData[`${fieldPrefix}-parts-col-count`];
     if (stored && typeof stored === "number" && stored >= 1) return stored;
@@ -84,7 +81,6 @@ export default function Subtask1_1_B({
     onFormDataChange(`${fieldPrefix}-parts-col-count`, newCount);
   };
 
-  // Docs Table Handlers
   const addDocRow = () => updateDocRows(docRows + 1);
   const removeDocRow = (idx: number) => {
     if (docRows <= 1) return;
@@ -98,7 +94,6 @@ export default function Subtask1_1_B({
     updateDocRows(docRows - 1);
   };
 
-  // Parts Table Handlers
   const addPartRow = () => updatePartRows(partRows + 1);
   const removePartRow = (idx: number) => {
     if (partRows <= 1) return;
@@ -129,7 +124,6 @@ export default function Subtask1_1_B({
 
   return (
     <div className="space-y-6">
-      {/* 1. Register SoI */}
       <div className="space-y-2">
         <label className="text-sm font-bold text-black">
           1. Register the system of interest (SoI)
@@ -146,7 +140,6 @@ export default function Subtask1_1_B({
         />
       </div>
 
-      {/* 2. Norms & Standards Table */}
       <div className="space-y-2">
         <label className="text-sm font-bold text-black">
           2. Enter the norms, standards and any other documentation of reference
@@ -184,14 +177,12 @@ export default function Subtask1_1_B({
                     key={idx}
                     className="hover:bg-gray-50/50 transition-colors"
                   >
-                    {/* ID */}
                     <td className="px-3 py-2 align-top">
                       <span className="text-xs font-mono text-gray-600">
                         {autoId}
                       </span>
                     </td>
 
-                    {/* Type */}
                     <td className="px-3 py-2 align-top">
                       <Textarea
                         placeholder="Enter Doc Type"
@@ -208,7 +199,6 @@ export default function Subtask1_1_B({
                       />
                     </td>
 
-                    {/* Title */}
                     <td className="px-3 py-2 align-top">
                       <Textarea
                         placeholder="Enter a Title"
@@ -225,7 +215,6 @@ export default function Subtask1_1_B({
                       />
                     </td>
 
-                    {/* Core concepts */}
                     <td className="px-3 py-2 align-top">
                       <Textarea
                         placeholder="+ Add concepts"
@@ -242,7 +231,6 @@ export default function Subtask1_1_B({
                       />
                     </td>
 
-                    {/* Definitions */}
                     <td className="px-3 py-2 align-top">
                       <Textarea
                         placeholder="+ Add definition"
@@ -259,7 +247,6 @@ export default function Subtask1_1_B({
                       />
                     </td>
 
-                    {/* Link */}
                     <td className="px-3 py-2 align-top">
                       <div className="space-y-1">
                         <DocumentLinkField
@@ -270,14 +257,9 @@ export default function Subtask1_1_B({
                           projectId={projectId}
                           placeholder="+ Add to doc manager"
                         />
-                        <TypingIndicator
-                          editingUsers={editingUsers}
-                          fieldName={`${fieldPrefix}-docs-${idx}-link`}
-                        />
                       </div>
                     </td>
 
-                    {/* Remove Button */}
                     <td className="px-2 py-2 text-center align-top">
                       {docRows > 1 && (
                         <button
@@ -305,7 +287,6 @@ export default function Subtask1_1_B({
         </Button>
       </div>
 
-      {/* 3. Concepts & Parts Table */}
       <div className="space-y-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <label className="text-sm font-bold text-black">
@@ -350,7 +331,6 @@ export default function Subtask1_1_B({
             <tbody className="divide-y divide-gray-200">
               {Array.from({ length: partRows }).map((_, r) => (
                 <tr key={r} className="hover:bg-gray-50/50 transition-colors">
-                  {/* Concepts column */}
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Concept"
@@ -366,7 +346,6 @@ export default function Subtask1_1_B({
                     />
                   </td>
 
-                  {/* Part columns */}
                   {Array.from({ length: partCols }).map((_, c) => (
                     <td key={c} className="px-3 py-2">
                       <Input
@@ -384,7 +363,6 @@ export default function Subtask1_1_B({
                     </td>
                   ))}
 
-                  {/* Remove Button */}
                   <td className="px-2 py-2 text-center">
                     {partRows > 1 && (
                       <button

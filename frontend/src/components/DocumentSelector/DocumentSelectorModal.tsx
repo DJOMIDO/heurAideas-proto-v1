@@ -1,5 +1,5 @@
 // frontend/src/components/DocumentSelector/DocumentSelectorModal.tsx
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Dialog,
@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +27,7 @@ interface DocumentSelectorModalProps {
   onOpenChange: (open: boolean) => void;
   onConfirm: (documents: DocumentNode[]) => void;
   projectId: number;
+  initialSelectedIds?: string[];
 }
 
 export default function DocumentSelectorModal({
@@ -33,6 +35,7 @@ export default function DocumentSelectorModal({
   onOpenChange,
   onConfirm,
   projectId,
+  initialSelectedIds = [],
 }: DocumentSelectorModalProps) {
   const navigate = useNavigate();
   const [documents, setDocuments] = useState<DocumentNode[]>([]);
@@ -41,9 +44,8 @@ export default function DocumentSelectorModal({
     new Set(),
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  // 👇 新增：Tag 筛选状态
   const [activeTags, setActiveTags] = useState<string[]>([]);
+  const isInitializedRef = useRef(false);
 
   useEffect(() => {
     if (open && projectId) {
@@ -51,12 +53,37 @@ export default function DocumentSelectorModal({
     }
   }, [open, projectId]);
 
+  useEffect(() => {
+    if (open && documents.length > 0 && !isInitializedRef.current) {
+      const validIds = new Set<string>();
+      const traverse = (nodes: DocumentNode[]) => {
+        nodes.forEach((node) => {
+          if (node.type === "file" && initialSelectedIds.includes(node.id)) {
+            validIds.add(node.id);
+          }
+          if (node.children) {
+            traverse(node.children);
+          }
+        });
+      };
+      traverse(documents);
+
+      setSelectedIds(validIds);
+      isInitializedRef.current = true;
+    }
+
+    if (!open) {
+      isInitializedRef.current = false;
+      setSelectedIds(new Set());
+      setActiveTags([]);
+    }
+  }, [open, documents, initialSelectedIds]);
+
   const loadDocuments = async () => {
     setIsLoading(true);
     try {
       const data = await fetchDocuments(projectId);
       setDocuments(data);
-      // 默认展开第一层文件夹
       const firstLevelFolders = data
         .filter((d) => d.type === "folder")
         .map((d) => d.id);
@@ -86,7 +113,6 @@ export default function DocumentSelectorModal({
     });
   };
 
-  // 👇 新增：Tag 切换逻辑
   const toggleTagFilter = (tag: string) => {
     if (tag === "All") {
       setActiveTags([]);
@@ -97,7 +123,6 @@ export default function DocumentSelectorModal({
     }
   };
 
-  // 👇 新增：提取所有唯一的 Tag
   const allUniqueTags = useMemo(() => {
     const tags = new Set<string>();
     const traverse = (nodes: DocumentNode[]) => {
@@ -114,23 +139,19 @@ export default function DocumentSelectorModal({
     return Array.from(tags).sort();
   }, [documents]);
 
-  // 👇 新增：根据 Tag 过滤文档树
   const filteredDocuments = useMemo(() => {
     if (activeTags.length === 0) return documents;
 
     const filterNode = (node: DocumentNode): DocumentNode | null => {
       if (node.type === "file") {
-        // 文件：检查是否包含任意一个选中的 Tag (OR 逻辑)
         const hasMatchingTag = node.tags?.some((t) => activeTags.includes(t));
         return hasMatchingTag ? node : null;
       } else {
-        // 文件夹：递归过滤子节点
         if (!node.children) return null;
         const filteredChildren = node.children
           .map(filterNode)
           .filter((n): n is DocumentNode => n !== null);
 
-        // 只有当文件夹内有匹配的文件（或子文件夹）时，才保留该文件夹
         if (filteredChildren.length > 0) {
           return { ...node, children: filteredChildren };
         }
@@ -163,12 +184,10 @@ export default function DocumentSelectorModal({
     const selectedDocs = getSelectedDocuments(filteredDocuments, selectedIds);
     onConfirm(selectedDocs);
     onOpenChange(false);
-    setSelectedIds(new Set());
   };
 
   const handleCancel = () => {
     onOpenChange(false);
-    setSelectedIds(new Set());
   };
 
   const handleGoToDocumentTree = () => {
@@ -211,7 +230,6 @@ export default function DocumentSelectorModal({
       );
     }
 
-    // 文件节点
     return (
       <div
         key={node.id}
@@ -221,7 +239,6 @@ export default function DocumentSelectorModal({
         style={{ paddingLeft: `${level * 20 + 36}px` }}
         onClick={() => toggleFileSelection(node.id)}
       >
-        {/* 左侧：Checkbox + Icon + Name */}
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <input
             type="checkbox"
@@ -239,13 +256,12 @@ export default function DocumentSelectorModal({
           </span>
         </div>
 
-        {/* 右侧：Tags */}
         <div className="flex items-center gap-2 shrink-0 ml-2">
           {node.tags?.map((tag) => (
             <span
               key={tag}
               className="px-2 py-0.5 bg-pink-100 text-pink-700 border border-pink-200 rounded-full text-[10px] font-medium whitespace-nowrap"
-              onClick={(e) => e.stopPropagation()} // 防止点击 Tag 时触发文件选择
+              onClick={(e) => e.stopPropagation()}
             >
               {tag}
             </span>
@@ -264,26 +280,22 @@ export default function DocumentSelectorModal({
               <DialogTitle className="text-xl font-semibold text-gray-900">
                 Select Project Documents
               </DialogTitle>
-              <p className="text-sm text-gray-600 mt-1">
+              <DialogDescription className="text-sm text-gray-600 mt-1">
                 Choose documents to link to this page
-              </p>
+              </DialogDescription>
             </div>
             <button
               onClick={() => onOpenChange(false)}
               className="text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              {/* X icon would go here if needed, usually Dialog handles close */}
-            </button>
+            ></button>
           </div>
         </DialogHeader>
 
-        {/* 👇 Tag 筛选栏 */}
         <div className="px-6 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3 overflow-x-auto no-scrollbar">
           <span className="text-xs font-semibold text-gray-500 whitespace-nowrap">
             Filter by tag:
           </span>
 
-          {/* "All" Button */}
           <button
             onClick={() => toggleTagFilter("All")}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-all whitespace-nowrap border ${
@@ -295,7 +307,6 @@ export default function DocumentSelectorModal({
             All
           </button>
 
-          {/* Dynamic Tag Buttons */}
           {allUniqueTags.map((tag) => (
             <button
               key={tag}
@@ -311,7 +322,6 @@ export default function DocumentSelectorModal({
           ))}
         </div>
 
-        {/* 文档列表区域 */}
         <div className="flex-1 overflow-y-auto p-2">
           {isLoading ? (
             <div className="flex items-center justify-center h-64">
