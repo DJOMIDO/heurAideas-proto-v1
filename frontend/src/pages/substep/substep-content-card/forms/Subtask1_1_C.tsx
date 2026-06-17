@@ -34,7 +34,6 @@ export default function Subtask1_1_C({
     onFormDataChange(`${fieldPrefix}-${key}`, value);
   };
 
-  // Needs Table
   const getNeedsRows = () => {
     const stored = formData[`${fieldPrefix}-needs-row-count`];
     if (stored && typeof stored === "number" && stored >= 2) return stored;
@@ -49,7 +48,6 @@ export default function Subtask1_1_C({
     onFormDataChange(`${fieldPrefix}-needs-row-count`, newCount);
   };
 
-  // Effects Table
   const getEffectsRows = () => {
     const stored = formData[`${fieldPrefix}-effects-row-count`];
     if (stored && typeof stored === "number" && stored >= 2) return stored;
@@ -67,7 +65,6 @@ export default function Subtask1_1_C({
     onFormDataChange(`${fieldPrefix}-effects-row-count`, newCount);
   };
 
-  // Needs Handlers
   const addNeedRow = () => updateNeedsRows(needsRows + 1);
   const removeNeedRow = (idx: number) => {
     if (needsRows <= 1) return;
@@ -81,7 +78,6 @@ export default function Subtask1_1_C({
     updateNeedsRows(needsRows - 1);
   };
 
-  // Effects Handlers
   const addEffectRow = () => updateEffectsRows(effectsRows + 1);
   const removeEffectRow = (idx: number) => {
     if (effectsRows <= 1) return;
@@ -97,7 +93,6 @@ export default function Subtask1_1_C({
 
   return (
     <div className="space-y-6">
-      {/* 1. Targeted Mission */}
       <div className="space-y-2">
         <label className="text-sm font-bold text-black">
           1. Fill the targeted mission(s) realised by the SoI.
@@ -114,7 +109,6 @@ export default function Subtask1_1_C({
         />
       </div>
 
-      {/* 2. Needs Table */}
       <div className="space-y-2">
         <label className="text-sm font-bold text-black">
           2. Register the needs aimed to be satisfied by the SoI.
@@ -141,14 +135,12 @@ export default function Subtask1_1_C({
                 [needsRows],
               ).map((autoId, idx) => (
                 <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                  {/* ID */}
                   <td className="px-3 py-2">
                     <span className="text-xs font-mono text-gray-600">
                       {autoId}
                     </span>
                   </td>
 
-                  {/* Need */}
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter need"
@@ -164,7 +156,6 @@ export default function Subtask1_1_C({
                     />
                   </td>
 
-                  {/* Source */}
                   <td className="px-3 py-2">
                     <div className="space-y-1">
                       <DocumentLinkField
@@ -175,14 +166,9 @@ export default function Subtask1_1_C({
                         projectId={projectId}
                         placeholder="Enter source"
                       />
-                      <TypingIndicator
-                        editingUsers={editingUsers}
-                        fieldName={`${fieldPrefix}-needs-${idx}-source`}
-                      />
                     </div>
                   </td>
 
-                  {/* Remove Button */}
                   <td className="px-2 py-2 text-center">
                     {needsRows > 1 && (
                       <button
@@ -209,7 +195,6 @@ export default function Subtask1_1_C({
         </Button>
       </div>
 
-      {/* 3. Effects Table */}
       <div className="space-y-2">
         <label className="text-sm font-bold text-black">
           3. Add the expected effects (i.e. functions) intended by the Human-AI
@@ -246,14 +231,12 @@ export default function Subtask1_1_C({
                 [effectsRows],
               ).map((autoId, idx) => (
                 <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                  {/* ID */}
                   <td className="px-3 py-2">
                     <span className="text-xs font-mono text-gray-600">
                       {autoId}
                     </span>
                   </td>
 
-                  {/* Name */}
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter name"
@@ -269,7 +252,6 @@ export default function Subtask1_1_C({
                     />
                   </td>
 
-                  {/* Effects */}
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter effects"
@@ -285,7 +267,6 @@ export default function Subtask1_1_C({
                     />
                   </td>
 
-                  {/* Quality */}
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter quality criteria"
@@ -301,7 +282,6 @@ export default function Subtask1_1_C({
                     />
                   </td>
 
-                  {/* Measurement */}
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter measurement methods"
@@ -320,7 +300,6 @@ export default function Subtask1_1_C({
                     />
                   </td>
 
-                  {/* Source */}
                   <td className="px-3 py-2">
                     <div className="space-y-1">
                       <DocumentLinkField
@@ -331,14 +310,9 @@ export default function Subtask1_1_C({
                         projectId={projectId}
                         placeholder="Enter source"
                       />
-                      <TypingIndicator
-                        editingUsers={editingUsers}
-                        fieldName={`${fieldPrefix}-effects-${idx}-source`}
-                      />
                     </div>
                   </td>
 
-                  {/* Remove Button */}
                   <td className="px-2 py-2 text-center">
                     {effectsRows > 1 && (
                       <button

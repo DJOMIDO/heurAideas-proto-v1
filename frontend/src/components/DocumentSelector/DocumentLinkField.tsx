@@ -6,7 +6,7 @@ import DocumentSelectorModal from "./DocumentSelectorModal";
 import type { DocumentNode } from "@/pages/documents/types";
 
 interface DocumentLinkFieldProps {
-  value: string; // 存储 JSON 字符串格式的文档数组
+  value: string;
   onChange: (value: string) => void;
   projectId: number;
   placeholder?: string;
@@ -20,25 +20,17 @@ export default function DocumentLinkField({
 }: DocumentLinkFieldProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // 解析当前选中的文档（兼容旧数据）
   let selectedDocs: DocumentNode[] = [];
   try {
     if (value && value.startsWith("[")) {
       selectedDocs = JSON.parse(value);
     }
   } catch (e) {
-    // 如果解析失败（比如旧版本的纯文本数据），则视为空
     selectedDocs = [];
   }
 
   const handleConfirm = (newDocs: DocumentNode[]) => {
-    // 合并新选择的文档（自动去重）
-    const existingIds = new Set(selectedDocs.map((d) => d.id));
-    const uniqueNewDocs = newDocs.filter((d) => !existingIds.has(d.id));
-    const merged = [...selectedDocs, ...uniqueNewDocs];
-
-    // 提取核心元数据保存为 JSON 字符串
-    const metadata = merged.map((d) => ({
+    const metadata = newDocs.map((d) => ({
       id: d.id,
       name: d.name,
       url: d.url,
@@ -50,6 +42,8 @@ export default function DocumentLinkField({
     const updated = selectedDocs.filter((d) => d.id !== docId);
     onChange(JSON.stringify(updated));
   };
+
+  const selectedIds = selectedDocs.map((d) => d.id);
 
   return (
     <div className="space-y-2">
@@ -91,6 +85,7 @@ export default function DocumentLinkField({
         onOpenChange={setIsModalOpen}
         onConfirm={handleConfirm}
         projectId={projectId}
+        initialSelectedIds={selectedIds}
       />
     </div>
   );

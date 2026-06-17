@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import AppSidebar from "../overview/AppSidebar";
@@ -26,7 +27,6 @@ import { getUserId, isAuthenticated } from "@/utils/auth";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import type { WebSocketMessage } from "@/hooks/useWebSocket";
 
-// 导入 API 函数
 import {
   fetchDocuments,
   uploadDocument,
@@ -35,7 +35,6 @@ import {
   deleteNode as deleteNodeApi,
 } from "@/api/documents";
 
-// 复用 Menu.tsx 的 localStorage 逻辑，获取当前项目 ID
 const getCurrentProjectId = (): number | null => {
   const userId = getUserId();
   const key = userId ? `currentProjectId-${userId}` : "currentProjectId";
@@ -46,18 +45,15 @@ const getCurrentProjectId = (): number | null => {
 export default function DocumentManager() {
   const navigate = useNavigate();
 
-  // 认证守卫
   useEffect(() => {
     if (!isAuthenticated()) {
       navigate("/auth");
     }
   }, [navigate]);
 
-  // 1. 安全获取当前项目 ID
   const projectId = getCurrentProjectId();
   const currentUserId = getUserId() ?? 0;
 
-  // 2. 未选择项目时的友好提示
   if (!projectId) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-gray-50">
@@ -75,12 +71,8 @@ export default function DocumentManager() {
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState<string | undefined>();
-
-  // 3. 添加加载和错误状态
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // 4. 初始化从 API 加载文档树
   const [documents, setDocuments] = useState<DocumentNode[]>([]);
   const [uploadTargetId, setUploadTargetId] = useState<string | null>(null);
   const [autoExpandFolderId, setAutoExpandFolderId] = useState<string | null>(
@@ -91,13 +83,10 @@ export default function DocumentManager() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isProcessing, processFiles } = useLocalFileUpload();
 
-  // WebSocket 消息处理器
   const handleWebSocketMessage = useCallback(
     (msg: WebSocketMessage) => {
-      // 只处理文档相关事件
       if (!msg.type?.startsWith("document.")) return;
 
-      // 忽略自己的操作回音（双重保险）
       if (msg.user_id === currentUserId) return;
 
       setDocuments((prev) => {
@@ -116,14 +105,12 @@ export default function DocumentManager() {
     [currentUserId],
   );
 
-  // 集成 WebSocket Hook（只解构 isConnected，避免未使用警告）
   useWebSocket({
     projectId,
     enabled: !!projectId,
     onMessage: handleWebSocketMessage,
   });
 
-  // 5. 组件挂载时加载文档树
   useEffect(() => {
     const loadDocuments = async () => {
       try {
@@ -134,7 +121,7 @@ export default function DocumentManager() {
       } catch (err) {
         console.error("Failed to load documents:", err);
         setError("Failed to load documents. Please try again.");
-        setDocuments([]); // 降级为空状态
+        setDocuments([]);
       } finally {
         setIsLoading(false);
       }
@@ -146,31 +133,26 @@ export default function DocumentManager() {
     fileInputRef.current?.click();
   };
 
-  // 6. 上传文件 - 调用 API + 乐观更新
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = processFiles(e.target.files);
     if (newFiles.length === 0) return;
     try {
-      // 乐观更新：先显示到本地
       const filesWithProject = newFiles.map((f) => ({ ...f, projectId }));
       setDocuments((prev) =>
         insertFilesToTarget(prev, filesWithProject, uploadTargetId),
       );
 
-      // 从 DocumentNode 中提取 File 对象
       for (const docNode of newFiles) {
         if (docNode.file) {
           await uploadDocument(projectId, docNode.file, uploadTargetId);
         }
       }
 
-      // 上传成功后刷新树（确保获取后端生成的 ID/URL）
       const updated = await fetchDocuments(projectId);
       setDocuments(updated);
     } catch (err) {
       console.error("Upload failed:", err);
       alert("Failed to upload file(s). Please try again.");
-      // 回滚：重新加载最新树
       const refreshed = await fetchDocuments(projectId);
       setDocuments(refreshed);
     } finally {
@@ -178,11 +160,9 @@ export default function DocumentManager() {
     }
   };
 
-  // 7. 创建文件夹 - 调用 API + 乐观更新
   const handleCreateFolder = useCallback(async () => {
     if (!newFolderName.trim()) return;
     try {
-      // 乐观更新：先创建本地节点
       const tempId = `temp-${Date.now()}`;
       const newFolder: DocumentNode = {
         id: tempId,
@@ -203,18 +183,14 @@ export default function DocumentManager() {
         return updated;
       });
 
-      // 调用 API 创建真实文件夹
       const created = await createFolder(
         projectId,
         newFolderName.trim(),
         uploadTargetId,
       );
 
-      // 替换临时节点为真实节点
       setDocuments((prev) => replaceTempNode(prev, tempId, created));
 
-      // 将 state 中的临时 ID 替换为后端返回的真实 ID
-      // 防止后续操作（如上传文件、创建子文件夹）把 temp-xxx 传给后端导致外键报错
       setUploadTargetId((prev) => (prev === tempId ? created.id : prev));
       setSelectedDocId((prev) => (prev === tempId ? created.id : prev));
       setAutoExpandFolderId((prev) => (prev === tempId ? created.id : prev));
@@ -224,31 +200,26 @@ export default function DocumentManager() {
     } catch (err) {
       console.error("Create folder failed:", err);
       alert("Failed to create folder. Please try again.");
-      // 回滚：重新加载
       const refreshed = await fetchDocuments(projectId);
       setDocuments(refreshed);
     }
   }, [newFolderName, uploadTargetId, projectId]);
 
-  // 8. 重命名 - 调用 API + 乐观更新
   const handleRename = useCallback(
     async (id: string, newName: string) => {
       const trimmed = newName.trim();
       if (!trimmed) return;
       try {
-        // 乐观更新
         setDocuments((prev) => {
           const updated = renameNodeLocal(prev, id, trimmed);
           if (selectedDocId === id) setSelectedDocId(id);
           return updated;
         });
 
-        // 调用 API
         await renameNodeApi(projectId, id, trimmed);
       } catch (err) {
         console.error("Rename failed:", err);
         alert("Failed to rename. Please try again.");
-        // 回滚
         const refreshed = await fetchDocuments(projectId);
         setDocuments(refreshed);
       }
@@ -256,7 +227,6 @@ export default function DocumentManager() {
     [projectId, selectedDocId],
   );
 
-  // 9. 删除 - 调用 API + 乐观更新
   const handleDelete = useCallback(
     async (id: string) => {
       const target = findDocumentById(documents, id);
@@ -273,17 +243,14 @@ export default function DocumentManager() {
       }
 
       try {
-        // 乐观更新
         setDocuments((prev) => deleteNodeLocal(prev, id));
         if (selectedDocId === id) setSelectedDocId(undefined);
         if (uploadTargetId === id) setUploadTargetId(null);
 
-        // 调用 API
         await deleteNodeApi(projectId, id);
       } catch (err) {
         console.error("Delete failed:", err);
         alert("Failed to delete. Please try again.");
-        // 回滚
         const refreshed = await fetchDocuments(projectId);
         setDocuments(refreshed);
       }
@@ -291,15 +258,12 @@ export default function DocumentManager() {
     [projectId, documents, selectedDocId, uploadTargetId],
   );
 
-  // 树操作辅助函数（用于乐观更新 + WS 同步）- 已有，确保签名正确
   const insertNodeToTree = (
     nodes: DocumentNode[],
     newNode: DocumentNode,
   ): DocumentNode[] => {
-    // 根节点：直接追加
     if (!newNode.parentId) return [...nodes, newNode];
 
-    // 递归查找父文件夹并插入
     return nodes.map((node) => {
       if (node.id === newNode.parentId && node.type === "folder") {
         return { ...node, children: [...(node.children || []), newNode] };
@@ -343,7 +307,6 @@ export default function DocumentManager() {
       }));
   };
 
-  // 辅助函数：替换临时节点为真实节点
   const replaceTempNode = (
     nodes: DocumentNode[],
     tempId: string,
@@ -361,7 +324,6 @@ export default function DocumentManager() {
     });
   };
 
-  // 递归插入文件到目标文件夹（本地辅助函数，用于乐观更新）
   const insertFilesToTarget = (
     nodes: DocumentNode[],
     files: DocumentNode[],
@@ -382,7 +344,6 @@ export default function DocumentManager() {
     });
   };
 
-  // 递归插入文件夹到目标文件夹
   const insertFolderToTarget = (
     nodes: DocumentNode[],
     folder: DocumentNode,
@@ -403,7 +364,6 @@ export default function DocumentManager() {
     });
   };
 
-  // 本地重命名辅助函数（用于乐观更新）
   const renameNodeLocal = (
     nodes: DocumentNode[],
     targetId: string,
@@ -433,7 +393,6 @@ export default function DocumentManager() {
     });
   };
 
-  // 本地删除辅助函数（用于乐观更新）
   const deleteNodeLocal = (
     nodes: DocumentNode[],
     targetId: string,
@@ -457,7 +416,6 @@ export default function DocumentManager() {
     return found?.name || "Root";
   };
 
-  // 10. 加载/错误状态渲染
   if (isLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-gray-50">
@@ -492,7 +450,6 @@ export default function DocumentManager() {
       <ResizablePanelGroup orientation="horizontal" className="flex-1">
         <ResizablePanel defaultSize={30} minSize={250} className="bg-gray-50">
           <div className="flex flex-col h-full border-r border-gray-200">
-            {/* Header */}
             <div className="h-16 border-b border-gray-200 flex items-center justify-between px-4 bg-white">
               <div className="flex items-center gap-2">
                 <h2 className="font-semibold text-gray-800">Document tree</h2>
@@ -548,7 +505,6 @@ export default function DocumentManager() {
               </div>
             </div>
 
-            {/* Tree Content */}
             <div
               className="flex-1 overflow-y-auto p-2 cursor-default"
               onClick={() => {
@@ -597,11 +553,14 @@ export default function DocumentManager() {
         </ResizablePanel>
       </ResizablePanelGroup>
 
-      {/* 创建文件夹对话框 */}
       <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
         <DialogContent className="bg-white border-gray-200">
           <DialogHeader>
             <DialogTitle>Create New Folder</DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              Enter a name for the new folder. It will be created in the
+              currently selected location.
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Input
@@ -649,7 +608,6 @@ export default function DocumentManager() {
   );
 }
 
-// 辅助函数：查找文档
 function findDocumentById(
   nodes: DocumentNode[],
   id?: string,
