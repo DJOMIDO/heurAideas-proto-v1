@@ -38,5 +38,7 @@ class DocumentNodeResponse(BaseModel):
     # 子节点
     children: List["DocumentNodeResponse"] = []
 
+    tags: List[str] = []
+
     class Config:
         from_attributes = True

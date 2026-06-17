@@ -1,6 +1,6 @@
 # backend/app/models/document.py
 
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, BigInteger, Text  # pyright: ignore[reportMissingImports]
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, BigInteger, Text, JSON  # pyright: ignore[reportMissingImports]
 from sqlalchemy.sql import func  # pyright: ignore[reportMissingImports]
 from sqlalchemy.orm import relationship  # pyright: ignore[reportMissingImports]
 from app.database import Base
@@ -27,6 +27,7 @@ class Document(Base):
     storage_path = Column(String(500), nullable=True, index=True)  # 格式: "{project_id}/{uuid}.{ext}"
     file_size = Column(BigInteger, nullable=True)  # bytes
     mime_type = Column(String(100), nullable=True)  # application/pdf 等
+    tags = Column(JSON, nullable=True, default=list)
 
     # ==================== Timestamps ====================
     created_at = Column(DateTime(timezone=True), server_default=func.now())

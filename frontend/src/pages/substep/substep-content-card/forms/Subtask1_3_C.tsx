@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Eye, Save, ArrowRight } from "lucide-react";
+import { Eye, ArrowRight } from "lucide-react";
 import TypingIndicator from "@/components/TypingIndicator";
 import FieldSelector from "./subtask-1-3-c/FieldSelector";
 import GranularitySelector from "./subtask-1-3-c/GranularitySelector";
@@ -175,16 +175,6 @@ export default function Subtask1_3_C({
     } catch (error) {
       console.error("Unsubmit failed:", error);
       toast.error("Failed to withdraw submission.");
-    }
-  };
-
-  const handleSave = () => {
-    try {
-      saveDraft(draftFormat);
-      toast.success("Draft saved successfully.");
-    } catch (error) {
-      console.error("Save failed:", error);
-      toast.error("Failed to save draft.");
     }
   };
 
@@ -388,14 +378,6 @@ export default function Subtask1_3_C({
           </>
         ) : (
           <>
-            <Button
-              variant="outline"
-              onClick={handleSave}
-              className="px-6 py-2 text-sm font-medium flex items-center gap-2"
-            >
-              <Save className="w-4 h-4" />
-              Save
-            </Button>
             <Button
               onClick={handleSubmit}
               disabled={
