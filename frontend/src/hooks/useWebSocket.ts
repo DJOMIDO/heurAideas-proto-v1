@@ -1,3 +1,5 @@
+// src/hooks/useWebSocket.ts
+
 import { useEffect, useRef, useCallback, useState } from "react";
 
 export interface WebSocketMessage {
@@ -29,6 +31,13 @@ export function useWebSocket({
   const reconnectAttemptsRef = useRef<number>(0);
   const maxReconnectAttempts = 5;
   const [isConnected, setIsConnected] = useState(false);
+  const isUnmountingRef = useRef(false);
+
+  // 使用 Ref 存储动态参数，避免 useCallback 依赖项变化导致 useEffect 频繁重新执行
+  const paramsRef = useRef({ projectId, userId, enabled });
+  useEffect(() => {
+    paramsRef.current = { projectId, userId, enabled };
+  }, [projectId, userId, enabled]);
 
   const onMessageRef = useRef(onMessage);
   const onErrorRef = useRef(onError);
@@ -54,12 +63,20 @@ export function useWebSocket({
       reconnectTimeoutRef.current = null;
     }
     if (wsRef.current) {
+      // 先置空事件处理器，防止 close 过程中触发回调
       wsRef.current.onopen = null;
       wsRef.current.onmessage = null;
       wsRef.current.onclose = null;
       wsRef.current.onerror = null;
+
+      // 只在 OPEN 状态下主动 close，避免 "closed before connection is established" 警告
+      // 如果还在 CONNECTING，直接丢弃引用，让浏览器自己处理超时，彻底消除控制台警告
       if (wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.close();
+        try {
+          wsRef.current.close(1000, "Component unmounting");
+        } catch (e) {
+          // 忽略
+        }
       }
       wsRef.current = null;
     }
@@ -67,8 +84,9 @@ export function useWebSocket({
   }, []);
 
   const connect = useCallback(() => {
-    if (!enabled) return;
-    if (!userId && !projectId) return;
+    const { projectId: pId, userId: uId, enabled: en } = paramsRef.current;
+    if (!en) return;
+    if (!uId && !pId) return;
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
 
     const token = localStorage.getItem("token");
@@ -79,8 +97,8 @@ export function useWebSocket({
     let wsUrl: string;
     const explicitWsUrl = import.meta.env.VITE_WS_URL;
     let wsPath = "";
-    if (userId) wsPath = "/ws/user";
-    else if (projectId) wsPath = `/ws/${projectId}`;
+    if (uId) wsPath = "/ws/user";
+    else if (pId) wsPath = `/ws/${pId}`;
 
     if (explicitWsUrl) {
       wsUrl = `${explicitWsUrl}${wsPath}?token=${token}`;
@@ -101,12 +119,14 @@ export function useWebSocket({
     wsRef.current = ws;
 
     ws.onopen = () => {
+      if (isUnmountingRef.current) return;
       reconnectAttemptsRef.current = 0;
       setIsConnected(true);
       onConnectRef.current?.();
     };
 
     ws.onmessage = (event) => {
+      if (isUnmountingRef.current) return;
       try {
         const data: WebSocketMessage = JSON.parse(event.data);
         onMessageRef.current?.(data);
@@ -116,10 +136,12 @@ export function useWebSocket({
     };
 
     ws.onclose = () => {
+      if (isUnmountingRef.current) return;
       setIsConnected(false);
       onDisconnectRef.current?.();
 
-      if (enabled && reconnectAttemptsRef.current < maxReconnectAttempts) {
+      const { enabled: en } = paramsRef.current;
+      if (en && reconnectAttemptsRef.current < maxReconnectAttempts) {
         reconnectAttemptsRef.current += 1;
         const delay = Math.min(
           1000 * Math.pow(2, reconnectAttemptsRef.current),
@@ -132,9 +154,10 @@ export function useWebSocket({
     };
 
     ws.onerror = (error) => {
+      if (isUnmountingRef.current) return;
       onErrorRef.current?.(error);
     };
-  }, [projectId, userId, enabled, cleanup]);
+  }, [cleanup]);
 
   const disconnect = useCallback(() => {
     reconnectAttemptsRef.current = maxReconnectAttempts + 1;
@@ -153,21 +176,20 @@ export function useWebSocket({
     return false;
   }, []);
 
-  // 监听页面可见性变化，解决浏览器后台标签页休眠导致 WebSocket 断开的问题
   useEffect(() => {
-    if (!enabled) return;
+    const { enabled: en } = paramsRef.current;
+    if (!en) return;
 
+    isUnmountingRef.current = false;
     connect();
 
     const handleVisibilityChange = () => {
-      // 当用户从后台切回当前标签页时
       if (document.visibilityState === "visible") {
-        // 检查连接是否已断开
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-          console.log("[WebSocket] Page became visible. Reconnecting...");
-          // 重置重连次数，立即尝试重连
-          reconnectAttemptsRef.current = 0;
-          connect();
+          if (!isUnmountingRef.current) {
+            reconnectAttemptsRef.current = 0;
+            connect();
+          }
         }
       }
     };
@@ -175,10 +197,11 @@ export function useWebSocket({
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      isUnmountingRef.current = true;
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       disconnect();
     };
-  }, [connect, disconnect, enabled]);
+  }, [connect, disconnect]);
 
   return {
     send,
