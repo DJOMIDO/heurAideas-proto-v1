@@ -3,6 +3,9 @@ import { useState, useEffect, type KeyboardEvent } from "react";
 import { FileText, Download, X, ZoomIn, Tag } from "lucide-react";
 import type { DocumentPreviewProps } from "./types";
 import { updateDocumentTags } from "@/api/documents";
+import TypingIndicator from "@/components/TypingIndicator";
+import { getUserId } from "@/utils/auth";
+import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 
 interface TagInputFieldProps {
   tags: string[];
@@ -10,6 +13,7 @@ interface TagInputFieldProps {
   onInputChange: (val: string) => void;
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
   onRemoveTag: (tag: string) => void;
+  typingUsers?: { userId: number; username: string; timestamp: string }[];
 }
 
 function TagInputField({
@@ -18,7 +22,19 @@ function TagInputField({
   onInputChange,
   onKeyDown,
   onRemoveTag,
+  typingUsers = [],
 }: TagInputFieldProps) {
+  const typingIndicatorUsers: Record<string, any> = {};
+
+  if (typingUsers.length > 0) {
+    const latest = typingUsers.reduce(
+      (prev: any, current: any) =>
+        prev.timestamp > current.timestamp ? prev : current,
+      typingUsers[0],
+    );
+    typingIndicatorUsers["tag-input"] = latest;
+  }
+
   return (
     <div className="border-b border-gray-200 bg-gray-50/50 p-4 space-y-3 shrink-0">
       <div className="flex items-center gap-2 border border-gray-200 rounded-md px-3 py-1.5 bg-white focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent transition-all">
@@ -56,27 +72,41 @@ function TagInputField({
           ))}
         </div>
       )}
+
+      <TypingIndicator
+        editingUsers={typingIndicatorUsers}
+        fieldName="tag-input"
+      />
     </div>
   );
 }
 
-export default function DocumentPreview({ document }: DocumentPreviewProps) {
+export default function DocumentPreview({
+  document,
+  sendWsMessage,
+  typingUsers,
+  onDocumentUpdated,
+}: DocumentPreviewProps) {
   const [textContent, setTextContent] = useState<string>("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isZoomed, setIsZoomed] = useState(false);
-
   const [tags, setTags] = useState<string[]>([]);
   const [inputValue, setInputValue] = useState("");
+  const currentUserId = getUserId() ?? 0;
+  const { sendTypingIndicator } = useTypingIndicator({
+    projectId: document?.projectId || 0,
+    substepId: document ? `doc-${document.id}` : "",
+    currentUserId,
+    sendWsMessage,
+  });
 
   useEffect(() => {
     setTags(document?.tags || []);
-  }, [document?.id]);
+  }, [document?.id, document?.updatedAt, document?.tags]);
 
   useEffect(() => {
     return () => {
-      if (previewUrl?.startsWith("blob:")) {
-        URL.revokeObjectURL(previewUrl);
-      }
+      if (previewUrl?.startsWith("blob:")) URL.revokeObjectURL(previewUrl);
     };
   }, [previewUrl]);
 
@@ -98,12 +128,11 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
         "html",
         "css",
       ].includes(ext || "");
-      if (isText) {
+      if (isText)
         fetch(document.url)
           .then((res) => res.text())
           .then(setTextContent)
           .catch(() => setTextContent("Error loading content"));
-      }
       return;
     }
     if (document.file) {
@@ -119,12 +148,11 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
         "html",
         "css",
       ].includes(extension || "");
-      if (isText) {
+      if (isText)
         document.file
           .text()
           .then(setTextContent)
           .catch(() => setTextContent(""));
-      }
     } else {
       setPreviewUrl(null);
       setTextContent("");
@@ -137,13 +165,17 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
       setInputValue("");
       return;
     }
-
     const newTags = [...tags, newTag];
     setTags(newTags);
     setInputValue("");
-
     try {
       await updateDocumentTags(document.projectId, document.id, newTags);
+      if (onDocumentUpdated)
+        onDocumentUpdated({
+          ...document,
+          tags: newTags,
+          updatedAt: new Date().toISOString(),
+        });
     } catch (error) {
       console.error("Failed to update tags:", error);
       setTags(tags);
@@ -161,21 +193,32 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
 
   const handleRemoveTag = async (tagToRemove: string) => {
     if (!document) return;
-
-    const isConfirmed = window.confirm(
-      `Are you sure you want to remove the tag "${tagToRemove}"?`,
-    );
-
-    if (!isConfirmed) return;
-
+    if (
+      !window.confirm(
+        `Are you sure you want to remove the tag "${tagToRemove}"?`,
+      )
+    )
+      return;
     const newTags = tags.filter((t) => t !== tagToRemove);
     setTags(newTags);
-
     try {
       await updateDocumentTags(document.projectId, document.id, newTags);
+      if (onDocumentUpdated)
+        onDocumentUpdated({
+          ...document,
+          tags: newTags,
+          updatedAt: new Date().toISOString(),
+        });
     } catch (error) {
       console.error("Failed to update tags:", error);
       setTags(tags);
+    }
+  };
+
+  const handleInputChange = (val: string) => {
+    setInputValue(val);
+    if (document) {
+      sendTypingIndicator("tag-input");
     }
   };
 
@@ -204,11 +247,11 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
       <TagInputField
         tags={tags}
         inputValue={inputValue}
-        onInputChange={setInputValue}
+        onInputChange={handleInputChange}
         onKeyDown={handleKeyDown}
         onRemoveTag={handleRemoveTag}
+        typingUsers={typingUsers}
       />
-
       <div className="flex-1 min-h-0 overflow-hidden relative">
         {isImage && (
           <>
@@ -252,7 +295,6 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
             )}
           </>
         )}
-
         {isPDF &&
           (!previewUrl ? (
             <div className="h-full w-full flex items-center justify-center bg-gray-50">
@@ -265,7 +307,6 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
               title={document.name}
             />
           ))}
-
         {isText && (
           <div className="h-full w-full flex flex-col bg-white overflow-hidden">
             <div className="flex-1 overflow-auto p-6">
@@ -275,7 +316,6 @@ export default function DocumentPreview({ document }: DocumentPreviewProps) {
             </div>
           </div>
         )}
-
         {!isImage && !isPDF && !isText && (
           <div className="h-full w-full flex items-center justify-center bg-gray-50">
             <div className="text-center">

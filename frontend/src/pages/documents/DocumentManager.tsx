@@ -1,5 +1,4 @@
 // frontend/src/pages/documents/DocumentManager.tsx
-
 import { useRef, useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Upload, FolderPlus, X, Loader2 } from "lucide-react";
@@ -26,7 +25,6 @@ import { useLocalFileUpload } from "@/hooks/useLocalFileUpload";
 import { getUserId, isAuthenticated } from "@/utils/auth";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import type { WebSocketMessage } from "@/hooks/useWebSocket";
-
 import {
   fetchDocuments,
   uploadDocument,
@@ -44,11 +42,8 @@ const getCurrentProjectId = (): number | null => {
 
 export default function DocumentManager() {
   const navigate = useNavigate();
-
   useEffect(() => {
-    if (!isAuthenticated()) {
-      navigate("/auth");
-    }
+    if (!isAuthenticated()) navigate("/auth");
   }, [navigate]);
 
   const projectId = getCurrentProjectId();
@@ -82,34 +77,78 @@ export default function DocumentManager() {
   const [newFolderName, setNewFolderName] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isProcessing, processFiles } = useLocalFileUpload();
+  const [docEditingUsers, setDocEditingUsers] = useState<
+    Record<string, { userId: number; username: string; timestamp: string }>
+  >({});
+  const docEditingTimeoutsRef = useRef<
+    Record<string, ReturnType<typeof setTimeout>>
+  >({});
 
   const handleWebSocketMessage = useCallback(
     (msg: WebSocketMessage) => {
-      if (!msg.type?.startsWith("document.")) return;
+      if (msg.type?.startsWith("document.")) {
+        if (msg.user_id === currentUserId) return;
+        setDocuments((prev) => {
+          switch (msg.type) {
+            case "document.created":
+              return insertNodeToTree(prev, msg.data);
+            case "document.updated":
+              return updateNodeInTree(prev, msg.data.id, msg.data);
+            case "document.deleted":
+              return removeNodeFromTree(prev, msg.data.id);
+            default:
+              return prev;
+          }
+        });
+        return;
+      }
 
-      if (msg.user_id === currentUserId) return;
+      if (msg.type === "user_typing" && msg.substep_id?.startsWith("doc-")) {
+        const docId = msg.substep_id.replace("doc-", "");
+        const field = msg.field; // "tag-input"
+        const key = `${docId}-${field}`;
 
-      setDocuments((prev) => {
-        switch (msg.type) {
-          case "document.created":
-            return insertNodeToTree(prev, msg.data);
-          case "document.updated":
-            return updateNodeInTree(prev, msg.data.id, msg.data);
-          case "document.deleted":
-            return removeNodeFromTree(prev, msg.data.id);
-          default:
-            return prev;
+        if (msg.user_id !== currentUserId) {
+          if (docEditingTimeoutsRef.current[key])
+            clearTimeout(docEditingTimeoutsRef.current[key]);
+
+          setDocEditingUsers((prev) => ({
+            ...prev,
+            [key]: {
+              userId: msg.user_id,
+              username: msg.username || "User",
+              timestamp: msg.timestamp || new Date().toISOString(),
+            },
+          }));
+
+          docEditingTimeoutsRef.current[key] = setTimeout(() => {
+            setDocEditingUsers((prev) => {
+              const next = { ...prev };
+              delete next[key];
+              return next;
+            });
+            delete docEditingTimeoutsRef.current[key];
+          }, 3000);
         }
-      });
+      }
     },
     [currentUserId],
   );
 
-  useWebSocket({
+  const { send } = useWebSocket({
     projectId,
     enabled: !!projectId,
     onMessage: handleWebSocketMessage,
   });
+
+  useEffect(() => {
+    return () => {
+      Object.values(docEditingTimeoutsRef.current).forEach((timeoutId) =>
+        clearTimeout(timeoutId),
+      );
+      docEditingTimeoutsRef.current = {};
+    };
+  }, []);
 
   useEffect(() => {
     const loadDocuments = async () => {
@@ -129,9 +168,7 @@ export default function DocumentManager() {
     loadDocuments();
   }, [projectId]);
 
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-  };
+  const handleUploadClick = () => fileInputRef.current?.click();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const newFiles = processFiles(e.target.files);
@@ -141,13 +178,9 @@ export default function DocumentManager() {
       setDocuments((prev) =>
         insertFilesToTarget(prev, filesWithProject, uploadTargetId),
       );
-
-      for (const docNode of newFiles) {
-        if (docNode.file) {
+      for (const docNode of newFiles)
+        if (docNode.file)
           await uploadDocument(projectId, docNode.file, uploadTargetId);
-        }
-      }
-
       const updated = await fetchDocuments(projectId);
       setDocuments(updated);
     } catch (err) {
@@ -172,29 +205,22 @@ export default function DocumentManager() {
         projectId,
         parentId: uploadTargetId || undefined,
       };
-
       setDocuments((prev) => {
         const updated = insertFolderToTarget(prev, newFolder, uploadTargetId);
-        if (uploadTargetId) {
-          setAutoExpandFolderId(uploadTargetId);
-        }
+        if (uploadTargetId) setAutoExpandFolderId(uploadTargetId);
         setSelectedDocId(tempId);
         setUploadTargetId(tempId);
         return updated;
       });
-
       const created = await createFolder(
         projectId,
         newFolderName.trim(),
         uploadTargetId,
       );
-
       setDocuments((prev) => replaceTempNode(prev, tempId, created));
-
       setUploadTargetId((prev) => (prev === tempId ? created.id : prev));
       setSelectedDocId((prev) => (prev === tempId ? created.id : prev));
       setAutoExpandFolderId((prev) => (prev === tempId ? created.id : prev));
-
       setNewFolderName("");
       setIsCreateFolderOpen(false);
     } catch (err) {
@@ -215,7 +241,6 @@ export default function DocumentManager() {
           if (selectedDocId === id) setSelectedDocId(id);
           return updated;
         });
-
         await renameNodeApi(projectId, id, trimmed);
       } catch (err) {
         console.error("Rename failed:", err);
@@ -241,12 +266,10 @@ export default function DocumentManager() {
       } else {
         if (!window.confirm(`Delete "${target.name}"?`)) return;
       }
-
       try {
         setDocuments((prev) => deleteNodeLocal(prev, id));
         if (selectedDocId === id) setSelectedDocId(undefined);
         if (uploadTargetId === id) setUploadTargetId(null);
-
         await deleteNodeApi(projectId, id);
       } catch (err) {
         console.error("Delete failed:", err);
@@ -258,26 +281,23 @@ export default function DocumentManager() {
     [projectId, documents, selectedDocId, uploadTargetId],
   );
 
+  const handleDocumentUpdated = useCallback((updatedDoc: DocumentNode) => {
+    setDocuments((prev) => updateNodeInTree(prev, updatedDoc.id, updatedDoc));
+  }, []);
+
   const insertNodeToTree = (
     nodes: DocumentNode[],
     newNode: DocumentNode,
   ): DocumentNode[] => {
     if (!newNode.parentId) return [...nodes, newNode];
-
     return nodes.map((node) => {
-      if (node.id === newNode.parentId && node.type === "folder") {
+      if (node.id === newNode.parentId && node.type === "folder")
         return { ...node, children: [...(node.children || []), newNode] };
-      }
-      if (node.children) {
-        return {
-          ...node,
-          children: insertNodeToTree(node.children, newNode),
-        };
-      }
+      if (node.children)
+        return { ...node, children: insertNodeToTree(node.children, newNode) };
       return node;
     });
   };
-
   const updateNodeInTree = (
     nodes: DocumentNode[],
     id: string,
@@ -285,16 +305,14 @@ export default function DocumentManager() {
   ): DocumentNode[] => {
     return nodes.map((node) => {
       if (node.id === id) return { ...node, ...updates };
-      if (node.children) {
+      if (node.children)
         return {
           ...node,
           children: updateNodeInTree(node.children, id, updates),
         };
-      }
       return node;
     });
   };
-
   const removeNodeFromTree = (
     nodes: DocumentNode[],
     id: string,
@@ -306,7 +324,6 @@ export default function DocumentManager() {
         children: node.children ? removeNodeFromTree(node.children, id) : [],
       }));
   };
-
   const replaceTempNode = (
     nodes: DocumentNode[],
     tempId: string,
@@ -314,16 +331,14 @@ export default function DocumentManager() {
   ): DocumentNode[] => {
     return nodes.map((node) => {
       if (node.id === tempId) return realNode;
-      if (node.children) {
+      if (node.children)
         return {
           ...node,
           children: replaceTempNode(node.children, tempId, realNode),
         };
-      }
       return node;
     });
   };
-
   const insertFilesToTarget = (
     nodes: DocumentNode[],
     files: DocumentNode[],
@@ -331,19 +346,16 @@ export default function DocumentManager() {
   ): DocumentNode[] => {
     if (!targetId) return [...nodes, ...files];
     return nodes.map((node) => {
-      if (node.id === targetId && node.type === "folder") {
+      if (node.id === targetId && node.type === "folder")
         return { ...node, children: [...(node.children || []), ...files] };
-      }
-      if (node.children) {
+      if (node.children)
         return {
           ...node,
           children: insertFilesToTarget(node.children, files, targetId),
         };
-      }
       return node;
     });
   };
-
   const insertFolderToTarget = (
     nodes: DocumentNode[],
     folder: DocumentNode,
@@ -351,19 +363,16 @@ export default function DocumentManager() {
   ): DocumentNode[] => {
     if (!targetId) return [...nodes, folder];
     return nodes.map((node) => {
-      if (node.id === targetId && node.type === "folder") {
+      if (node.id === targetId && node.type === "folder")
         return { ...node, children: [...(node.children || []), folder] };
-      }
-      if (node.children) {
+      if (node.children)
         return {
           ...node,
           children: insertFolderToTarget(node.children, folder, targetId),
         };
-      }
       return node;
     });
   };
-
   const renameNodeLocal = (
     nodes: DocumentNode[],
     targetId: string,
@@ -380,19 +389,16 @@ export default function DocumentManager() {
       return nodes;
     }
     return nodes.map((node) => {
-      if (node.id === targetId) {
+      if (node.id === targetId)
         return { ...node, name: newName, updatedAt: new Date().toISOString() };
-      }
-      if (node.children) {
+      if (node.children)
         return {
           ...node,
           children: renameNodeLocal(node.children, targetId, newName, node.id),
         };
-      }
       return node;
     });
   };
-
   const deleteNodeLocal = (
     nodes: DocumentNode[],
     targetId: string,
@@ -407,6 +413,12 @@ export default function DocumentManager() {
 
   const selectedDoc = findDocumentById(documents, selectedDocId);
 
+  const currentDocTypingUsersList = selectedDoc
+    ? docEditingUsers[`${selectedDoc.id}-tag-input`]
+      ? [docEditingUsers[`${selectedDoc.id}-tag-input`]]
+      : []
+    : [];
+
   const getTargetName = (
     nodes: DocumentNode[],
     targetId: string | null,
@@ -416,7 +428,7 @@ export default function DocumentManager() {
     return found?.name || "Root";
   };
 
-  if (isLoading) {
+  if (isLoading)
     return (
       <div className="flex h-screen w-full items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -425,9 +437,7 @@ export default function DocumentManager() {
         </div>
       </div>
     );
-  }
-
-  if (error) {
+  if (error)
     return (
       <div className="flex h-screen w-full items-center justify-center bg-gray-50">
         <div className="text-center space-y-4">
@@ -438,7 +448,6 @@ export default function DocumentManager() {
         </div>
       </div>
     );
-  }
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-white">
@@ -463,7 +472,6 @@ export default function DocumentManager() {
                   onChange={handleFileChange}
                   disabled={isProcessing || isLoading}
                 />
-
                 <Button
                   variant="ghost"
                   size="icon"
@@ -478,7 +486,6 @@ export default function DocumentManager() {
                     <Upload className="w-4 h-4" />
                   )}
                 </Button>
-
                 <Button
                   variant="ghost"
                   size="icon"
@@ -489,7 +496,6 @@ export default function DocumentManager() {
                 >
                   <FolderPlus className="w-4 h-4" />
                 </Button>
-
                 {uploadTargetId && (
                   <Button
                     variant="ghost"
@@ -504,7 +510,6 @@ export default function DocumentManager() {
                 )}
               </div>
             </div>
-
             <div
               className="flex-1 overflow-y-auto p-2 cursor-default"
               onClick={() => {
@@ -549,7 +554,12 @@ export default function DocumentManager() {
           defaultSize={70}
           className="h-full min-h-0 overflow-hidden bg-white"
         >
-          <DocumentPreview document={selectedDoc} />
+          <DocumentPreview
+            document={selectedDoc}
+            sendWsMessage={send}
+            typingUsers={currentDocTypingUsersList}
+            onDocumentUpdated={handleDocumentUpdated}
+          />
         </ResizablePanel>
       </ResizablePanelGroup>
 
