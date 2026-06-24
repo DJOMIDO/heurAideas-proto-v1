@@ -24,4 +24,7 @@ export interface DocumentTreeProps {
 
 export interface DocumentPreviewProps {
   document?: DocumentNode;
+  sendWsMessage?: (data: any) => void;
+  typingUsers?: { userId: number; username: string; timestamp: string }[];
+  onDocumentUpdated?: (updatedDoc: DocumentNode) => void;
 }

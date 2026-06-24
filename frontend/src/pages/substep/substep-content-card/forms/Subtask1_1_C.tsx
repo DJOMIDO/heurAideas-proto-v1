@@ -1,5 +1,4 @@
 // frontend/src/pages/substep/substep-content-card/forms/Subtask1_1_C.tsx
-
 import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -36,21 +35,25 @@ export default function Subtask1_1_C({
 
   const getNeedsRows = () => {
     const stored = formData[`${fieldPrefix}-needs-row-count`];
-    if (stored && typeof stored === "number" && stored >= 2) return stored;
+    const parsedCount = Number(stored);
+    if (!isNaN(parsedCount) && parsedCount >= 2) return parsedCount;
+
     let count = 0;
     while (getField(`needs-${count}-need`) || getField(`needs-${count}-source`))
       count++;
     return Math.max(2, count);
   };
+
   const needsRows = getNeedsRows();
 
-  const updateNeedsRows = (newCount: number) => {
+  const updateNeedsRows = (newCount: number) =>
     onFormDataChange(`${fieldPrefix}-needs-row-count`, newCount);
-  };
 
   const getEffectsRows = () => {
     const stored = formData[`${fieldPrefix}-effects-row-count`];
-    if (stored && typeof stored === "number" && stored >= 2) return stored;
+    const parsedCount = Number(stored);
+    if (!isNaN(parsedCount) && parsedCount >= 2) return parsedCount;
+    
     let count = 0;
     while (
       getField(`effects-${count}-name`) ||
@@ -59,13 +62,14 @@ export default function Subtask1_1_C({
       count++;
     return Math.max(2, count);
   };
+
   const effectsRows = getEffectsRows();
 
-  const updateEffectsRows = (newCount: number) => {
+  const updateEffectsRows = (newCount: number) =>
     onFormDataChange(`${fieldPrefix}-effects-row-count`, newCount);
-  };
 
   const addNeedRow = () => updateNeedsRows(needsRows + 1);
+
   const removeNeedRow = (idx: number) => {
     if (needsRows <= 1) return;
     const cols = ["need", "source"];
@@ -79,6 +83,7 @@ export default function Subtask1_1_C({
   };
 
   const addEffectRow = () => updateEffectsRows(effectsRows + 1);
+  
   const removeEffectRow = (idx: number) => {
     if (effectsRows <= 1) return;
     const cols = ["name", "effects", "quality", "measurement", "source"];
@@ -140,7 +145,6 @@ export default function Subtask1_1_C({
                       {autoId}
                     </span>
                   </td>
-
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter need"
@@ -155,7 +159,6 @@ export default function Subtask1_1_C({
                       fieldName={`${fieldPrefix}-needs-${idx}-need`}
                     />
                   </td>
-
                   <td className="px-3 py-2">
                     <div className="space-y-1">
                       <DocumentLinkField
@@ -168,7 +171,6 @@ export default function Subtask1_1_C({
                       />
                     </div>
                   </td>
-
                   <td className="px-2 py-2 text-center">
                     {needsRows > 1 && (
                       <button
@@ -236,7 +238,6 @@ export default function Subtask1_1_C({
                       {autoId}
                     </span>
                   </td>
-
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter name"
@@ -251,7 +252,6 @@ export default function Subtask1_1_C({
                       fieldName={`${fieldPrefix}-effects-${idx}-name`}
                     />
                   </td>
-
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter effects"
@@ -266,7 +266,6 @@ export default function Subtask1_1_C({
                       fieldName={`${fieldPrefix}-effects-${idx}-effects`}
                     />
                   </td>
-
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter quality criteria"
@@ -281,7 +280,6 @@ export default function Subtask1_1_C({
                       fieldName={`${fieldPrefix}-effects-${idx}-quality`}
                     />
                   </td>
-
                   <td className="px-3 py-2">
                     <Input
                       placeholder="Enter measurement methods"
@@ -299,7 +297,6 @@ export default function Subtask1_1_C({
                       fieldName={`${fieldPrefix}-effects-${idx}-measurement`}
                     />
                   </td>
-
                   <td className="px-3 py-2">
                     <div className="space-y-1">
                       <DocumentLinkField
@@ -312,7 +309,6 @@ export default function Subtask1_1_C({
                       />
                     </div>
                   </td>
-
                   <td className="px-2 py-2 text-center">
                     {effectsRows > 1 && (
                       <button

@@ -65,8 +65,6 @@ export default function Substep() {
     }>
   >([]);
 
-  // 编辑用户状态：{ fieldName: { userId, username, timestamp } }
-  // 这个状态 ONLY 由接收到的 WebSocket 消息更新（排除自己）
   const [editingUsers, setEditingUsers] = useState<
     Record<string, { userId: number; username: string; timestamp: string }>
   >({});
@@ -83,8 +81,6 @@ export default function Substep() {
   const currentSubstepIdRef = useRef<string | undefined>(undefined);
   const isLoadingRef = useRef(false);
   const hasUnsavedChangesRef = useRef(false);
-
-  // 用于存储打字状态的定时器，以便自动清除过期的编辑状态
   const editingTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
   );
@@ -107,11 +103,10 @@ export default function Substep() {
         message.type === "content_saved" &&
         message.substep_id === substepId
       ) {
-        if (message.user_id === currentUserId) return; // 跳过自己
+        if (message.user_id === currentUserId) return;
 
         if (substepId === "2.1") setTaskSyncKey((k) => k + 1);
 
-        // 无论本地是否有未保存的更改，都必须拉取最新数据！
         isLoadingRef.current = true;
         loadSubstepStateWithApi(projectIdNum, substepId!, true)
           .then((saved) => {
@@ -120,10 +115,9 @@ export default function Substep() {
               const localFormData =
                 formDataMapRef.current.get(substepId!) || {};
 
-              // 核心协同逻辑：深度合并！
-              // 以后端最新数据为准（确保别人的提交被同步），
-              // 但如果本地有某个 key 且远程没有（比如正在输入还没保存的 comment），则保留本地！
-              const mergedFormData = { ...localFormData, ...remoteFormData };
+              const mergedFormData = hasUnsavedChangesRef.current
+                ? { ...remoteFormData, ...localFormData }
+                : remoteFormData;
 
               setFormData(mergedFormData);
               formDataMapRef.current.set(substepId!, mergedFormData);
@@ -136,7 +130,6 @@ export default function Substep() {
           });
       }
 
-      // 2. 处理评论变更
       if (
         ["comment_added", "comment_updated", "comment_deleted"].includes(
           message.type,
@@ -145,18 +138,15 @@ export default function Substep() {
         setCommentRefreshKey((prev) => prev + 1);
       }
 
-      // 3. 处理编辑状态 (关键：只处理他人的状态)
       if (message.type === "user_typing" && message.substep_id === substepId) {
         const field = message.field;
 
-        // 只有当消息发送者不是自己时，才更新状态
         if (message.user_id !== currentUserId) {
-          // 清除该字段之前的定时器
+
           if (editingTimeoutsRef.current.has(field)) {
             clearTimeout(editingTimeoutsRef.current.get(field)!);
           }
 
-          // 更新状态：显示某人正在编辑
           setEditingUsers((prev) => ({
             ...prev,
             [field]: {
@@ -166,7 +156,6 @@ export default function Substep() {
             },
           }));
 
-          // 设置定时器：3 秒后自动移除该状态（如果期间没有收到新的打字消息）
           const timeoutId = setTimeout(() => {
             setEditingUsers((prev) => {
               const updated = { ...prev };
@@ -178,7 +167,6 @@ export default function Substep() {
 
           editingTimeoutsRef.current.set(field, timeoutId);
 
-          // 冲突检测
           if (hasUnsavedChangesRef.current) {
             setConflictFields((prev) => ({
               ...prev,
@@ -191,7 +179,6 @@ export default function Substep() {
         }
       }
 
-      // 4. 处理停止编辑 (可选，如果后端显式发送 stop_typing)
       if (message.type === "stop_typing" && message.substep_id === substepId) {
         const field = message.field;
         if (editingTimeoutsRef.current.has(field)) {
@@ -292,7 +279,6 @@ export default function Substep() {
     try {
       await saveSubstepStateWithApi(projectIdNum, substepId, stateToSave, true);
 
-      // 通知其他用户内容已保存
       if (sendMessage) {
         sendMessage({
           type: "content_saved",
@@ -315,7 +301,6 @@ export default function Substep() {
           await syncCommentsFromApi(projectIdNum, substepId, projectSubstepId);
           setCommentRefreshKey((prev) => prev + 1);
 
-          // 通知其他用户评论已更新
           if (sendMessage) {
             sendMessage({
               type: "comment_added",
@@ -351,18 +336,9 @@ export default function Substep() {
     async (key: string, value: any) => {
       if (!substepId || !projectIdNum) return;
       try {
-        // 1. 强制拉取后端最新状态
-        const latestState = await loadSubstepStateWithApi(
-          projectIdNum,
-          substepId,
-          true,
-        );
-        const latestFormData = latestState?.formData || {};
+        const localFormData = formDataMapRef.current.get(substepId) || {};
+        const newFormData = { ...localFormData, [key]: value };
 
-        // 2. 合并：保留后端最新数据，只覆盖/更新指定的 key
-        const newFormData = { ...latestFormData, [key]: value };
-
-        // 3. 立即保存到后端！
         await saveSubstepStateWithApi(
           projectIdNum,
           substepId,
@@ -370,14 +346,11 @@ export default function Substep() {
           true,
         );
 
-        // 4. 更新本地状态
         setFormData(newFormData);
         formDataMapRef.current.set(substepId, newFormData);
 
-        // 5. 标记为已保存，阻止 2秒防抖再次覆盖
         hasUnsavedChangesRef.current = false;
 
-        // 6. 广播给其他人
         if (sendMessage) {
           sendMessage({
             type: "content_saved",
@@ -396,7 +369,6 @@ export default function Substep() {
     [substepId, projectIdNum, currentUserId, sendMessage, userInfo],
   );
 
-  // 监听 substepTabState 变化，自动保存到 localStorage
   useEffect(() => {
     if (!substepId || !projectIdNum || isLoadingRef.current) return;
     const currentTab = substepTabState[substepId];
@@ -433,7 +405,6 @@ export default function Substep() {
     localStorage.setItem(key, JSON.stringify(merged));
   }, [substepTabState, substepId, projectIdNum, viewMode, splitViewTabs]);
 
-  // 自动保存（2s debounce）
   useEffect(() => {
     const timer = setTimeout(() => {
       if (isLoadingRef.current || !substepId || !projectIdNum) return;
@@ -471,7 +442,6 @@ export default function Substep() {
     formData,
   ]);
 
-  // 刷新/关闭页面前保存
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (
@@ -508,7 +478,6 @@ export default function Substep() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [substepId, projectIdNum, substepTabState, viewMode, splitViewTabs]);
 
-  // Substep 切换 + 加载
   useEffect(() => {
     if (!substepId || !projectIdNum) return;
 
@@ -583,13 +552,11 @@ export default function Substep() {
   useEffect(() => {
     if (!projectIdNum) return;
 
-    // 并行获取项目详情和成员列表
     Promise.all([
       getProjectDetail(projectIdNum).catch(() => null),
       getProjectMembers(projectIdNum).catch(() => ({ total: 0, members: [] })),
     ])
       .then(([detail, membersRes]) => {
-        // 原有 steps 映射逻辑
         if (detail?.steps) {
           const map: Record<string, number> = {};
           detail.steps.forEach((step) => {
@@ -600,7 +567,6 @@ export default function Substep() {
           setProjectSubstepIdMap(map);
         }
 
-        // 提取真实团队人数和成员列表
         const members = membersRes?.members || [];
         const count = membersRes?.total ?? membersRes?.members?.length ?? 0;
         if (count > 0) {
@@ -614,7 +580,16 @@ export default function Substep() {
   }, [projectIdNum]);
 
   const handleFormDataChange = (field: string, value: any) => {
-    sendTypingIndicator(field); // 触发打字通知
+    const isTableField =
+      field.includes("-docs-") ||
+      field.includes("-parts-") ||
+      field.includes("-needs-") ||
+      field.includes("-effects-") ||
+      field.includes("-element-");
+
+    if (!isTableField) {
+      sendTypingIndicator(field);
+    }
 
     setFormData((prev) => {
       let newFormData: Record<string, any>;
@@ -642,7 +617,6 @@ export default function Substep() {
     return () => window.removeEventListener("resize", checkScreen);
   }, [viewMode]);
 
-  // 组件卸载时清理所有编辑状态定时器
   useEffect(() => {
     return () => {
       editingTimeoutsRef.current.forEach((timeoutId) =>

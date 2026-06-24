@@ -1,5 +1,4 @@
 // frontend/src/pages/substep/substep-content-card/forms/Subtask1_1_B.tsx
-
 import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,36 +36,40 @@ export default function Subtask1_1_B({
 
   const getDocRows = () => {
     const stored = formData[`${fieldPrefix}-docs-row-count`];
-    if (stored && typeof stored === "number" && stored >= 2) {
-      return stored;
-    }
+    const parsedCount = Number(stored);
+    if (!isNaN(parsedCount) && parsedCount >= 2) return parsedCount;
+
     let count = 0;
     while (getField(`docs-${count}-type`) || getField(`docs-${count}-title`))
       count++;
     return Math.max(2, count);
   };
+
   const docRows = getDocRows();
 
-  const updateDocRows = (newCount: number) => {
+  const updateDocRows = (newCount: number) =>
     onFormDataChange(`${fieldPrefix}-docs-row-count`, newCount);
-  };
 
   const getPartRows = () => {
     const stored = formData[`${fieldPrefix}-parts-row-count`];
-    if (stored && typeof stored === "number" && stored >= 2) return stored;
+    const parsedCount = Number(stored);
+    if (!isNaN(parsedCount) && parsedCount >= 2) return parsedCount;
+
     let count = 0;
     while (getField(`parts-${count}-0`)) count++;
     return Math.max(2, count);
   };
+
   const partRows = getPartRows();
 
-  const updatePartRows = (newCount: number) => {
+  const updatePartRows = (newCount: number) =>
     onFormDataChange(`${fieldPrefix}-parts-row-count`, newCount);
-  };
 
   const getPartCols = () => {
     const stored = formData[`${fieldPrefix}-parts-col-count`];
-    if (stored && typeof stored === "number" && stored >= 1) return stored;
+    const parsedCount = Number(stored);
+    if (!isNaN(parsedCount) && parsedCount >= 1) return parsedCount;
+
     let maxCol = 1;
     for (let r = 0; r < 10; r++) {
       let c = 1;
@@ -75,13 +78,14 @@ export default function Subtask1_1_B({
     }
     return maxCol;
   };
+
   const partCols = getPartCols();
 
-  const updatePartCols = (newCount: number) => {
+  const updatePartCols = (newCount: number) =>
     onFormDataChange(`${fieldPrefix}-parts-col-count`, newCount);
-  };
 
   const addDocRow = () => updateDocRows(docRows + 1);
+
   const removeDocRow = (idx: number) => {
     if (docRows <= 1) return;
     const cols = ["type", "title", "concepts", "definitions", "link"];
@@ -95,6 +99,7 @@ export default function Subtask1_1_B({
   };
 
   const addPartRow = () => updatePartRows(partRows + 1);
+
   const removePartRow = (idx: number) => {
     if (partRows <= 1) return;
     for (let c = 0; c <= partCols; c++) updateField(`parts-${idx}-${c}`, "");
@@ -105,20 +110,19 @@ export default function Subtask1_1_B({
     }
     updatePartRows(partRows - 1);
   };
+
   const addPartCol = () => updatePartCols(partCols + 1);
+  
   const removePartCol = (idx: number) => {
     if (partCols <= 1) return;
-    for (let r = 0; r < partRows; r++) {
-      updateField(`parts-${r}-${idx + 1}`, "");
-    }
+    for (let r = 0; r < partRows; r++) updateField(`parts-${r}-${idx + 1}`, "");
     for (let i = idx + 1; i < partCols; i++) {
       for (let r = 0; r < partRows; r++) {
         updateField(`parts-${r}-${i}`, getField(`parts-${r}-${i + 1}`));
       }
     }
-    for (let r = 0; r < partRows; r++) {
+    for (let r = 0; r < partRows; r++)
       updateField(`parts-${r}-${partCols}`, "");
-    }
     updatePartCols(partCols - 1);
   };
 
@@ -182,7 +186,6 @@ export default function Subtask1_1_B({
                         {autoId}
                       </span>
                     </td>
-
                     <td className="px-3 py-2 align-top">
                       <Textarea
                         placeholder="Enter Doc Type"
@@ -198,7 +201,6 @@ export default function Subtask1_1_B({
                         fieldName={`${fieldPrefix}-docs-${idx}-type`}
                       />
                     </td>
-
                     <td className="px-3 py-2 align-top">
                       <Textarea
                         placeholder="Enter a Title"
@@ -214,7 +216,6 @@ export default function Subtask1_1_B({
                         fieldName={`${fieldPrefix}-docs-${idx}-title`}
                       />
                     </td>
-
                     <td className="px-3 py-2 align-top">
                       <Textarea
                         placeholder="+ Add concepts"
@@ -230,7 +231,6 @@ export default function Subtask1_1_B({
                         fieldName={`${fieldPrefix}-docs-${idx}-concepts`}
                       />
                     </td>
-
                     <td className="px-3 py-2 align-top">
                       <Textarea
                         placeholder="+ Add definition"
@@ -246,7 +246,6 @@ export default function Subtask1_1_B({
                         fieldName={`${fieldPrefix}-docs-${idx}-definitions`}
                       />
                     </td>
-
                     <td className="px-3 py-2 align-top">
                       <div className="space-y-1">
                         <DocumentLinkField
@@ -259,7 +258,6 @@ export default function Subtask1_1_B({
                         />
                       </div>
                     </td>
-
                     <td className="px-2 py-2 text-center align-top">
                       {docRows > 1 && (
                         <button
@@ -297,7 +295,6 @@ export default function Subtask1_1_B({
             <Plus className="w-4 h-4 mr-2" /> Add Column
           </Button>
         </div>
-
         <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white">
           <table className="min-w-[700px] w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -345,7 +342,6 @@ export default function Subtask1_1_B({
                       fieldName={`${fieldPrefix}-parts-${r}-0`}
                     />
                   </td>
-
                   {Array.from({ length: partCols }).map((_, c) => (
                     <td key={c} className="px-3 py-2">
                       <Input
@@ -362,7 +358,6 @@ export default function Subtask1_1_B({
                       />
                     </td>
                   ))}
-
                   <td className="px-2 py-2 text-center">
                     {partRows > 1 && (
                       <button

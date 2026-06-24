@@ -1,5 +1,5 @@
 // frontend/src/components/DocumentSelector/DocumentLinkField.tsx
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { X, Link2 } from "lucide-react";
 import DocumentSelectorModal from "./DocumentSelectorModal";
@@ -20,6 +20,13 @@ export default function DocumentLinkField({
 }: DocumentLinkFieldProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const valueRef = useRef(value);
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
+
+  const snapshotIdsRef = useRef<string[]>([]);
+
   let selectedDocs: DocumentNode[] = [];
   try {
     if (value && value.startsWith("[")) {
@@ -29,8 +36,37 @@ export default function DocumentLinkField({
     selectedDocs = [];
   }
 
+  useEffect(() => {
+    if (isModalOpen) {
+      snapshotIdsRef.current = selectedDocs.map((d) => d.id);
+    }
+  }, [isModalOpen]);
+
   const handleConfirm = (newDocs: DocumentNode[]) => {
-    const metadata = newDocs.map((d) => ({
+    let latestDocs: DocumentNode[] = [];
+    try {
+      if (valueRef.current && valueRef.current.startsWith("[")) {
+        latestDocs = JSON.parse(valueRef.current);
+      }
+    } catch (e) {}
+
+    const snapshotSet = new Set(snapshotIdsRef.current);
+
+    const docsAddedByOthers = latestDocs.filter((d) => !snapshotSet.has(d.id));
+
+    const finalDocsMap = new Map<string, DocumentNode>();
+
+    newDocs.forEach((d) => finalDocsMap.set(d.id, d));
+
+    docsAddedByOthers.forEach((d) => {
+      if (!finalDocsMap.has(d.id)) {
+        finalDocsMap.set(d.id, d);
+      }
+    });
+
+    const finalDocs = Array.from(finalDocsMap.values());
+
+    const metadata = finalDocs.map((d) => ({
       id: d.id,
       name: d.name,
       url: d.url,
@@ -39,7 +75,14 @@ export default function DocumentLinkField({
   };
 
   const handleRemoveDoc = (docId: string) => {
-    const updated = selectedDocs.filter((d) => d.id !== docId);
+    let latestDocs: DocumentNode[] = [];
+    try {
+      if (valueRef.current && valueRef.current.startsWith("[")) {
+        latestDocs = JSON.parse(valueRef.current);
+      }
+    } catch (e) {}
+
+    const updated = latestDocs.filter((d) => d.id !== docId);
     onChange(JSON.stringify(updated));
   };
 
