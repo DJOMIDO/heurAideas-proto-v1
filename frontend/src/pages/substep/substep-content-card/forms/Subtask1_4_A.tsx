@@ -8,10 +8,8 @@ import TypingIndicator from "@/components/TypingIndicator";
 import ResourceSection from "./subtask-1-4-a/ResourceSection";
 import LevelSelectionCard from "./subtask-1-4-a/LevelSelectionCard";
 import OptionalTextInput from "./subtask-1-4-a/OptionalTextInput";
-import DocumentSelectButton from "./subtask-1-4-a/DocumentSelectButton";
 import type { ResourcesData, SubmissionData } from "./subtask-1-4-a/types";
-import DocumentSelectorModal from "@/components/DocumentSelector/DocumentSelectorModal";
-import type { DocumentNode } from "@/pages/documents/types";
+import DocumentLinkField from "@/components/DocumentSelector/DocumentLinkField";
 
 interface Subtask1_4_AProps {
   fieldPrefix: string;
@@ -48,7 +46,7 @@ export default function Subtask1_4_A({
   onFormDataChange,
   editingUsers = {},
   currentUserId,
-  projectId, // 👈 新增解构
+  projectId,
   userInfo,
   onSyncAndSave,
 }: Subtask1_4_AProps) {
@@ -61,12 +59,10 @@ export default function Subtask1_4_A({
   const draftData = (formData[draftKey] as { resources?: ResourcesData }) || {};
 
   const [hasCommitted, setHasCommitted] = useState(!!mySubmission?.committedAt);
-  const [isDocumentSelectorOpen, setIsDocumentSelectorOpen] = useState(false); // 👈 新增状态
 
   const [resources, setResources] = useState<ResourcesData>(() => {
     const initialData = createInitialData();
     const { committedAt, username, ...restOfSubmission } = mySubmission || {};
-
     return {
       ...initialData,
       ...draftData.resources,
@@ -86,27 +82,16 @@ export default function Subtask1_4_A({
     field: K,
     value: ResourcesData[K],
   ) => {
-    if (hasCommitted) return;
-    const newData = { ...resources, [field]: value };
-    setResources(newData);
-    saveDraft(newData);
-  };
+    if (hasCommitted) {
+      toast.error("Cannot edit after submission.");
+      return;
+    }
 
-  // 👇 新增：处理文档选择
-  const handleDocumentSelect = (selectedDocs: DocumentNode[]) => {
-    const docMetadata = selectedDocs.map((doc) => ({
-      id: doc.id,
-      name: doc.name,
-      extension: doc.extension,
-      url: doc.url,
-    }));
-
-    updateField("projectDocumentation", {
-      ...resources.projectDocumentation,
-      documents: docMetadata,
+    setResources((prev) => {
+      const newData = { ...prev, [field]: value };
+      saveDraft(newData);
+      return newData;
     });
-
-    toast.success(`Selected ${selectedDocs.length} document(s)`);
   };
 
   const handleSubmit = async () => {
@@ -158,7 +143,6 @@ export default function Subtask1_4_A({
 
   return (
     <div className="space-y-6">
-      {/* STAKEHOLDERS */}
       <ResourceSection
         title="Stakeholders"
         icon={<Users className="w-5 h-5 text-gray-600" />}
@@ -227,15 +211,11 @@ export default function Subtask1_4_A({
                   })
                 }
                 disabled={hasCommitted}
-                className={`
-                  py-3 rounded-lg border-2 font-medium text-sm transition-all
-                  ${
-                    resources.heInspectors.count === count
-                      ? "border-blue-600 bg-blue-50 text-blue-700"
-                      : "border-gray-200 hover:border-gray-300"
-                  }
-                  ${hasCommitted ? "opacity-60 cursor-default" : "cursor-pointer"}
-                `}
+                className={`py-3 rounded-lg border-2 font-medium text-sm transition-all ${
+                  resources.heInspectors.count === count
+                    ? "border-blue-600 bg-blue-50 text-blue-700"
+                    : "border-gray-200 hover:border-gray-300"
+                } ${hasCommitted ? "opacity-60 cursor-default" : "cursor-pointer"}`}
               >
                 {count}
               </button>
@@ -255,7 +235,6 @@ export default function Subtask1_4_A({
         </div>
       </ResourceSection>
 
-      {/* DOCUMENTARY RESOURCES */}
       <ResourceSection
         title="Documentary Resources"
         icon={<BookOpen className="w-5 h-5 text-gray-600" />}
@@ -319,32 +298,33 @@ export default function Subtask1_4_A({
             analyses, standards, technical specs.
           </p>
 
-          {/* 👇 修改：打开文档选择器 Modal */}
-          <DocumentSelectButton
-            onClick={() => setIsDocumentSelectorOpen(true)}
-            isReadOnly={hasCommitted}
+          <DocumentLinkField
+            value={JSON.stringify(resources.projectDocumentation.documents)}
+            onChange={(val) => {
+              if (hasCommitted) return;
+              try {
+                const docs = val ? JSON.parse(val) : [];
+                setResources((prev) => {
+                  const newData = {
+                    ...prev,
+                    projectDocumentation: {
+                      ...prev.projectDocumentation,
+                      documents: docs,
+                    },
+                  };
+                  saveDraft(newData);
+                  return newData;
+                });
+              } catch (e) {
+                console.error("Failed to parse documents", e);
+              }
+            }}
+            projectId={projectId || 0}
+            placeholder="Select project documentation..."
           />
-
-          {/* 可选：显示已选文档列表 */}
-          {resources.projectDocumentation.documents.length > 0 && (
-            <div className="mt-3 space-y-1">
-              <p className="text-xs font-medium text-gray-500">
-                Selected documents:
-              </p>
-              <ul className="text-xs text-gray-700 space-y-1 pl-2">
-                {resources.projectDocumentation.documents.map((doc) => (
-                  <li key={doc.id} className="flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                    {doc.name}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
         </div>
       </ResourceSection>
 
-      {/* MATERIAL & FINANCIAL RESOURCES */}
       <ResourceSection
         title="Material & Financial Resources"
         icon={<DollarSign className="w-5 h-5 text-gray-600" />}
@@ -396,7 +376,6 @@ export default function Subtask1_4_A({
         </div>
       </ResourceSection>
 
-      {/* TIME CONSTRAINTS */}
       <ResourceSection
         title="Time Constraints"
         icon={<Clock className="w-5 h-5 text-gray-600" />}
@@ -420,7 +399,6 @@ export default function Subtask1_4_A({
         />
       </ResourceSection>
 
-      {/* Submit Button */}
       <div className="flex justify-end pt-4 border-t border-gray-200">
         {hasCommitted ? (
           <Button
@@ -439,14 +417,6 @@ export default function Subtask1_4_A({
           </Button>
         )}
       </div>
-
-      {/* 👇 新增：渲染文档选择器 Modal */}
-      <DocumentSelectorModal
-        open={isDocumentSelectorOpen}
-        onOpenChange={setIsDocumentSelectorOpen}
-        onConfirm={handleDocumentSelect}
-        projectId={projectId || 0}
-      />
 
       <TypingIndicator
         editingUsers={editingUsers}
