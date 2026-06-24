@@ -25,12 +25,7 @@ from pydantic import BaseModel # pyright: ignore[reportMissingImports]
 
 router = APIRouter(prefix="/projects/{project_id}/documents", tags=["Documents"])
 
-
-# ==================== 辅助函数 ====================
-
-
 def _doc_to_dict(doc: Document) -> dict:
-    """将 ORM 对象转换为前端所需的字典格式"""
     return {
         "id": doc.id,
         "name": doc.name,
@@ -48,8 +43,10 @@ def _doc_to_dict(doc: Document) -> dict:
 class TagUpdateRequest(BaseModel):
     tags: List[str]
 
+class RenameRequest(BaseModel):
+    name: str
+
 def _build_tree(nodes: List[Document]) -> List[dict]:
-    """递归构建树形结构"""
     result = []
     for node in nodes:
         node_dict = _doc_to_dict(node)
@@ -60,19 +57,13 @@ def _build_tree(nodes: List[Document]) -> List[dict]:
 
 
 def _recursive_delete(db: Session, doc: Document):
-    """递归删除节点（包括文件存储和子节点）"""
-    # 1. 如果是文件，删除存储内容
     if doc.type == "file" and doc.storage_path:
         storage_service.delete_file(doc.storage_path)
 
-    # 2. 如果是文件夹，递归删除子节点
     children = db.query(Document).filter(Document.parent_id == doc.id).all()
     for child in children:
         _recursive_delete(db, child)
         db.delete(child)
-
-
-# ==================== API 路由 ====================
 
 
 @router.get("/tree")
@@ -81,7 +72,6 @@ async def get_document_tree(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """获取项目的文档树结构"""
     if not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=403, detail="No access to this project")
 
@@ -103,7 +93,6 @@ async def upload_document(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """上传文件到项目（支持放入指定文件夹）"""
     if not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=403, detail="No access to this project")
 
@@ -143,7 +132,6 @@ async def upload_document(
 
     result = _doc_to_dict(new_doc)
 
-    # 广播创建事件（排除操作者自己）
     await manager.broadcast(
         project_id=project_id,
         message={
@@ -162,11 +150,10 @@ async def upload_document(
 @router.post("/folder")
 async def create_folder(
     project_id: int,
-    folder: DocumentFolderCreate,  # 接收 JSON 请求体
+    folder: DocumentFolderCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """创建新文件夹"""
     if not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=403, detail="No access to this project")
 
@@ -187,7 +174,6 @@ async def create_folder(
 
     result = _doc_to_dict(new_folder)
 
-    # 广播创建事件
     await manager.broadcast(
         project_id=project_id,
         message={
@@ -207,14 +193,13 @@ async def create_folder(
 async def rename_node(
     project_id: int,
     node_id: str,
-    name: str,
+    body: RenameRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """重命名文件或文件夹"""
     if not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=403, detail="No access to this project")
-
+    
     doc = (
         db.query(Document)
         .filter(Document.id == node_id, Document.project_id == project_id)
@@ -224,13 +209,12 @@ async def rename_node(
     if not doc:
         raise HTTPException(status_code=404, detail="Node not found")
 
-    doc.name = name
+    doc.name = body.name
     db.commit()
     db.refresh(doc)
 
     result = _doc_to_dict(doc)
 
-    # 广播更新事件
     await manager.broadcast(
         project_id=project_id,
         message={
@@ -253,7 +237,6 @@ async def delete_node(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """删除文件或文件夹（文件夹会递归删除内容）"""
     if not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=403, detail="No access to this project")
 
@@ -270,7 +253,6 @@ async def delete_node(
     db.delete(doc)
     db.commit()
 
-    # 广播删除事件（只需传递被删除的节点 ID）
     await manager.broadcast(
         project_id=project_id,
         message={
@@ -293,7 +275,6 @@ async def update_node_tags(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """更新文件或文件夹的标签"""
     if not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=403, detail="No access to this project")
 
@@ -301,14 +282,12 @@ async def update_node_tags(
     if not doc:
         raise HTTPException(status_code=404, detail="Node not found")
 
-    # 更新 tags
     doc.tags = body.tags
     db.commit()
     db.refresh(doc)
 
     result = _doc_to_dict(doc)
 
-    # 广播更新事件
     await manager.broadcast(
         project_id=project_id,
         message={
