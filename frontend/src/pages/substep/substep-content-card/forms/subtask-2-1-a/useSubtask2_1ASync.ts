@@ -35,7 +35,6 @@ export function useSubtask2_1ASync({
   const [version, setVersion] = useState(1);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 清理子任务：保留结构，仅修剪首尾空格（停止过滤空 Subtask）
   const deepCleanSubtasks = useCallback(
     (subtasks: SubtaskData[]): SubtaskData[] => {
       return subtasks.map((st) => ({
@@ -51,11 +50,9 @@ export function useSubtask2_1ASync({
     [],
   );
 
-  // 停止过滤空字段，完整保留 UI 结构
   const deepCleanTasks = useCallback(
     (tasks: TaskData[]): TaskData[] => {
       return tasks.map((task) => {
-        // 仅修剪字符串，不删除空值项
         const cleanQC: QualityCriteria[] = (task.qualityCriteria || []).map(
           (qc) => ({
             id: qc.id,
@@ -93,7 +90,6 @@ export function useSubtask2_1ASync({
     [deepCleanSubtasks],
   );
 
-  // 1. 初始化加载
   useEffect(() => {
     if (!projectId || !substepId) return;
 
@@ -131,7 +127,6 @@ export function useSubtask2_1ASync({
     loadContent();
   }, [projectId, substepId]);
 
-  // 监听 syncKey 变化，自动拉取最新数据
   useEffect(() => {
     if (syncKey > 0) {
       const loadRemote = async () => {
@@ -165,7 +160,6 @@ export function useSubtask2_1ASync({
     }
   }, [syncKey, projectId, substepId]);
 
-  // 2. 防抖自动保存
   const triggerSave = useCallback(
     async (tasksToSave: TaskData[]) => {
       if (saveTimerRef.current) {
@@ -197,7 +191,6 @@ export function useSubtask2_1ASync({
           setLastSavedAt(savedAt);
           setIsSaving(false);
 
-          // 保存成功后，发送 WebSocket 消息通知其他成员
           if (sendMessage) {
             sendMessage({
               type: "content_saved",
@@ -217,7 +210,6 @@ export function useSubtask2_1ASync({
     [projectId, substepId, userId, version, deepCleanTasks],
   );
 
-  // 3. 更新单个 Task
   const updateTask = useCallback(
     (taskId: string, updates: Partial<TaskData>) => {
       setTasks((prev) => {
@@ -231,7 +223,6 @@ export function useSubtask2_1ASync({
     [triggerSave],
   );
 
-  // 4. 添加新 Task
   const addTask = useCallback(
     (newTask: TaskData) => {
       setTasks((prev) => {
@@ -243,7 +234,6 @@ export function useSubtask2_1ASync({
     [triggerSave],
   );
 
-  // 5. 删除 Task
   const removeTask = useCallback(
     (taskId: string) => {
       setTasks((prev) => {
@@ -255,7 +245,6 @@ export function useSubtask2_1ASync({
     [triggerSave],
   );
 
-  // 6. 清理定时器
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) {

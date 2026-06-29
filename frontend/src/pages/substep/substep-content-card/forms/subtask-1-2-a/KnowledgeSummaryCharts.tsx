@@ -1,4 +1,5 @@
 // frontend/src/pages/substep/substep-content-card/forms/subtask-1-2-a/KnowledgeSummaryCharts.tsx
+
 import KnowledgeLevelChart from "./KnowledgeLevelChart";
 import { AlertCircle } from "lucide-react";
 import { KNOWLEDGE_LEVELS, LEVEL_COLORS, LEVEL_LABELS } from "./types";

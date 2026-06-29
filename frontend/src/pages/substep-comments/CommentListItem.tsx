@@ -1,4 +1,4 @@
-// src/pages/substep-comments/CommentListItem.tsx
+// frontend/src/pages/substep-comments/CommentListItem.tsx
 
 import { useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -51,7 +51,6 @@ export default function CommentListItem({
   isSubmittingReply,
   currentUserId,
 }: CommentListItemProps) {
-  // 兼容 snake_case 和 camelCase 字段名
   const authorName = comment.author_name ?? comment.authorName ?? "Unknown";
   const createdAt =
     comment.created_at ?? comment.createdAt ?? new Date().toISOString();
@@ -59,11 +58,7 @@ export default function CommentListItem({
   const isEdited = comment.is_edited ?? comment.edited ?? false;
   const isResolved = comment.is_resolved ?? comment.resolved ?? false;
   const isDeleted = comment.is_deleted ?? comment.deleted ?? false;
-
-  // 使用工具函数
   const initials = getInitials(authorName);
-
-  // 编辑状态
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(comment.content);
 
@@ -87,7 +82,6 @@ export default function CommentListItem({
     setReplyContent("");
   };
 
-  // 编辑相关函数
   const handleStartEdit = () => {
     setIsEditing(true);
     setEditContent(comment.content);
@@ -105,7 +99,6 @@ export default function CommentListItem({
     }
   };
 
-  // 根据 depth 显示不同的删除确认信息
   const handleDelete = () => {
     const isReply = depth > 0;
     if (
@@ -117,12 +110,10 @@ export default function CommentListItem({
     }
   };
 
-  // Resolve 函数（只在主评论时调用）
   const handleResolve = () => {
     onResolve?.(comment.id);
   };
 
-  // 根据深度调整样式
   const depthStyles = {
     padding: depth === 0 ? "1rem" : "0.75rem 1rem",
     backgroundColor: depth > 0 && depth % 2 === 1 ? "#f9fafb" : "transparent",
@@ -168,19 +159,16 @@ export default function CommentListItem({
               {formatDate(createdAt)}
             </span>
 
-            {/* 显示回复层级 */}
             {depth > 0 && (
               <Badge variant="outline" className="text-xs text-gray-400">
                 Reply {depth > 1 ? `L${depth}` : ""}
               </Badge>
             )}
 
-            {/* 编辑标识 */}
             {isEdited && (
               <span className="text-xs text-gray-400 italic">(edited)</span>
             )}
 
-            {/* 编辑/删除按钮（只有作者可见） */}
             {currentUserId && authorId === currentUserId && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -211,7 +199,6 @@ export default function CommentListItem({
               </DropdownMenu>
             )}
 
-            {/* Resolve 按钮只在主评论时显示（depth === 0） */}
             {isMainComment && !isResolved && (
               <Button
                 variant="ghost"
@@ -225,7 +212,6 @@ export default function CommentListItem({
             )}
           </div>
 
-          {/* 评论内容 - 可编辑 */}
           {isEditing ? (
             <div className="mt-2 space-y-2">
               <Textarea
@@ -261,7 +247,6 @@ export default function CommentListItem({
           )}
 
           <div className="mt-3 flex items-center gap-2">
-            {/* 回复按钮和输入框（限制最大深度为 3） */}
             {depth < 3 &&
               (replyingTo === comment.id ? (
                 <div className="flex-1 space-y-2">

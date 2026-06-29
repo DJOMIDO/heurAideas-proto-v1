@@ -63,7 +63,6 @@ function SortableCriterion({
     zIndex: isDragging ? 10 : 1,
   };
 
-  // 生成唯一字段 Key
   const fieldNameKey = fieldPrefix ? `${fieldPrefix}-qc-${id}` : undefined;
 
   return (
@@ -89,17 +88,14 @@ function SortableCriterion({
         placeholder="Quality criteria"
         value={value}
         onChange={(e) => {
-          // 动作 1：触发打字通知
           if (onFormDataChange && fieldNameKey) {
             onFormDataChange(fieldNameKey, e.target.value);
           }
-          // 动作 2：更新本地数据
           onChange(e.target.value);
         }}
         className="flex-1 min-w-0 h-8 text-xs bg-transparent border-none focus-visible:ring-0 pl-2 pr-0 placeholder:text-gray-400"
       />
 
-      {/* 动作 3：显示输入提示 */}
       {fieldNameKey && (
         <TypingIndicator editingUsers={editingUsers} fieldName={fieldNameKey} />
       )}

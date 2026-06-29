@@ -13,7 +13,6 @@ interface Subtask1_3_BProps {
 }
 
 export default function Subtask1_3_B({}: Subtask1_3_BProps) {
-  // Hardcoded recommendations based on the answers from Subtask1_3_A
   const recommendations = [
     {
       method: "Heuristic Evaluation",

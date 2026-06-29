@@ -24,7 +24,6 @@ export interface SubmissionData {
   username: string;
 }
 
-// 常量定义
 export const REQUIRED_FIELDS: { value: RequiredField; label: string }[] = [
   { value: "name", label: "Name" },
   { value: "description", label: "Description" },

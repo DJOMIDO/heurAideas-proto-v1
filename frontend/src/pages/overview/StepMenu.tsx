@@ -1,3 +1,5 @@
+// frontend/src/pages/overview/StepMenu.tsx
+
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type Step } from "@/data/steps";
 import { useRef, useEffect, useState } from "react";
@@ -15,7 +17,7 @@ export default function StepMenu({
 }: StepMenuProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [showTitle, setShowTitle] = useState(true);
-  const WIDTH_THRESHOLD = 130; // 小于 130px 隐藏标题
+  const WIDTH_THRESHOLD = 130;
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {

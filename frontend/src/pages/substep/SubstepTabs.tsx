@@ -1,4 +1,4 @@
-// src/pages/substep/SubstepTabs.tsx
+// frontend/src/pages/substep/SubstepTabs.tsx
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,6 @@ export default function SubstepTabs({
       onValueChange={onValueChange}
       className="w-full border-b border-gray-200 bg-white"
     >
-      {/* 移除 flex items-center，保持左对齐 */}
       <TabsList className="h-12 bg-transparent border-0 px-4 gap-1">
         {tabs.map((tab) => (
           <TabsTrigger
@@ -65,7 +64,6 @@ export default function SubstepTabs({
           </TabsTrigger>
         ))}
 
-        {/* 分屏按钮：使用 ml-auto 推到最右侧 */}
         {onToggleSplitView && (
           <Button
             variant="ghost"

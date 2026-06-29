@@ -58,18 +58,15 @@ export default function TaskHeader({
           placeholder="Enter the name of the task"
           value={task.name}
           onChange={(e) => {
-            // 动作 1：触发打字通知（告诉父组件，父组件会通过 WebSocket 广播）
             if (onFormDataChange) {
               onFormDataChange(fieldNameKey, e.target.value);
             }
 
-            // 动作 2：更新本地数据（用于保存）
             updateTask({ name: e.target.value });
           }}
           className="flex-1 bg-white border-purple-200 h-8 text-sm"
         />
 
-        {/* 动作 3：显示提示（移到输入框下方） */}
         <TypingIndicator editingUsers={editingUsers} fieldName={fieldNameKey} />
       </div>
 

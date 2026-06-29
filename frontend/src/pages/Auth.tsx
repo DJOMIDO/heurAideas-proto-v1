@@ -1,10 +1,11 @@
+// frontend/src/pages/Auth.tsx
+
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-// 新增：导入 auth 工具函数
 import { handleAuth } from "@/utils/auth";
 
 export default function Auth() {
@@ -17,9 +18,8 @@ export default function Auth() {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false); // 新增：加载状态
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 替换原有的 handleLogin
   const handleLogin = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
@@ -35,7 +35,6 @@ export default function Auth() {
     }
   };
 
-  // 替换原有的 handleRegister
   const handleRegister = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);

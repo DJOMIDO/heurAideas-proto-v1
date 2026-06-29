@@ -99,21 +99,17 @@ export function getCommentsBySubtask(
   if (!state) return [];
 
   return state.comments.filter((c) => {
-    // 排除回复（parentId 可能是 string 或 number）
     if (c.parentId !== null && c.parentId !== undefined && c.parentId !== "") {
       return false;
     }
 
-    // 如果没有指定 subtaskId，返回所有顶级评论
     if (!subtaskId) return true;
 
-    // 都转为 string 比较
     const commentSubtaskId = c.subtaskId ? String(c.subtaskId) : "";
     return commentSubtaskId === subtaskId;
   });
 }
 
-// 添加递归展开回复的辅助函数
 function flattenReplies(
   comment: any,
   allComments: Comment[],
@@ -127,8 +123,6 @@ function flattenReplies(
           ? String(reply.subtaskId)
           : undefined;
 
-      // 使用 ?? 代替 ||，确保 null 不会回退到 comment.id
-      // 同时优先使用 reply.parent_id，如果没有则使用当前 comment.id（直接父级）
       const parentId = reply.parent_id ?? comment.id;
 
       allComments.push({
@@ -160,17 +154,14 @@ function flattenReplies(
           reply.is_edited !== undefined
             ? reply.is_edited
             : reply.edited || false,
-        parentId: parentId, // 使用修复后的 parentId
+        parentId: parentId,
         replies: [],
       });
 
-      // 递归展开更深层的回复（传递 reply 作为新的 parent）
       flattenReplies(reply, allComments, substepCode);
     });
   }
 }
-
-// ==================== API 同步函数 ====================
 
 export async function syncCommentsFromApi(
   projectId: number,
@@ -194,10 +185,8 @@ export async function syncCommentsFromApi(
           ? String(comment.subtaskId)
           : undefined;
 
-      // 主评论的 parentId 应该是 null
       const mainCommentParentId = comment.parent_id ?? comment.parentId ?? null;
 
-      // 添加主评论
       apiComments.push({
         id: comment.id,
         projectId: comment.project_id || comment.projectId,
@@ -228,16 +217,14 @@ export async function syncCommentsFromApi(
           comment.is_edited !== undefined
             ? comment.is_edited
             : comment.edited || false,
-        parentId: mainCommentParentId, // 使用修复后的 parentId
+        parentId: mainCommentParentId,
         replies: [],
       });
 
       apiCommentIds.add(comment.id);
 
-      // 使用递归函数展开所有层级的回复
       flattenReplies(comment, apiComments, substepCode);
 
-      // 收集所有回复的 ID（包括嵌套的）
       const collectIds = (replies: any[]) => {
         replies.forEach((reply: any) => {
           apiCommentIds.add(reply.id);
@@ -252,18 +239,15 @@ export async function syncCommentsFromApi(
       }
     });
 
-    // 获取本地评论
     const localState = getCommentState(projectId, substepCode);
     const localComments = localState?.comments || [];
 
-    // 合并策略：API 评论 + 本地未同步的临时评论
     const unsyncedLocalComments = localComments.filter(
       (c) => typeof c.id === "string" && !apiCommentIds.has(c.id as any),
     );
 
     const mergedComments = [...apiComments, ...unsyncedLocalComments];
 
-    // 去重（按 ID）
     const uniqueComments = Array.from(
       new Map(mergedComments.map((c) => [c.id, c])).values(),
     );
@@ -285,7 +269,6 @@ export async function saveCommentToApi(
   projectSubstepId: number,
   comment: Comment,
 ): Promise<Comment | null> {
-  // 如果已经是数字 ID，说明已同步，直接返回
   if (typeof comment.id === "number") {
     return comment;
   }
@@ -308,22 +291,19 @@ export async function saveCommentToApi(
       anchorType: comment.anchorType,
       anchorId: comment.anchorId,
       parentId:
-        typeof comment.parentId === "number" ? comment.parentId : undefined, // 确保类型正确
+        typeof comment.parentId === "number" ? comment.parentId : undefined,
     });
 
-    // 直接操作 localStorage，绕过 getCommentState/saveCommentState
     const key = getStorageKey(projectId, String(projectSubstepId));
     const rawData = localStorage.getItem(key);
 
     if (rawData) {
       const state: CommentState = JSON.parse(rawData);
 
-      // 删除旧的 string ID 评论
       const filteredComments = state.comments.filter(
         (c) => c.id !== comment.id,
       );
 
-      // 添加新的 number ID 评论
       filteredComments.push({
         ...comment,
         id: response.id,
@@ -366,7 +346,6 @@ export async function deleteCommentWithApi(
   substepId: string,
   commentId: string | number,
 ): Promise<void> {
-  // 从 localStorage 删除
   const key = getStorageKey(projectId, substepId);
   const rawData = localStorage.getItem(key);
 
@@ -376,7 +355,6 @@ export async function deleteCommentWithApi(
     localStorage.setItem(key, JSON.stringify(state));
   }
 
-  // 从 API 删除（如果是后端 ID）
   if (typeof commentId === "number") {
     await deleteCommentApi(commentId);
   }
@@ -387,28 +365,21 @@ export async function resolveCommentWithApi(
   substepId: string,
   commentId: string | number,
 ): Promise<void> {
-  // 1. 只处理已同步的评论（number ID）
   if (typeof commentId !== "number") {
-    // 如果是临时 ID，只更新 localStorage
     updateComment(projectId, substepId, String(commentId), { resolved: true });
     return;
   }
 
   try {
-    // 2. 先调用 API
     await resolveComment(commentId);
 
-    // 3. API 成功后再更新 localStorage
     updateComment(projectId, substepId, String(commentId), { resolved: true });
   } catch (error) {
     console.error("[resolveCommentWithApi] Failed:", error);
-    throw error; // 抛出错误让调用方处理回滚
+    throw error;
   }
 }
 
-/**
- * 获取未同步的评论（临时 ID 的评论）
- */
 export function getUnsyncedComments(
   projectId: number,
   substepId: string,
@@ -425,16 +396,6 @@ export function getUnsyncedComments(
   return unsynced;
 }
 
-/**
- * 同步所有未同步的评论到 API
- * @returns 同步成功的评论数量
- */
-// frontend/src/utils/commentState.ts
-
-/**
- * 同步所有未同步的评论到 API
- * @returns 同步成功的评论数量
- */
 export async function syncUnsyncedCommentsToApi(
   projectId: number,
   substepId: string,
@@ -446,7 +407,6 @@ export async function syncUnsyncedCommentsToApi(
 
   const state: CommentState = JSON.parse(rawData);
 
-  // 只同步 string ID 的评论（排除已删除）
   const unsyncedComments = state.comments.filter((c) => {
     if (typeof c.id !== "string") return false;
     if (c.deleted === true || c.is_deleted === true) return false;
@@ -458,7 +418,7 @@ export async function syncUnsyncedCommentsToApi(
   }
 
   let successCount = 0;
-  const updatedComments = new Map<string, Comment>(); // 收集所有更新
+  const updatedComments = new Map<string, Comment>();
 
   for (const comment of unsyncedComments) {
     const result = await createComment({
@@ -483,9 +443,7 @@ export async function syncUnsyncedCommentsToApi(
     if (result) {
       successCount++;
 
-      // 收集更新，不立即写入 localStorage
       updatedComments.set(String(comment.id), {
-        // 转换为 string
         ...comment,
         id: result.id,
         updatedAt: result.updatedAt,
@@ -494,10 +452,9 @@ export async function syncUnsyncedCommentsToApi(
     }
   }
 
-  // 一次性更新所有评论
   if (updatedComments.size > 0) {
     const finalComments = state.comments.map((c) =>
-      updatedComments.has(String(c.id)) // 转换为 string
+      updatedComments.has(String(c.id))
         ? updatedComments.get(String(c.id))!
         : c,
     );

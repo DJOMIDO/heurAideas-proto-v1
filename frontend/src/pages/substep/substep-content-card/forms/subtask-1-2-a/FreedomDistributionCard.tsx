@@ -1,4 +1,5 @@
 // frontend/src/pages/substep/substep-content-card/forms/subtask-1-2-a/FreedomDistributionCard.tsx
+
 import {
   METHODOLOGICAL_FREEDOM_QUESTIONS,
   METHODOLOGICAL_FREEDOM_LABELS,

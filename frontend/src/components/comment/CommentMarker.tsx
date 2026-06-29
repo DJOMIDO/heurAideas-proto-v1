@@ -35,7 +35,6 @@ export default function CommentMarker({
   const [localPosition, setLocalPosition] = useState(position);
   const hasDraggedRef = useRef(false);
 
-  // 同步外部 position
   useState(() => {
     if (!hasDraggedRef.current) {
       setLocalPosition(position);
@@ -63,7 +62,6 @@ export default function CommentMarker({
     const parentRect = parentElement?.getBoundingClientRect();
 
     if (parentRect) {
-      // 计算相对于父容器的坐标
       setLocalPosition({
         x: e.clientX - parentRect.left,
         y: e.clientY - parentRect.top,
@@ -81,7 +79,6 @@ export default function CommentMarker({
     }
   };
 
-  // 监听拖拽事件
   if (isDragging) {
     document.addEventListener("mousemove", handleMouseMove);
     document.addEventListener("mouseup", handleMouseUp);
@@ -94,7 +91,6 @@ export default function CommentMarker({
     }
   };
 
-  // 使用工具函数
   const initials = getInitials(comment.authorName);
 
   return (

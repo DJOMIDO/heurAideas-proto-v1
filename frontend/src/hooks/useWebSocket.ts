@@ -1,4 +1,4 @@
-// src/hooks/useWebSocket.ts
+// frontend/src/hooks/useWebSocket.ts
 
 import { useEffect, useRef, useCallback, useState } from "react";
 
@@ -33,7 +33,6 @@ export function useWebSocket({
   const [isConnected, setIsConnected] = useState(false);
   const isUnmountingRef = useRef(false);
 
-  // 使用 Ref 存储动态参数，避免 useCallback 依赖项变化导致 useEffect 频繁重新执行
   const paramsRef = useRef({ projectId, userId, enabled });
   useEffect(() => {
     paramsRef.current = { projectId, userId, enabled };
@@ -63,19 +62,15 @@ export function useWebSocket({
       reconnectTimeoutRef.current = null;
     }
     if (wsRef.current) {
-      // 先置空事件处理器，防止 close 过程中触发回调
       wsRef.current.onopen = null;
       wsRef.current.onmessage = null;
       wsRef.current.onclose = null;
       wsRef.current.onerror = null;
 
-      // 只在 OPEN 状态下主动 close，避免 "closed before connection is established" 警告
-      // 如果还在 CONNECTING，直接丢弃引用，让浏览器自己处理超时，彻底消除控制台警告
       if (wsRef.current.readyState === WebSocket.OPEN) {
         try {
           wsRef.current.close(1000, "Component unmounting");
         } catch (e) {
-          // 忽略
         }
       }
       wsRef.current = null;
@@ -131,7 +126,6 @@ export function useWebSocket({
         const data: WebSocketMessage = JSON.parse(event.data);
         onMessageRef.current?.(data);
       } catch (error) {
-        // 静默失败
       }
     };
 

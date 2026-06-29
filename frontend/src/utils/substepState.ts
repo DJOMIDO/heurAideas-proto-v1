@@ -153,9 +153,8 @@ function convertToFormData(
     Object.entries(fields).forEach(([fieldName, value]: [string, any]) => {
       if (fieldName === "primaryElements" && Array.isArray(value)) {
         value.forEach((elem: any, idx: number) => {
-          // 添加空值检查，避免 'elem.element' 报错
           if (!elem || typeof elem !== "object") {
-            return; // 跳过无效元素
+            return;
           }
 
           if (elem.element) {
@@ -223,7 +222,6 @@ export async function loadSubstepStateWithApi(
   substepId: string,
   forceReload: boolean = false,
 ): Promise<SubstepState | null> {
-  // 只有非强制重载时才优先读 localStorage
   if (!forceReload) {
     const localState = getSubstepState(projectId, substepId);
     if (localState) {
@@ -231,7 +229,6 @@ export async function loadSubstepStateWithApi(
     }
   }
 
-  // 从 API 加载（强制重载时直接走这里）
   if (isAuthenticated()) {
     try {
       const apiContent = await getSubstepContent(projectId, substepId);
@@ -253,7 +250,6 @@ export async function loadSubstepStateWithApi(
     }
   }
 
-  // 默认状态
   return {
     activeTab: "description",
     formData: {},
@@ -274,7 +270,7 @@ export function getSubstepState(
   try {
     const parsed = JSON.parse(data);
     return {
-      activeTab: parsed.activeTab || "description", // 确保有默认值
+      activeTab: parsed.activeTab || "description",
       formData: parsed.formData ?? {},
       lastSaved: parsed.lastSaved,
       viewMode: parsed.viewMode || "single",
@@ -293,7 +289,6 @@ export function saveSubstepState(
 ): void {
   const existing = getSubstepState(projectId, substepId);
 
-  // 确保 activeTab 始终被保存
   const merged: SubstepState = {
     activeTab: state.activeTab || existing?.activeTab || "description",
     formData:

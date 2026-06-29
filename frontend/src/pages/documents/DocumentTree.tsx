@@ -1,4 +1,4 @@
-// src/pages/documents/DocumentTree.tsx
+// frontend/src/pages/documents/DocumentTree.tsx
 
 import { useState, useEffect } from "react";
 import {
@@ -46,14 +46,12 @@ export default function DocumentTree({
     new Set(["folder-1", "folder-2"]),
   );
 
-  // 自动展开逻辑
   useEffect(() => {
     if (autoExpandFolderId) {
       setExpandedFolders((prev) => new Set(prev).add(autoExpandFolderId));
     }
   }, [autoExpandFolderId]);
 
-  // Esc 键取消选中
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -91,7 +89,7 @@ export default function DocumentTree({
       <DropdownMenuTrigger asChild>
         <button
           className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded transition-all"
-          onClick={(e) => e.stopPropagation()} // 阻止冒泡
+          onClick={(e) => e.stopPropagation()}
         >
           <MoreVertical className="w-4 h-4 text-gray-600" />
         </button>
@@ -136,27 +134,25 @@ export default function DocumentTree({
     const isSelected = selectedId === node.id;
     const isUploadTarget = uploadTargetId === node.id;
 
-    // 文件夹点击：阻止冒泡 + 互斥处理
     const handleFolderClick = (e: React.MouseEvent) => {
-      e.stopPropagation(); // 阻止事件冒泡到容器
+      e.stopPropagation();
       toggleFolder(node.id);
       if (uploadTargetId === node.id) {
         onUploadTargetChange?.(null);
         onSelect?.(undefined);
       } else {
         onUploadTargetChange?.(node.id);
-        onSelect?.(undefined); // 选文件夹时清空文件预览
+        onSelect?.(undefined);
       }
     };
 
-    // 文件点击：阻止冒泡 + 互斥处理
     const handleFileClick = (e: React.MouseEvent) => {
-      e.stopPropagation(); // 阻止事件冒泡到容器
+      e.stopPropagation();
       if (selectedId === node.id) {
-        onSelect?.(undefined); // 再次点击取消
+        onSelect?.(undefined);
       } else {
         onSelect?.(node.id);
-        onUploadTargetChange?.(null); // 选文件时清空文件夹目标
+        onUploadTargetChange?.(null);
       }
     };
 
@@ -199,7 +195,6 @@ export default function DocumentTree({
       );
     }
 
-    // File item
     return (
       <div key={node.id}>
         <div

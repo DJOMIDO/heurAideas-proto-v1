@@ -13,7 +13,6 @@ interface TaskSectionProps {
   fieldPrefix: string;
   task: TaskData;
   updateTask: (updates: Partial<TaskData>) => void;
-  // 仅透传给 StakeholderSection，其他子组件不依赖
   formData: Record<string, any>;
   onFormDataChange: (field: string, value: any) => void;
   editingUsers?: Record<
@@ -63,7 +62,6 @@ export default function TaskSection({
             editingUsers={editingUsers}
           />
 
-          {/* Stakeholder 走独立数据流，复用 1.1.A 组件 */}
           <TaskStakeholders
             fieldPrefix={fieldPrefix}
             formData={formData}

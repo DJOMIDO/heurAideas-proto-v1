@@ -89,12 +89,10 @@ export default function Subtask1_3_A({
     <div className="space-y-8">
       {QUESTIONS.map((q) => (
         <div key={q.id} className="space-y-3">
-          {/* Question Label */}
           <label className="text-sm font-bold text-black">
             {q.id.toUpperCase()}) {q.question}
           </label>
 
-          {/* Option Button Group */}
           <div className="flex flex-wrap gap-2">
             {q.options.map((option) => {
               const isSelected = getValue(q.id) === option;
@@ -120,7 +118,6 @@ export default function Subtask1_3_A({
             })}
           </div>
 
-          {/* TypingIndicator */}
           <TypingIndicator
             editingUsers={editingUsers}
             fieldName={`${fieldPrefix}-q${q.id}`}

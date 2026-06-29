@@ -1,10 +1,10 @@
-// src/pages/substep/SubstepMenu.tsx
+// frontend/src/pages/substep/SubstepMenu.tsx
+
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save, Redo, Undo } from "lucide-react";
 import { type Substep } from "@/data/steps";
 import { toast } from "sonner";
-import "@/styles/animations.css";
 
 interface SubstepMenuProps {
   stepId: number;

@@ -1,4 +1,4 @@
-// src/pages/substep-comments/SubstepCommentsPage.tsx
+// frontend/src/pages/substep-comments/SubstepCommentsPage.tsx
 
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
@@ -38,19 +38,15 @@ export default function SubstepCommentsPage() {
     { id: string; code: string; title: string }[]
   >([]);
 
-  // 回复相关状态
   const [replyingTo, setReplyingTo] = useState<string | number | null>(null);
   const [replyContent, setReplyContent] = useState("");
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
-  // 获取当前用户信息
   const currentUser = getUserInfo();
   const currentUserId = currentUser?.id || 1;
 
-  // 存储 projectSubstepId
   const projectSubstepIdRef = useRef<number | null>(null);
 
-  // 辅助函数：递归更新树形结构中的评论
   const updateCommentInTree = useCallback(
     (tree: any[], commentId: string | number, updates: Partial<any>): any[] => {
       return tree.map((comment) => {
@@ -69,7 +65,6 @@ export default function SubstepCommentsPage() {
     [],
   );
 
-  // 辅助函数：递归从树形结构中删除评论
   const deleteCommentFromTree = useCallback(
     (tree: any[], commentId: string | number): any[] => {
       return tree
@@ -87,7 +82,6 @@ export default function SubstepCommentsPage() {
     [],
   );
 
-  // 辅助函数：将扁平数组转换为树形结构
   const buildCommentTree = useCallback((flatComments: any[]): any[] => {
     const commentMap = new Map();
     const rootComments: any[] = [];
@@ -182,43 +176,44 @@ export default function SubstepCommentsPage() {
       });
   }, [projectId, stepId, substepId, buildCommentTree]);
 
-  // WebSocket 实时刷新评论
   useWebSocket({
-  projectId: projectId ? Number(projectId) : 0,  // 添加三元表达式
-  enabled: !!projectId && !!substepId,
-  onMessage: (message) => {
-    if (['comment_added', 'comment_updated', 'comment_deleted'].includes(message.type)) {
-      // 重新加载评论（复用现有逻辑）
-      const loadComments = async () => {
-        try {
-          const projectSubstepId = await getProjectSubstepId(
-            Number(projectId),
-            substepId!,  // 添加非空断言，因为 enabled 已检查
-          );
-
-          if (projectSubstepId) {
-            projectSubstepIdRef.current = projectSubstepId;
-            const syncedComments = await syncCommentsFromApi(
+    projectId: projectId ? Number(projectId) : 0,
+    enabled: !!projectId && !!substepId,
+    onMessage: (message) => {
+      if (
+        ["comment_added", "comment_updated", "comment_deleted"].includes(
+          message.type,
+        )
+      ) {
+        const loadComments = async () => {
+          try {
+            const projectSubstepId = await getProjectSubstepId(
               Number(projectId),
-              substepId!,  // 添加非空断言
-              projectSubstepId,
+              substepId!,
             );
-            const fixedComments = syncedComments.map((c: any) => ({
-              ...c,
-              parentId: c.parent_id ?? c.parentId ?? null,
-            }));
-            setComments(buildCommentTree(fixedComments));
-          }
-        } catch (error) {
-          console.error("Failed to reload comments:", error);
-        }
-      };
-      loadComments();
-    }
-  },
-});
 
-  // 筛选逻辑
+            if (projectSubstepId) {
+              projectSubstepIdRef.current = projectSubstepId;
+              const syncedComments = await syncCommentsFromApi(
+                Number(projectId),
+                substepId!,
+                projectSubstepId,
+              );
+              const fixedComments = syncedComments.map((c: any) => ({
+                ...c,
+                parentId: c.parent_id ?? c.parentId ?? null,
+              }));
+              setComments(buildCommentTree(fixedComments));
+            }
+          } catch (error) {
+            console.error("Failed to reload comments:", error);
+          }
+        };
+        loadComments();
+      }
+    },
+  });
+
   const filteredComments = useMemo(() => {
     const filterTree = (comments: any[]): any[] => {
       return comments
@@ -251,7 +246,6 @@ export default function SubstepCommentsPage() {
   const filteredCount = filteredComments.length;
   const totalCount = comments.length;
 
-  // 处理回复
   const handleReply = useCallback(
     async (parentId: string | number, content: string) => {
       if (!projectId || !substepId) return;
@@ -278,7 +272,6 @@ export default function SubstepCommentsPage() {
           parentId: typeof parentId === "number" ? parentId : undefined,
         });
 
-        // 重新加载并转换为树形结构
         const syncedComments = await syncCommentsFromApi(
           Number(projectId),
           substepId,
@@ -301,12 +294,10 @@ export default function SubstepCommentsPage() {
     [projectId, stepId, substepId, buildCommentTree],
   );
 
-  // 处理编辑评论（使用递归更新）
   const handleEdit = useCallback(
     async (commentId: string | number, newContent: string) => {
       if (!projectId || !substepId) return;
 
-      // 1. 立即更新本地状态（乐观更新，递归）
       setComments((prev) =>
         updateCommentInTree(prev, commentId, {
           content: newContent,
@@ -314,14 +305,12 @@ export default function SubstepCommentsPage() {
         }),
       );
 
-      // 2. 同步到 API
       if (typeof commentId === "number") {
         try {
           await updateCommentApi(commentId, {
             content: newContent,
           });
 
-          // 3. 重新加载并转换为树形结构
           const projectSubstepId = projectSubstepIdRef.current;
           if (projectSubstepId) {
             const syncedComments = await syncCommentsFromApi(
@@ -337,7 +326,6 @@ export default function SubstepCommentsPage() {
           }
         } catch (error) {
           console.error("[SubstepCommentsPage] Edit failed:", error);
-          // 4. API 失败回滚
           setComments((prev) =>
             updateCommentInTree(prev, commentId, {
               is_edited: false,
@@ -349,27 +337,22 @@ export default function SubstepCommentsPage() {
     [projectId, substepId, updateCommentInTree, buildCommentTree],
   );
 
-  // 处理删除评论（使用递归删除 + 树形重建）
   const handleDelete = useCallback(
     async (commentId: string | number) => {
       if (!projectId || !substepId) return;
 
       try {
-        // 1. 先更新本地状态（立即删除，递归）
         setComments((prev) => deleteCommentFromTree(prev, commentId));
 
-        // 2. 获取 projectSubstepId
         const projectSubstepId = await getProjectSubstepId(
           Number(projectId),
           substepId,
         );
 
-        // 3. 执行 API 删除
         if (typeof commentId === "number") {
           await deleteCommentApi(commentId);
         }
 
-        // 4. 重新加载并转换为树形结构
         if (projectSubstepId) {
           const syncedComments = await syncCommentsFromApi(
             Number(projectId),
@@ -384,7 +367,6 @@ export default function SubstepCommentsPage() {
         }
       } catch (error) {
         console.error("[SubstepCommentsPage] Delete failed:", error);
-        // 失败后重新加载
         const projectSubstepId = projectSubstepIdRef.current;
         if (projectSubstepId) {
           const syncedComments = await syncCommentsFromApi(
@@ -403,12 +385,10 @@ export default function SubstepCommentsPage() {
     [projectId, substepId, deleteCommentFromTree, buildCommentTree],
   );
 
-  // 处理 Resolve 评论（使用递归更新）
   const handleResolve = useCallback(
     async (commentId: string | number) => {
       if (!projectId || !substepId) return;
 
-      // 1. 找到当前评论状态（需要展平树形结构）
       const flattenTree = (comments: any[]): any[] => {
         const flat: any[] = [];
         const traverse = (list: any[]) => {
@@ -430,19 +410,16 @@ export default function SubstepCommentsPage() {
 
       const newResolvedState = !comment.is_resolved;
 
-      // 2. 立即更新本地状态（乐观更新，递归）
       setComments((prev) =>
         updateCommentInTree(prev, commentId, {
           is_resolved: newResolvedState,
         }),
       );
 
-      // 3. 同步到 API
       if (typeof commentId === "number") {
         try {
           await resolveComment(commentId);
 
-          // 4. 重新加载并转换为树形结构
           const projectSubstepId = projectSubstepIdRef.current;
           if (projectSubstepId) {
             const syncedComments = await syncCommentsFromApi(
@@ -458,7 +435,6 @@ export default function SubstepCommentsPage() {
           }
         } catch (error) {
           console.error("[SubstepCommentsPage] Resolve failed:", error);
-          // 5. API 失败回滚
           setComments((prev) =>
             updateCommentInTree(prev, commentId, {
               is_resolved: comment.is_resolved,
@@ -470,7 +446,6 @@ export default function SubstepCommentsPage() {
     [projectId, substepId, comments, updateCommentInTree, buildCommentTree],
   );
 
-  // 获取 projectSubstepId
   const getProjectSubstepId = useCallback(
     async (projectId: number, substepCode: string): Promise<number | null> => {
       try {

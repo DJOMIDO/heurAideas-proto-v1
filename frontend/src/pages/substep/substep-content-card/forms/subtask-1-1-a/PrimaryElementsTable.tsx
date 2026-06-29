@@ -107,7 +107,6 @@ export default function PrimaryElementsTable({
                     onChange={(e) => updateField(row, "name", e.target.value)}
                     className="border-0 bg-transparent focus-visible:ring-0 p-0 pl-3"
                   />
-                  {/* Display editing indicator */}
                   <TypingIndicator
                     editingUsers={editingUsers}
                     fieldName={`${fieldPrefix}-element-${row}-name`}

@@ -1,4 +1,4 @@
-// src/pages/overview/SubstepList.tsx
+// frontend/src/pages/overview/SubstepList.tsx
 
 import { ResizablePanel } from "@/components/ui/resizable";
 import { Button } from "@/components/ui/button";
@@ -22,8 +22,6 @@ export default function SubstepList({
   stepId,
 }: SubstepListProps) {
   const navigate = useNavigate();
-
-  // 读取带用户 ID 的 key
   const userId = getUserId();
   const storageKey = userId ? `currentProjectId-${userId}` : "currentProjectId";
   const currentProjectId = localStorage.getItem(storageKey) || "1";

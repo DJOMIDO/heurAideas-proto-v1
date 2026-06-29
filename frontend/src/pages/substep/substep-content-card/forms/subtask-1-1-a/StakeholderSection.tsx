@@ -96,7 +96,6 @@ export default function StakeholderSection({
 
   const projectId = getProjectIdFromUrl();
 
-  // 加载已有 roles
   useEffect(() => {
     if (projectId && projectId > 0) {
       getStakeholderRoles(projectId)
@@ -109,7 +108,6 @@ export default function StakeholderSection({
     }
   }, [projectId]);
 
-  // 点击外部关闭下拉列表
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -125,7 +123,6 @@ export default function StakeholderSection({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // 切换 subtask 时重置
   useEffect(() => {
     setAddingStakeholder(null);
     setEditingRoleIdx(null);
@@ -312,7 +309,6 @@ export default function StakeholderSection({
         </p>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Add Stakeholder 展开输入框 */}
         {addingStakeholder && (
           <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg border border-blue-200">
             <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
@@ -343,7 +339,6 @@ export default function StakeholderSection({
                 }}
                 className="w-full h-7 text-sm font-medium border-0 p-0 focus-visible:ring-0 bg-transparent placeholder-gray-400"
               />
-              {/* 显示编辑提示 */}
               {addingStakeholder && (
                 <TypingIndicator
                   editingUsers={editingUsers}
@@ -351,7 +346,6 @@ export default function StakeholderSection({
                 />
               )}
 
-              {/* Role 输入框 */}
               <div className="relative">
                 <input
                   ref={roleInputRef}
@@ -389,13 +383,11 @@ export default function StakeholderSection({
                   className="w-full h-8 text-xs text-gray-900 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white placeholder-gray-400 cursor-text"
                   tabIndex={0}
                 />
-                {/* 显示编辑提示 */}
                 <TypingIndicator
                   editingUsers={editingUsers}
                   fieldName={`${fieldPrefix}-stakeholder-role-adding-role`}
                 />
 
-                {/* 下拉列表 - 添加模式 */}
                 {showSuggestions &&
                   addingStakeholder &&
                   roleSuggestions.length > 0 && (
@@ -438,7 +430,6 @@ export default function StakeholderSection({
           </div>
         )}
 
-        {/* Add Button */}
         {!addingStakeholder && (
           <Button
             variant="ghost"
@@ -458,7 +449,6 @@ export default function StakeholderSection({
           </Button>
         )}
 
-        {/* 已添加的卡片 */}
         {displayStakeholders.map((stakeholder, idx) => (
           <div
             key={stakeholder.id}
@@ -480,13 +470,10 @@ export default function StakeholderSection({
               <span className="block text-sm font-medium text-gray-800 truncate">
                 {stakeholder.name}
               </span>
-              {/* 显示编辑提示 */}
               <TypingIndicator
                 editingUsers={editingUsers}
                 fieldName={`${fieldPrefix}-stakeholder-role-${idx}-name`}
               />
-
-              {/* Role 输入框 */}
               <div className="relative">
                 <input
                   ref={(el) => {
@@ -517,7 +504,6 @@ export default function StakeholderSection({
                   className="block text-xs text-gray-500 truncate border-0 p-0 focus-visible:ring-0 bg-transparent placeholder-gray-400 w-full h-5 min-h-[1.25rem]"
                 />
 
-                {/* 下拉列表 - 已有 Stakeholder 模式 */}
                 {showSuggestions &&
                   editingRoleIdx === idx &&
                   roleSuggestions.length > 0 && (
@@ -556,7 +542,6 @@ export default function StakeholderSection({
           </div>
         ))}
 
-        {/* Show More / Show Less */}
         {hasMore && !showAll && !addingStakeholder && (
           <Button
             variant="ghost"

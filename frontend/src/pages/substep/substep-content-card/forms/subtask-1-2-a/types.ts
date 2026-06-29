@@ -57,12 +57,12 @@ export const KNOWLEDGE_LEVELS: KnowledgeLevel[] = [
 ];
 
 export const LEVEL_COLORS: Record<KnowledgeLevel, string> = {
-  none: "#ef4444", // Red
-  "very-low": "#fdba74", // Light Orange
-  low: "#f97316", // Orange
-  medium: "#eab308", // Yellow
-  high: "#22c55e", // Green
-  "very-high": "#16a34a", // Dark Green
+  none: "#ef4444",
+  "very-low": "#fdba74",
+  low: "#f97316",
+  medium: "#eab308",
+  high: "#22c55e",
+  "very-high": "#16a34a",
 };
 
 export const LEVEL_LABELS: Record<KnowledgeLevel, string> = {

@@ -1,4 +1,5 @@
 // frontend/src/pages/substep/substep-content-card/forms/subtask-1-3-c/FieldSelector.tsx
+
 import { REQUIRED_FIELDS } from "./types";
 import type { RequiredField } from "./types";
 

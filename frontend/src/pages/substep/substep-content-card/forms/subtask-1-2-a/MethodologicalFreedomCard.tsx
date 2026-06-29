@@ -1,4 +1,5 @@
 // frontend/src/pages/substep/substep-content-card/forms/subtask-1-2-a/MethodologicalFreedomCard.tsx
+
 import type { MethodologicalFreedomType } from "./types";
 import { METHODOLOGICAL_FREEDOM_LABELS } from "./types";
 import { cn } from "@/lib/utils";

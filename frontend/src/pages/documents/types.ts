@@ -1,14 +1,14 @@
-// src/pages/documents/types.ts
+// frontend/src/pages/documents/types.ts
 
 export interface DocumentNode {
   id: string;
   name: string;
   type: "file" | "folder";
-  extension?: string; // pdf, docx, xlsx, png, etc.
-  size?: number; // in bytes
+  extension?: string;
+  size?: number;
   updatedAt?: string;
   url?: string;
-  children?: DocumentNode[]; // for folders
+  children?: DocumentNode[];
   file?: File;
   projectId: number;
   parentId?: string;

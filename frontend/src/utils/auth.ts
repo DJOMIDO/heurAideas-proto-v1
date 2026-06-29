@@ -35,7 +35,7 @@ export function getUserInfo(): UserInfo | null {
     return {
       name: username,
       email: payload?.email || payload?.sub || "",
-      id: payload?.user_id || null, // 用户 ID
+      id: payload?.user_id || null
     };
   } catch {
     return { name: username, email: "" };

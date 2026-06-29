@@ -1,3 +1,5 @@
+// frontend/src/pages/overview/StatusBar.tsx
+
 import { type Step, type Substep } from "@/data/steps";
 
 interface StatusBarProps {

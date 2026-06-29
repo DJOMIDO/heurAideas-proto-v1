@@ -1,4 +1,5 @@
 // frontend/src/components/Avatar.tsx
+
 import {
   Avatar as ShadcnAvatar,
   AvatarFallback,

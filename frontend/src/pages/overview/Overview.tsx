@@ -39,15 +39,12 @@ export default function Overview() {
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // 先初始化 activeStepId
   const [activeStepId, setActiveStepId] = useState(() => {
     const stored = localStorage.getItem(getActiveStepStorageKey());
     return stored ? Number(stored) : 1;
   });
 
-  // 再根据 activeStepId 初始化 selectedSubstep
   const [selectedSubstep, setSelectedSubstep] = useState<Substep | null>(() => {
-    // 使用 activeStepId 的初始值（需要从上面获取）
     const storedStepId = localStorage.getItem(getActiveStepStorageKey());
     const stepId = storedStepId ? Number(storedStepId) : 1;
 
@@ -63,7 +60,6 @@ export default function Overview() {
     stepsData.find((step) => step.id === activeStepId) || stepsData[0];
 
   const handleStepChange = (id: number) => {
-    // 保存当前选中的子步骤
     if (selectedSubstep) {
       localStorage.setItem(
         getSelectedSubstepStorageKey(activeStepId),
@@ -74,7 +70,6 @@ export default function Overview() {
     setActiveStepId(id);
     localStorage.setItem(getActiveStepStorageKey(), String(id));
 
-    // 读取新 Step 的选中子步骤
     const stored = localStorage.getItem(getSelectedSubstepStorageKey(id));
     if (stored) {
       const newStep = stepsData.find((s) => s.id === id);

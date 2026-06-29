@@ -8,7 +8,6 @@ import type {
   CommentCountResponse,
 } from "@/types/comment";
 
-// 修复 request 函数 - 处理 204 No Content
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
@@ -30,15 +29,12 @@ async function request<T>(
     throw new Error(error.detail || `HTTP ${response.status}`);
   }
 
-  // 修复 204 No Content
   if (response.status === 204) {
     return undefined as T;
   }
 
   return response.json();
 }
-
-// ==================== 评论列表 ====================
 
 export async function getProjectComments(
   projectId: number,
@@ -73,8 +69,6 @@ export async function getSubstepComments(
   );
 }
 
-// ==================== 创建评论 ====================
-
 export interface CreateCommentInput {
   projectId: number;
   projectSubstepId: number;
@@ -108,8 +102,6 @@ export async function createComment(
   });
 }
 
-// ==================== 更新评论 ====================
-
 export interface UpdateCommentInput {
   content?: string;
   positionX?: number;
@@ -132,8 +124,6 @@ export async function updateComment(
   });
 }
 
-// ==================== 删除评论 ====================
-
 export async function deleteComment(commentId: number): Promise<void> {
   const url = API_ENDPOINTS.COMMENT_DETAIL(commentId);
 
@@ -147,8 +137,6 @@ export async function deleteComment(commentId: number): Promise<void> {
   }
 }
 
-// ==================== 标记为解决/未解决 ====================
-
 export async function resolveComment(commentId: number): Promise<Comment> {
   return request<Comment>(API_ENDPOINTS.COMMENT_RESOLVE(commentId), {
     method: "POST",
@@ -160,8 +148,6 @@ export async function unresolveComment(commentId: number): Promise<Comment> {
     method: "POST",
   });
 }
-
-// ==================== 获取评论统计 ====================
 
 export async function getCommentCount(
   projectId: number,

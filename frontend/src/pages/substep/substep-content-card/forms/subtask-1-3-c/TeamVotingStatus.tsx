@@ -1,4 +1,5 @@
 // frontend/src/pages/substep/substep-content-card/forms/subtask-1-3-c/TeamVotingStatus.tsx
+
 import Avatar from "@/components/Avatar";
 
 interface TeamMember {
@@ -30,7 +31,6 @@ export default function TeamVotingStatus({
         </p>
       </div>
 
-      {/* 显示所有成员头像 */}
       <div className="flex flex-wrap items-center justify-center gap-6">
         {members.map((member) => (
           <div key={member.id} className="flex flex-col items-center gap-2">

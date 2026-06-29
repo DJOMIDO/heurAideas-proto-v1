@@ -1,4 +1,5 @@
 // frontend/src/components/VideoPlayer.tsx
+
 import { useRef, useState, useEffect, type ChangeEvent } from "react";
 import { Upload, Play, Pause, Volume2, Maximize } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,18 +13,15 @@ export default function VideoPlayer() {
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // 验证文件类型
       if (!file.type.startsWith("video/")) {
         alert("Please select a valid video file");
         return;
       }
 
-      // 释放旧的 URL
       if (videoUrl) {
         URL.revokeObjectURL(videoUrl);
       }
 
-      // 创建新的视频 URL
       const url = URL.createObjectURL(file);
       setVideoUrl(url);
       setFileName(file.name);
@@ -46,7 +44,6 @@ export default function VideoPlayer() {
     setIsPlaying(false);
   };
 
-  // 🔑 将 React.useEffect 改为直接导入的 useEffect
   useEffect(() => {
     return () => {
       if (videoUrl) {
@@ -57,7 +54,6 @@ export default function VideoPlayer() {
 
   return (
     <div className="w-full space-y-3">
-      {/* 视频显示区域 */}
       <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
         {videoUrl ? (
           <>
@@ -69,7 +65,6 @@ export default function VideoPlayer() {
               onClick={togglePlay}
             />
 
-            {/* 自定义控制栏（可选） */}
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 opacity-0 hover:opacity-100 transition-opacity">
               <div className="flex items-center justify-between text-white">
                 <Button
@@ -110,7 +105,6 @@ export default function VideoPlayer() {
             </div>
           </>
         ) : (
-          /* 未上传时的占位符 */
           <div className="w-full h-full flex flex-col items-center justify-center text-gray-400">
             <Upload className="w-12 h-12 mb-2 opacity-50" />
             <p className="text-sm">No video uploaded</p>
@@ -118,7 +112,6 @@ export default function VideoPlayer() {
         )}
       </div>
 
-      {/* 上传按钮区域 */}
       <div className="flex gap-2">
         <input
           type="file"
