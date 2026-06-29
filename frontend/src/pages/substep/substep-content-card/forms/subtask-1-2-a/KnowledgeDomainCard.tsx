@@ -1,4 +1,5 @@
 // frontend/src/pages/substep/substep-content-card/forms/subtask-1-2-a/KnowledgeDomainCard.tsx
+
 import { Input } from "@/components/ui/input";
 import type { KnowledgeDomain, KnowledgeLevel } from "./types";
 import { LEVEL_COLORS, LEVEL_LABELS, LEVEL_DESCRIPTIONS, KNOWLEDGE_LEVELS } from "./types";

@@ -1,4 +1,5 @@
 // frontend/src/pages/substep/substep-content-card/forms/Subtask1_3_C.tsx
+
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -78,7 +79,6 @@ export default function Subtask1_3_C({
     );
   });
 
-  // 全员投票完成检测
   const hasNotifiedRef = useRef(false);
   useEffect(() => {
     const submittedCount = Object.keys(submissions).length;

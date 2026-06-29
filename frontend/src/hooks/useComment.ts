@@ -111,7 +111,6 @@ export function useComment({
       ? externalSetIsCommentMode
       : internalSetIsCommentMode;
 
-  // 从 API 同步评论（页面加载时）
   useEffect(() => {
     const state = getCommentState(projectId, substepId);
     if (state) {
@@ -130,14 +129,12 @@ export function useComment({
 
   useEffect(() => {
     if (commentRefreshKey > 0 && projectSubstepId) {
-      // 从 API 同步最新评论
       syncCommentsFromApi(projectId, substepId, projectSubstepId)
         .then((syncedComments) => {
           setComments(syncedComments);
         })
         .catch((error) => {
           console.error("useComment: sync failed:", error);
-          // 降级：从 localStorage 读取
           const state = getCommentState(projectId, substepId);
           if (state) {
             setComments(state.comments);
@@ -146,7 +143,6 @@ export function useComment({
     }
   }, [projectId, substepId, projectSubstepId, commentRefreshKey]);
 
-  // 监听 activeTab 变化，切换时关闭 popover
   useEffect(() => {
     if (selectedCommentId !== null) {
       setSelectedCommentId(null);
@@ -162,30 +158,24 @@ export function useComment({
     ): { align: PopoverAlign; position: { x: number; y: number } } => {
       const rect = contentArea.getBoundingClientRect();
 
-      // Marker 相对于容器内容区的坐标
       const markerX = comment.position!.x;
       const markerY = comment.position!.y - scrollTop;
 
-      // Marker 的视口坐标（用于 Popover 定位）
       const markerViewportX = rect.left + markerX;
       const markerViewportY = rect.top + markerY;
 
-      // 容器尺寸
       const containerWidth = rect.width;
       const containerHeight = rect.height;
 
-      // Popover 预估尺寸
-      const popoverWidth = 384; // w-96 = 384px
-      const popoverHeight = 500; // 预估最大高度
+      const popoverWidth = 384;
+      const popoverHeight = 500;
 
-      // 边缘检测阈值（基于容器内坐标）
       const horizontalMargin = 200;
       const verticalMargin = 300;
 
       let align: PopoverAlign = "bottom";
       let viewportPosition: { x: number; y: number };
 
-      // 1. 检测是否在底部边缘 → 上方显示
       if (markerY > containerHeight - verticalMargin) {
         align = "top";
         viewportPosition = {
@@ -193,7 +183,7 @@ export function useComment({
           y: markerViewportY - popoverHeight,
         };
       }
-      // 2. 检测是否在右边缘 → 左边显示
+
       else if (markerX > containerWidth - horizontalMargin) {
         align = "left";
         viewportPosition = {
@@ -201,7 +191,7 @@ export function useComment({
           y: markerViewportY - 125,
         };
       }
-      // 3. 检测是否在左边缘 → 右边显示
+
       else if (markerX < horizontalMargin) {
         align = "right";
         viewportPosition = {
@@ -209,7 +199,7 @@ export function useComment({
           y: markerViewportY,
         };
       }
-      // 4. 默认：下方显示
+
       else {
         align = "bottom";
         viewportPosition = {
@@ -236,7 +226,6 @@ export function useComment({
 
       const scrollTop = contentArea.scrollTop || 0;
 
-      // 使用公共函数计算位置
       const { align, position } = calculatePopoverPosition(
         comment,
         contentArea,
@@ -280,7 +269,6 @@ export function useComment({
 
     const scrollTop = contentArea.scrollTop || 0;
 
-    // 使用公共函数计算位置
     const { align, position } = calculatePopoverPosition(
       comment,
       contentArea,
@@ -293,14 +281,15 @@ export function useComment({
 
   const handleSaveComment = useCallback(
     async (content: string) => {
-      // 改为 async
       if (!commentPosition || !activeTab) return;
 
       const subtaskId =
         activeTab === "description"
           ? undefined
           : activeTab.replace("subtask-", "");
+
       const tempId = `comment-${Date.now()}`;
+
       const newComment: Comment = {
         id: tempId,
         projectId,
@@ -316,11 +305,9 @@ export function useComment({
         resolved: false,
       };
 
-      // 1. 先保存到 localStorage（现有逻辑，保持 UI 立即响应）
       addComment(projectId, substepId, newComment);
       setComments((prev) => [...prev, newComment]);
 
-      // 2. 如果有 projectSubstepId，直接保存到 API
       if (projectSubstepId) {
         try {
           const result = await createComment({
@@ -337,23 +324,20 @@ export function useComment({
               : undefined,
             anchorType: newComment.anchorType,
             anchorId: newComment.anchorId,
-            parentId: undefined, // 新评论没有 parentId
+            parentId: undefined,
           });
 
-          // 3. 更新 localStorage 中的 ID（从临时 ID 到真实 ID）
           updateComment(projectId, substepId, tempId, {
             id: result.id,
             updatedAt: result.updatedAt,
             subtaskId: (result as any).project_subtask_code || subtaskId,
           });
 
-          // 4. 更新本地 comments 状态
           setComments((prev) =>
             prev.map((c) => (c.id === tempId ? { ...c, id: result.id } : c)),
           );
         } catch (error) {
           console.error("[handleSaveComment] API save failed:", error);
-          // API 失败不影响本地显示，主 Save 按钮会同步
         }
       }
 
@@ -369,13 +353,12 @@ export function useComment({
       substepId,
       currentUserId,
       currentUserName,
-      projectSubstepId, // 添加依赖
+      projectSubstepId,
     ],
   );
 
   const handleDeleteComment = useCallback(
     async (commentId: string | number) => {
-      // 1. 收集所有次级回复 ID（级联删除）
       const collectReplyIds = (
         parentId: string | number,
       ): (string | number)[] => {
@@ -384,7 +367,7 @@ export function useComment({
 
         directReplies.forEach((reply) => {
           replyIds.push(reply.id);
-          replyIds.push(...collectReplyIds(reply.id)); // 递归
+          replyIds.push(...collectReplyIds(reply.id));
         });
 
         return replyIds;
@@ -393,29 +376,23 @@ export function useComment({
       const allReplyIds = collectReplyIds(commentId);
       const idsToDelete = [commentId, ...allReplyIds];
 
-      // 2. 从 localStorage 删除主评论和所有次级回复
       idsToDelete.forEach((id) => {
         deleteComment(projectId, substepId, String(id));
       });
 
-      // 3. 立即更新状态
       setComments((prev) => {
         const idsSet = new Set(idsToDelete);
         return prev.filter((c) => !idsSet.has(c.id));
       });
 
-      // 4. 关闭 popover（如果删除的是当前选中的评论）
       if (selectedCommentId === commentId) {
         setSelectedCommentId(null);
         setPopoverViewportPosition(null);
       }
 
-      // 5. 从 API 删除
       try {
-        // 删除主评论
         await deleteCommentWithApi(projectId, substepId, commentId);
 
-        // 级联删除次级回复
         for (const replyId of allReplyIds) {
           if (typeof replyId === "number") {
             await deleteCommentWithApi(projectId, substepId, replyId).catch(
@@ -429,7 +406,6 @@ export function useComment({
           }
         }
 
-        // 6. 重新同步
         if (projectSubstepId) {
           const synced = await syncCommentsFromApi(
             projectId,
@@ -440,7 +416,6 @@ export function useComment({
         }
       } catch (error) {
         console.error("[handleDeleteComment] Delete failed:", error);
-        // 7. 失败后重新同步
         if (projectSubstepId) {
           const synced = await syncCommentsFromApi(
             projectId,
@@ -459,7 +434,6 @@ export function useComment({
       const comment = comments.find((c) => c.id === commentId);
       if (!comment) return;
 
-      // 1. 立即更新 localStorage 和 UI（乐观更新）
       updateComment(projectId, substepId, String(commentId), {
         resolved: true,
       });
@@ -467,11 +441,9 @@ export function useComment({
         prev.map((c) => (c.id === commentId ? { ...c, resolved: true } : c)),
       );
 
-      // 2. 同步到 API
       try {
         await resolveCommentWithApi(projectId, substepId, commentId);
 
-        // 3. 重新加载评论确保一致性
         if (projectSubstepId) {
           const synced = await syncCommentsFromApi(
             projectId,
@@ -482,7 +454,6 @@ export function useComment({
         }
       } catch (error) {
         console.error("[handleResolveComment] Failed to resolve:", error);
-        // 4. 如果 API 失败，回滚本地状态
         updateComment(projectId, substepId, String(commentId), {
           resolved: false,
         });
@@ -494,7 +465,6 @@ export function useComment({
     [projectId, substepId, projectSubstepId, comments],
   );
 
-  // 禁止回复未保存的评论（临时 ID）
   const handleReplyComment = useCallback(
     async (parentId: string | number, content: string) => {
       const parentComment = comments.find((c) => c.id === parentId);
@@ -507,7 +477,6 @@ export function useComment({
         return;
       }
 
-      // 检查父评论是否是临时 ID（未保存）
       if (typeof parentId === "string" && parentId.startsWith("comment-")) {
         console.warn("[handleReplyComment] Parent comment not saved yet");
         alert("Please save the comment before replying");
@@ -530,11 +499,9 @@ export function useComment({
         resolved: false,
       };
 
-      // 1. 先添加到本地
       addComment(projectId, substepId, reply);
       setComments((prev) => [...prev, reply]);
 
-      // 2. 保存到 API
       if (projectSubstepId) {
         try {
           let apiParentId: number | undefined = undefined;
@@ -558,7 +525,6 @@ export function useComment({
             parentId: apiParentId,
           });
 
-          // 3. 更新 localStorage
           updateComment(projectId, substepId, tempId, {
             id: result.id,
             updatedAt: result.updatedAt,
@@ -566,7 +532,6 @@ export function useComment({
             parentId: (result as any).parent_id || parentId,
           });
 
-          // 4. 重新加载评论
           const synced = await syncCommentsFromApi(
             projectId,
             substepId,
@@ -597,7 +562,6 @@ export function useComment({
         return;
       }
 
-      // 1. 立即更新 localStorage 和 UI（乐观更新）
       updateComment(projectId, substepId, String(commentId), {
         content: newContent,
         edited: true,
@@ -608,14 +572,12 @@ export function useComment({
         ),
       );
 
-      // 2. 同步到 API（只有已同步的评论）
       if (typeof commentId === "number" && projectSubstepId) {
         try {
           await updateCommentApi(commentId, {
             content: newContent,
           });
 
-          // 3. 重新加载评论确保一致性
           const synced = await syncCommentsFromApi(
             projectId,
             substepId,
@@ -624,7 +586,6 @@ export function useComment({
           setComments(synced);
         } catch (error) {
           console.error("[handleEditComment] API update failed:", error);
-          // 4. API 失败回滚
           updateComment(projectId, substepId, String(commentId), {
             content: comment.content,
             edited: comment.edited,

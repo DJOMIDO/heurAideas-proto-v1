@@ -32,16 +32,13 @@ export default function TaskObjective({
         placeholder="Enter the objective of the task"
         value={task.objective}
         onChange={(e) => {
-          // 动作 1：触发打字通知
           if (onFormDataChange) {
             onFormDataChange(fieldNameKey, e.target.value);
           }
-          // 动作 2：更新本地数据
           updateTask({ objective: e.target.value });
         }}
         className="min-h-[80px] bg-white"
       />
-      {/* 动作 3：显示输入提示 */}
       <TypingIndicator editingUsers={editingUsers} fieldName={fieldNameKey} />
     </div>
   );

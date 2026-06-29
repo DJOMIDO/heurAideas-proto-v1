@@ -103,7 +103,6 @@ function SortableConstraint({
       {...attributes}
       className="flex flex-col gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200 hover:border-gray-300 transition-all shadow-sm"
     >
-      {/* 第一行：拖拽柄 + 序号 + 类型选择 + 描述输入 + 删除 */}
       <div className="flex items-center gap-2">
         <button
           {...listeners}
@@ -135,17 +134,14 @@ function SortableConstraint({
           placeholder="Description"
           value={constraint.value}
           onChange={(e) => {
-            // 动作 1：触发打字通知
             if (onFormDataChange && constraintValueKey) {
               onFormDataChange(constraintValueKey, e.target.value);
             }
-            // 动作 2：更新本地数据
             onUpdateConstraint(constraint.id, "value", e.target.value);
           }}
           className="flex-1 bg-white h-8 text-xs"
         />
 
-        {/* 动作 3：显示输入提示 */}
         {constraintValueKey && (
           <TypingIndicator
             editingUsers={editingUsers}
@@ -164,7 +160,6 @@ function SortableConstraint({
         )}
       </div>
 
-      {/* 第二行：Observables 列表 */}
       <div className="pl-8 space-y-2">
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">
@@ -185,16 +180,13 @@ function SortableConstraint({
                   placeholder="Observable element"
                   value={oe.value}
                   onChange={(e) => {
-                    // 动作 1：触发打字通知
                     if (onFormDataChange && observableKey) {
                       onFormDataChange(observableKey, e.target.value);
                     }
-                    // 动作 2：更新本地数据
                     updateObservable(oe.id, e.target.value);
                   }}
                   className="flex-1 bg-white h-7 text-xs border-gray-200 focus-visible:ring-teal-500/20"
                 />
-                {/* 动作 3：显示输入提示 */}
                 {observableKey && (
                   <TypingIndicator
                     editingUsers={editingUsers}
@@ -254,7 +246,6 @@ export default function TaskConstraints({
     }),
   );
 
-  // 处理拖拽结束：重新排序并保存
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -268,7 +259,6 @@ export default function TaskConstraints({
     }
   };
 
-  // 添加新约束
   const addConstraint = () => {
     const newConstraint: Constraint = {
       id: `c-${Date.now()}`,
@@ -279,14 +269,12 @@ export default function TaskConstraints({
     updateTask({ constraints: [...task.constraints, newConstraint] });
   };
 
-  // 删除指定约束
   const removeConstraint = (id: string) => {
     updateTask({
       constraints: task.constraints.filter((c) => c.id !== id),
     });
   };
 
-  // 更新指定约束字段
   const updateConstraintField = (
     id: string,
     field: keyof Constraint,

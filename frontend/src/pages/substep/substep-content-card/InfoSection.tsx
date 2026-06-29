@@ -1,4 +1,4 @@
-// src/pages/substep/substep-content-card/InfoSection.tsx
+// frontend/src/pages/substep/substep-content-card/InfoSection.tsx
 
 interface InfoSectionProps {
   label: string;

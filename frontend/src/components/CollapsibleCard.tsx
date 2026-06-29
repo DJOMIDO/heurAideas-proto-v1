@@ -1,4 +1,5 @@
 // frontend/src/components/CollapsibleCard.tsx
+
 import { useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ interface CollapsibleCardProps {
   title: string;
   children: ReactNode;
   defaultExpanded?: boolean;
-  onToggle?: (expanded: boolean) => void; // 可选：父组件控制
+  onToggle?: (expanded: boolean) => void;
 }
 
 export default function CollapsibleCard({
@@ -26,7 +27,6 @@ export default function CollapsibleCard({
 
   return (
     <div className="flex flex-col border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
-      {/* Header: 点击整个头部区域也可以折叠，或者只点击按钮 */}
       <div className="flex items-center justify-between p-3 bg-gray-50 border-b border-gray-100">
         <h3 className="font-semibold text-sm text-gray-800 truncate pr-2">
           {title}
@@ -45,7 +45,6 @@ export default function CollapsibleCard({
         </Button>
       </div>
 
-      {/* Body: 折叠时隐藏 */}
       {isExpanded && <div className="p-4 flex-1 overflow-auto">{children}</div>}
     </div>
   );

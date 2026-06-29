@@ -1,4 +1,5 @@
 // frontend/src/pages/documents/DocumentPreview.tsx
+
 import { useState, useEffect, type KeyboardEvent } from "react";
 import { FileText, Download, X, ZoomIn, Tag } from "lucide-react";
 import type { DocumentPreviewProps } from "./types";

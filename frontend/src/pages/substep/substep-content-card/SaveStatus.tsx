@@ -1,4 +1,4 @@
-// src/pages/substep/substep-content-card/SaveStatus.tsx
+// frontend/src/pages/substep/substep-content-card/SaveStatus.tsx
 
 import { CheckCircle2, Clock } from "lucide-react";
 

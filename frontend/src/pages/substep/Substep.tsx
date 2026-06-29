@@ -1,4 +1,5 @@
-// src/pages/substep/Substep.tsx
+// frontend/src/pages/substep/Substep.tsx
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { stepsData } from "@/data/steps";
@@ -92,9 +93,6 @@ export default function Substep() {
   const currentUserId = getUserId() ?? 0;
   const userInfo = getUserInfo();
 
-  // =====================================================
-  // 1. 定义 WebSocket 消息处理函数
-  // =====================================================
   const handleWebSocketMessage = useCallback(
     (message: WebSocketMessage) => {
       if (!substepId) return;
@@ -200,18 +198,12 @@ export default function Substep() {
     [substepId, projectIdNum, currentUserId],
   );
 
-  // =====================================================
-  // 2. 初始化 WebSocket
-  // =====================================================
   const { send: sendMessage } = useWebSocket({
     projectId: projectIdNum,
     enabled: !!substepId && !!projectIdNum,
     onMessage: handleWebSocketMessage,
   });
 
-  // =====================================================
-  // 3. 初始化打字指示器 (只负责发送)
-  // =====================================================
   const { sendTypingIndicator } = useTypingIndicator({
     projectId: projectIdNum,
     substepId: substepId!,

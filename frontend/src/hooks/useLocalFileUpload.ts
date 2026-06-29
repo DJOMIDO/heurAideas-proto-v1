@@ -1,4 +1,4 @@
-// src/hooks/useLocalFileUpload.ts
+// frontend/src/hooks/useLocalFileUpload.ts
 
 import { useState, useCallback } from "react";
 import type { DocumentNode } from "@/pages/documents/types";

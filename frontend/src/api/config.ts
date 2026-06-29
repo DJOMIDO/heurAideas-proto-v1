@@ -4,13 +4,11 @@ export const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 export const API_ENDPOINTS = {
-  // Projects
   PROJECTS: "/projects",
   PROJECT_DETAIL: (id: number) => `/projects/${id}`,
   SUBSTEP_CONTENT: (projectId: number, substepId: string) =>
     `/projects/${projectId}/substeps/${substepId}/content`,
 
-  // Comments
   COMMENTS: "/comments",
   COMMENTS_BY_PROJECT: (projectId: number) => `/comments/project/${projectId}`,
   COMMENTS_BY_SUBSTEP: (substepId: string) => `/comments/substep/${substepId}`,
@@ -19,7 +17,6 @@ export const API_ENDPOINTS = {
   COMMENT_UNRESOLVE: (commentId: number) => `/comments/${commentId}/unresolve`,
   COMMENT_COUNT: (projectId: number) => `/comments/project/${projectId}/count`,
 
-  // Documents
   DOCUMENTS: "/documents",
   DOCUMENT_TREE: (projectId: number) => `/projects/${projectId}/documents/tree`,
   DOCUMENT_UPLOAD: (projectId: number) => `/projects/${projectId}/documents/upload`,

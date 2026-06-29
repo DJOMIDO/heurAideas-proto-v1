@@ -1,4 +1,5 @@
 // frontend/src/pages/substep/substep-content-card/forms/subtask-1-3-c/GranularitySelector.tsx
+
 import { GRANULARITY_OPTIONS } from "./types";
 import type { Granularity } from "./types";
 

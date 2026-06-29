@@ -1,12 +1,12 @@
-// src/pages/substep-comments/CommentHeader.tsx
+// frontend/src/pages/substep-comments/CommentHeader.tsx
 
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
 interface CommentHeaderProps {
   substepId: string;
-  totalComments: number; // 所有评论数
-  filteredComments: number; // 当前筛选后的评论数
+  totalComments: number;
+  filteredComments: number;
   filter: "all" | "resolved" | "unresolved";
   onBack: () => void;
 }
@@ -18,7 +18,6 @@ export default function CommentHeader({
   filter,
   onBack,
 }: CommentHeaderProps) {
-  // 根据 filter 显示不同的标题
   const getTitle = () => {
     if (filter === "all") {
       return totalComments === 0

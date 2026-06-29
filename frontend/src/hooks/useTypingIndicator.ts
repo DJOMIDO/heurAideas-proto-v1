@@ -1,4 +1,5 @@
 // frontend/src/hooks/useTypingIndicator.ts
+
 import { useEffect, useRef, useCallback } from "react";
 
 interface UseTypingIndicatorProps {
@@ -36,7 +37,6 @@ export function useTypingIndicator({
       try {
         sendWsMessage(message);
       } catch (error) {
-        // Silent fail to avoid interrupting user input
       }
 
       if (typingTimeoutsRef.current.has(field)) {

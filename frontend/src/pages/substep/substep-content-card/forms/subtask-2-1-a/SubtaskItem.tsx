@@ -99,16 +99,13 @@ export default function SubtaskItem({
             placeholder="Enter the name of the subtask"
             value={subtask.name}
             onChange={(e) => {
-              // 动作 1：触发打字通知
               if (onFormDataChange && fieldNameKey) {
                 onFormDataChange(fieldNameKey, e.target.value);
               }
-              // 动作 2：更新本地数据
               onUpdateSubtask({ ...subtask, name: e.target.value });
             }}
             className="flex-1 bg-white border-blue-200 h-8 text-sm"
           />
-          {/* 动作 3：显示提示（移到输入框下方） */}
           {fieldNameKey && (
             <TypingIndicator
               editingUsers={editingUsers}

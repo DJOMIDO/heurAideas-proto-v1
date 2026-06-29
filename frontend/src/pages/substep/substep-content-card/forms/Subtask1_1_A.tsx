@@ -40,7 +40,6 @@ export default function Subtask1_1_A({
 
   return (
     <>
-      {/* 1. Register the activity of interest */}
       <div className="space-y-2">
         <label className="text-sm font-semibold text-gray-800">
           1. Register the activity of interest*
@@ -63,7 +62,6 @@ export default function Subtask1_1_A({
         />
       </div>
 
-      {/* 2. Propose a short definition */}
       <div className="space-y-2">
         <label className="text-sm font-semibold text-gray-800">
           2. Propose a short definition of this activity
@@ -82,7 +80,6 @@ export default function Subtask1_1_A({
         />
       </div>
 
-      {/* 3. Primary Elements Table */}
       <PrimaryElementsTable
         formData={formData}
         onFormDataChange={onFormDataChange}
@@ -93,7 +90,6 @@ export default function Subtask1_1_A({
         onConflictResolve={onConflictResolve}
       />
 
-      {/* 4. Stakeholder Section */}
       <div className="space-y-2">
         <div>
           <h3 className="text-sm font-semibold text-gray-800">
@@ -113,7 +109,6 @@ export default function Subtask1_1_A({
         />
       </div>
 
-      {/* 5. Additional Stakeholders */}
       <div className="space-y-2">
         <label className="text-sm font-semibold text-gray-800">
           5. Identify the stakeholders involved in the activity and that might

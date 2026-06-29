@@ -1,4 +1,5 @@
 // frontend/src/pages/substep/substep-content-card/forms/subtask-1-3-c/LivePreview.tsx
+
 import type { RequiredField, Granularity, Template } from "./types";
 
 interface LivePreviewProps {
@@ -26,7 +27,6 @@ export default function LivePreview({
 
   return (
     <div className="space-y-6">
-      {/* Sample Heuristic Preview */}
       <div className="space-y-4">
         <h4 className="text-sm font-semibold text-gray-900">Name</h4>
         <p className="text-sm text-gray-600">Clear Error Messaging</p>
@@ -66,7 +66,6 @@ export default function LivePreview({
         </div>
       )}
 
-      {/* Summary Stats */}
       <div className="pt-4 border-t border-emerald-200 space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Fields:</span>

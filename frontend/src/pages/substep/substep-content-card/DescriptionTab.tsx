@@ -1,4 +1,4 @@
-// src/pages/substep/substep-content-card/DescriptionTab.tsx
+// frontend/src/pages/substep/substep-content-card/DescriptionTab.tsx
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 

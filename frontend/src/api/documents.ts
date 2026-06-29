@@ -4,15 +4,12 @@ import { API_BASE_URL, API_ENDPOINTS } from "./config";
 import type { DocumentNode } from "@/pages/documents/types";
 import { getToken } from "@/utils/auth";
 
-// 内部请求封装
 async function request<T>(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   const token = getToken();
-
-  // 如果是文件上传，不设置 Content-Type，让浏览器自动处理 boundary
   const isFileUpload = options.body instanceof FormData;
 
   const response = await fetch(url, {
@@ -32,20 +29,12 @@ async function request<T>(
   return response.json();
 }
 
-// ================= API 函数 =================
-
-/**
- * 获取项目文档树
- */
 export async function fetchDocuments(
   projectId: number,
 ): Promise<DocumentNode[]> {
   return request<DocumentNode[]>(API_ENDPOINTS.DOCUMENT_TREE(projectId));
 }
 
-/**
- * 创建文件夹
- */
 export async function createFolder(
   projectId: number,
   name: string,
@@ -60,9 +49,6 @@ export async function createFolder(
   });
 }
 
-/**
- * 上传文件
- */
 export async function uploadDocument(
   projectId: number,
   file: File,
@@ -80,9 +66,6 @@ export async function uploadDocument(
   });
 }
 
-/**
- * 重命名节点（文件或文件夹）
- */
 export async function renameNode(
   projectId: number,
   nodeId: string,
@@ -97,9 +80,6 @@ export async function renameNode(
   );
 }
 
-/**
- * 删除节点（文件或文件夹）
- */
 export async function deleteNode(
   projectId: number,
   nodeId: string,
@@ -112,16 +92,11 @@ export async function deleteNode(
   );
 }
 
-/**
- * 更新文档标签 - 复用 request 封装
- */
 export async function updateDocumentTags(
   projectId: number,
   nodeId: string,
   tags: string[],
 ): Promise<DocumentNode> {
-  // 注意：这里需要确保 config.ts 中有对应的端点定义，或者手动拼接路径
-  // 假设你的 API_ENDPOINTS 有 DOCUMENT_TAGS 方法，如果没有可以这样写：
   const endpoint = `/projects/${projectId}/documents/${nodeId}/tags`;
 
   return request<DocumentNode>(endpoint, {

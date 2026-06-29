@@ -109,7 +109,6 @@ export default function SubstepContentCard({
 
   const fieldPrefix = `${activeTab}`;
 
-  // 处理空 activeTab
   if (!activeTab || activeTab === "") {
     return (
       <Card
@@ -248,7 +247,6 @@ export default function SubstepContentCard({
 
   return (
     <div className="relative flex-1 m-4">
-      {/* 评论模式切换按钮 */}
       <div className="absolute top-4 right-4 z-40">
         <CommentModeToggle
           isEnabled={isCommentMode}
@@ -281,12 +279,10 @@ export default function SubstepContentCard({
         <SubtaskHeader subtaskId={subtask.id} title={subtask.title} />
 
         <CardContent className="px-6">
-          {/* 内容区 */}
           <div
             ref={contentAreaRef}
             className="relative min-h-[400px] max-h-[calc(100vh-300px)] overflow-y-auto pr-2 space-y-6"
           >
-            {/* 评论 Overlay */}
             <div
               className="relative"
               style={{ height: 0, overflow: "visible" }}
@@ -311,7 +307,6 @@ export default function SubstepContentCard({
               />
             </div>
 
-            {/* InfoSection - 所有子任务共享 */}
             <InfoSection label="Objective" content={subtask.objective} />
             <InfoSection label="Actions" content={subtask.actions} />
             <InfoSection
@@ -321,11 +316,8 @@ export default function SubstepContentCard({
 
             <div className="my-6 border-t border-gray-200" />
 
-            {/* 动态渲染对应的表单组件（策略模式核心） */}
             {(() => {
-              // 从 subtask 获取 formType（来自 steps.json）
               const formType = (subtask as any).formType;
-              // 获取对应的表单组件
               const FormComponent = getSubtaskFormComponent(
                 formType,
               ) as React.ComponentType<any>;

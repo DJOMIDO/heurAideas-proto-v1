@@ -1,4 +1,4 @@
-// src/pages/substep-comments/CommentList.tsx
+// frontend/src/pages/substep-comments/CommentList.tsx
 
 import { Separator } from "@/components/ui/separator";
 import CommentListItem from "./CommentListItem";
@@ -30,7 +30,6 @@ export default function CommentList({
   isSubmittingReply,
   currentUserId,
 }: CommentListProps) {
-  // 递归渲染评论和回复
   const renderComment = (comment: any, depth: number = 0) => {
     const isParent = depth === 0;
     const hasReplies = comment.replies && comment.replies.length > 0;
@@ -53,7 +52,6 @@ export default function CommentList({
           currentUserId={currentUserId}
         />
 
-        {/* 递归渲染回复 */}
         {hasReplies && (
           <div
             className="space-y-3"

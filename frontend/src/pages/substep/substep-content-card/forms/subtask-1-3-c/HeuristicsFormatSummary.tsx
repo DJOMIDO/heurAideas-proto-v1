@@ -1,4 +1,5 @@
 // frontend/src/pages/substep/substep-content-card/forms/subtask-1-3-c/HeuristicsFormatSummary.tsx
+
 import { FIELD_LABELS } from "./types";
 import type { RequiredField, Granularity, Template } from "./types";
 

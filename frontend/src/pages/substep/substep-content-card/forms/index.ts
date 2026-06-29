@@ -10,7 +10,6 @@ import Subtask1_3_C from "./Subtask1_3_C";
 import Subtask1_4_A from "./Subtask1_4_A";
 import Subtask2_1_A from "./Subtask2_1_A";
 
-// Form components mapping (Strategy Pattern)
 export const SUBTASK_FORM_COMPONENTS: Record<
   string,
   React.ComponentType<any>
@@ -26,10 +25,8 @@ export const SUBTASK_FORM_COMPONENTS: Record<
   "subtask-2-1-a": Subtask2_1_A,
 };
 
-// Default form component if no specific formType is provided
 export const DEFAULT_SUBTASK_FORM = Subtask1_1_A;
 
-// Function to get the appropriate form component based on formType
 export function getSubtaskFormComponent(formType?: string) {
   if (!formType) return DEFAULT_SUBTASK_FORM;
   return SUBTASK_FORM_COMPONENTS[formType] || DEFAULT_SUBTASK_FORM;

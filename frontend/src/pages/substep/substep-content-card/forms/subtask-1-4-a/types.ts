@@ -8,7 +8,6 @@ export interface ResourceField {
 }
 
 export interface ResourcesData {
-  // Stakeholders
   endUsers: ResourceField;
   domainExperts: ResourceField;
   heInspectors: {
@@ -16,7 +15,6 @@ export interface ResourcesData {
     comment: string;
   };
 
-  // Documentary Resources
   scientificDatabases: ResourceField;
   domainDocumentation: ResourceField;
   projectDocumentation: {
@@ -28,13 +26,11 @@ export interface ResourcesData {
     }>;
   };
 
-  // Material & Financial Resources
   financialLatitude: ResourceField;
   availableTools: {
     tools: string;
   };
 
-  // Time Constraints
   timeline: ResourceField;
 }
 

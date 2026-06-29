@@ -1,4 +1,4 @@
-// src/pages/overview/DetailPanel.tsx
+// frontend/src/pages/overview/DetailPanel.tsx
 
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
@@ -29,18 +29,14 @@ export default function DetailPanel({ substep, stepId }: DetailPanelProps) {
   const userId = getUserId();
   const storageKey = userId ? `currentProjectId-${userId}` : "currentProjectId";
   const projectId = Number(localStorage.getItem(storageKey) || "1");
-
-  // 判断是否需要显示计数器（有 subtasks 才显示）
   const hasSubtasks = substep?.subtasks && substep.subtasks.length > 0;
 
-  // 监听 substep 变化 + 同步 API 数据
   useEffect(() => {
     if (!substep?.id) {
       setCommentCount(0);
       return;
     }
 
-    // 如果没有 subtasks，不需要同步评论
     if (!hasSubtasks) {
       setCommentCount(0);
       return;
@@ -101,7 +97,7 @@ export default function DetailPanel({ substep, stepId }: DetailPanelProps) {
       window.removeEventListener("storage", handleStorageChange);
       clearInterval(interval);
     };
-  }, [projectId, substep?.id, hasSubtasks]); // 添加 hasSubtasks 到依赖
+  }, [projectId, substep?.id, hasSubtasks]);
 
   const getProjectSubstepId = async (
     projectId: number,
@@ -143,7 +139,6 @@ export default function DetailPanel({ substep, stepId }: DetailPanelProps) {
                   {substep.title}
                 </CardTitle>
 
-                {/* 只有有 subtasks 时才显示计数器按钮 */}
                 {hasSubtasks && (
                   <Button
                     variant="outline"

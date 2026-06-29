@@ -1,4 +1,4 @@
-// src/api/projects.ts
+// frontend/src/api/projects.ts
 
 import { API_BASE_URL, API_ENDPOINTS } from "./config";
 import type {
@@ -80,22 +80,18 @@ export async function saveSubstepContent(
   );
 }
 
-// 获取项目所有 Stakeholder（完整列表）
 export async function getStakeholders(projectId: number): Promise<any[]> {
   return request<any[]>(`/projects/${projectId}/stakeholders`);
 }
 
-// 获取项目所有 Stakeholder Roles（去重数组）
 export async function getStakeholderRoles(
   projectId: number,
 ): Promise<string[]> {
-  // 使用 request 函数（自动处理 API_BASE_URL 和 token）
   return request<string[]>(
     `/projects/${projectId}/stakeholders?response_format=roles`,
   );
 }
 
-// 获取项目成员列表（调用独立 /members 接口）
 export async function getProjectMembers(projectId: number) {
   return request<{
     total: number;

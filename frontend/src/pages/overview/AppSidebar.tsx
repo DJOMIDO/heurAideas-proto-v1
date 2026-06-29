@@ -111,7 +111,6 @@ export default function AppSidebar({
 
       <div className="flex-1 py-4 overflow-hidden">
         <div className="flex flex-col gap-2 px-2">
-          {/* Manage Project */}
           {isCollapsed ? (
             <Button
               variant="ghost"
@@ -130,7 +129,6 @@ export default function AppSidebar({
             </Button>
           )}
 
-          {/* Switch Project */}
           {isCollapsed ? (
             <Button
               variant="ghost"
@@ -167,7 +165,6 @@ export default function AppSidebar({
             </Button>
           )}
 
-          {/* Manage Documents */}
           {isCollapsed ? (
             <Button
               variant="ghost"
@@ -188,7 +185,6 @@ export default function AppSidebar({
             </Button>
           )}
 
-          {/* Evaluation */}
           {isCollapsed ? (
             <Button
               variant="ghost"

@@ -87,8 +87,6 @@ export default function CommentPopover({
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyContent, setReplyContent] = useState("");
   const [replyingTo, setReplyingTo] = useState<string | number | null>(null);
-
-  // 编辑状态
   const [editingId, setEditingId] = useState<string | number | null>(null);
   const [editContent, setEditContent] = useState("");
 
@@ -113,7 +111,6 @@ export default function CommentPopover({
     setShowReplyInput(true);
   };
 
-  // 编辑相关函数
   const handleStartEdit = (commentId: string | number, content: string) => {
     setEditingId(commentId);
     setEditContent(content);
@@ -132,10 +129,8 @@ export default function CommentPopover({
     }
   };
 
-  // 使用工具函数
   const initials = getInitials(comment.authorName);
 
-  // 从扁平数组构建回复树
   const buildReplyTree = (
     parentId: string | number,
     allReplies: Comment[],
@@ -149,7 +144,6 @@ export default function CommentPopover({
     }));
   };
 
-  // 递归渲染回复组件
   const renderReply = (reply: Comment, depth: number = 1) => {
     const replyInitials = getInitials(reply.authorName);
 
@@ -183,7 +177,6 @@ export default function CommentPopover({
                 <span className="text-xs text-gray-400">L{depth}</span>
               )}
 
-              {/* 添加编辑/删除按钮（只有作者可见） */}
               {reply.authorId === currentUserId && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -221,7 +214,6 @@ export default function CommentPopover({
               )}
             </div>
 
-            {/* 回复内容 - 可编辑 */}
             {editingId === reply.id ? (
               <div className="space-y-2 mt-1">
                 <Textarea
@@ -335,7 +327,6 @@ export default function CommentPopover({
     );
   };
 
-  // 构建回复树
   const replyTree = buildReplyTree(comment.id, replies);
 
   return (
@@ -352,9 +343,7 @@ export default function CommentPopover({
           className="flex flex-col"
           style={{ maxHeight: "70vh", overflow: "hidden" }}
         >
-          {/* 头部 - flex-shrink-0 */}
           <div className="p-4 space-y-3 flex-shrink-0">
-            {/* 主评论头部 */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Avatar className="h-8 w-8">
@@ -436,7 +425,6 @@ export default function CommentPopover({
               </div>
             </div>
 
-            {/* 主评论内容 - 可编辑 */}
             {editingId === comment.id ? (
               <div className="space-y-2">
                 <Textarea
@@ -475,7 +463,6 @@ export default function CommentPopover({
             )}
           </div>
 
-          {/* 回复区域 */}
           {replyTree.length > 0 && (
             <div
               className="border-t border-gray-100 flex-shrink-0"
@@ -487,7 +474,6 @@ export default function CommentPopover({
             </div>
           )}
 
-          {/* 底部 - flex-shrink-0 */}
           <div className="p-4 space-y-3 flex-shrink-0 border-t border-gray-100">
             {showReplyInput && replyingTo === comment.id && (
               <div className="space-y-2">

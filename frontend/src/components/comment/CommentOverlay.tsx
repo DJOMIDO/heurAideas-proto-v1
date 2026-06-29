@@ -49,7 +49,6 @@ export default function CommentOverlay({
   handleEditComment,
   handleUpdateCommentPosition,
 }: CommentOverlayProps) {
-  // 递归查找所有层级的回复
   const findAllReplies = (
     parentId: string | number,
     allComments: Comment[],
@@ -95,7 +94,6 @@ export default function CommentOverlay({
           const comment = comments.find((c) => c.id === selectedCommentId);
           if (!comment) return null;
 
-          // 使用递归函数查找所有层级回复
           const allReplies = findAllReplies(selectedCommentId, comments);
 
           return (
@@ -106,7 +104,6 @@ export default function CommentOverlay({
               onClose={handleClosePopover}
               onDelete={(commentId) => handleDeleteComment(commentId)}
               onResolve={() => handleResolveComment(selectedCommentId)}
-              // 修复：传递 handleReplyComment，让 Popover 调用时传入 parentId
               onReply={handleReplyComment}
               onEdit={handleEditComment}
               replies={allReplies}

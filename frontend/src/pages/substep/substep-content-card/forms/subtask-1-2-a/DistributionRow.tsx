@@ -1,4 +1,5 @@
 // frontend/src/pages/substep/substep-content-card/forms/subtask-1-2-a/DistributionRow.tsx
+
 import Avatar from "@/components/Avatar";
 
 interface User {

@@ -1,4 +1,5 @@
 // frontend/src/api/users.ts
+
 import { getToken } from "@/utils/auth";
 
 export interface User {

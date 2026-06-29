@@ -1,12 +1,7 @@
 // frontend/src/utils/comment.ts
 
-// 重新导出 getInitials，保持向后兼容
 export { getInitials } from "@/utils/string";
 
-/**
- * 格式化日期字符串
- * 兼容多种日期格式（包括 UTC 时间）
- */
 export function formatDate(dateString: string | null | undefined): string {
   if (!dateString) return "Unknown";
 
@@ -31,9 +26,6 @@ export function formatDate(dateString: string | null | undefined): string {
   });
 }
 
-/**
- * 检查评论是否是回复（有 parentId）
- */
 export function isReply(comment: {
   parentId?: string | number | null;
 }): boolean {
@@ -44,9 +36,6 @@ export function isReply(comment: {
   );
 }
 
-/**
- * 兼容 snake_case 和 camelCase 字段名
- */
 export function normalizeCommentFields(comment: any): any {
   return {
     ...comment,
