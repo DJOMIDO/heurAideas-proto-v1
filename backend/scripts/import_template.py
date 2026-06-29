@@ -1,9 +1,4 @@
-#!/usr/bin/env python3
 # backend/scripts/import_template.py
-"""
-模板结构同步脚本（清理重建模式）
-将前端最新的 Steps/Substeps/Subtasks 映射同步至数据库，并注入 form_type 路由标识
-"""
 
 import sys
 from pathlib import Path
@@ -19,9 +14,6 @@ from app.models.template import (
     TemplateSubtask,
 )
 
-# ==========================================
-# 新版模板数据
-# ==========================================
 TEMPLATE_DATA = [
     {
         "id": 1,
@@ -148,17 +140,7 @@ TEMPLATE_DATA = [
                         "recommendedDocumentation": "",
                         "status": "todo",
                         "formType": "subtask-1-4-a",
-                    },
-                    {
-                        "id": "b",
-                        "title": "Organisation degree of freedom definition",
-                        "description": "To be completed...",
-                        "objective": "",
-                        "actions": "",
-                        "recommendedDocumentation": "",
-                        "status": "todo",
-                        "formType": "subtask-1-4-b",
-                    },
+                    }
                 ],
             },
             {
@@ -540,11 +522,18 @@ TEMPLATE_DATA = [
 
 
 def sync_template(db: Session):
-    """清理旧模板并重新导入最新结构"""
-    print("开始同步模板数据...")
+    print("Synchronizing template data...")
 
-    # 1. 清理旧数据（利用 cascade 自动清理关联表）
-    print("清理旧模板关联数据...")
+    print("Cleaning up data associated with old templates...")
+    from sqlalchemy import text # pyright: ignore[reportMissingImports]
+    
+    print("Remove the foreign key reference from the project data to the template...")
+    db.execute(text("UPDATE project_subtasks SET template_subtask_id = NULL"))
+    db.execute(text("UPDATE project_substeps SET template_substep_id = NULL"))
+    db.execute(text("UPDATE project_steps SET template_step_id = NULL"))
+    db.execute(text("UPDATE projects SET template_id = NULL"))
+    db.commit()
+
     db.query(TemplateSubtask).delete()
     db.query(TemplateSubstep).delete()
     db.query(TemplateStep).delete()
@@ -553,15 +542,14 @@ def sync_template(db: Session):
 
     from sqlalchemy import text # pyright: ignore[reportMissingImports]
     
-    print("重置模板表 ID 序列...")
+    print("Reset the ID sequence for the template table...")
     db.execute(text("ALTER SEQUENCE template_subtasks_id_seq RESTART WITH 1"))
     db.execute(text("ALTER SEQUENCE template_substeps_id_seq RESTART WITH 1"))
     db.execute(text("ALTER SEQUENCE template_steps_id_seq RESTART WITH 1"))
     db.execute(text("ALTER SEQUENCE project_templates_id_seq RESTART WITH 1"))
     db.commit()
-    print("旧数据已清理，序列已重置为 1")
+    print("Old data has been cleared, and the sequence has been reset to 1.")
 
-    # 2. 创建模板主记录
     template = ProjectTemplate(
         name="Heuristic Evaluation Framework",
         version="v2.1",
@@ -572,9 +560,8 @@ def sync_template(db: Session):
     db.add(template)
     db.commit()
     db.refresh(template)
-    print(f"创建模板：{template.name} (ID={template.id}, Version={template.version})\n")
+    print(f"Creating Templates：{template.name} (ID={template.id}, Version={template.version})\n")
 
-    # 3. 遍历导入层级结构
     total_substeps = 0
     total_subtasks = 0
 
@@ -618,8 +605,8 @@ def sync_template(db: Session):
                     recommended_documentation=subtask_data.get(
                         "recommendedDocumentation", ""
                     ),
-                    field_config=None,  # 新版动态表单不再依赖静态 JSON 配置
-                    form_type=subtask_data.get("formType"),  # 注入路由标识
+                    field_config=None,
+                    form_type=subtask_data.get("formType"),
                     order=subtask_idx + 1,
                 )
                 db.add(subtask)
@@ -627,15 +614,15 @@ def sync_template(db: Session):
                 db.refresh(subtask)
                 total_subtasks += 1
                 print(
-                    f"      📝 Subtask {subtask.code}: {subtask.title} [form_type={subtask.form_type}]"
+                    f"      Subtask {subtask.code}: {subtask.title} [form_type={subtask.form_type}]"
                 )
 
     print(f"\n{'='*60}")
-    print(f"模板同步完成！")
+    print(f"Template synchronization complete!")
     print(
-        f"统计：{len(TEMPLATE_DATA)} Steps | {total_substeps} Substeps | {total_subtasks} Subtasks"
+        f"Summary: {len(TEMPLATE_DATA)} Steps | {total_substeps} Substeps | {total_subtasks} Subtasks"
     )
-    print(f"前端将通过 form_type 字段动态匹配组件")
+    print(f"The front end will dynamically match components based on the `form_type` field.")
     print(f"{'='*60}")
     return True
 
@@ -645,7 +632,7 @@ def main():
     try:
         sync_template(db)
     except Exception as e:
-        print(f"同步失败：{e}")
+        print(f"Synchronization failed: {e}")
         import traceback
 
         traceback.print_exc()
