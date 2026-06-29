@@ -4,9 +4,6 @@ from pydantic import BaseModel, Field, validator  # pyright: ignore[reportMissin
 from typing import Optional, List
 from datetime import datetime
 
-
-# ==================== 基础 Schema ====================
-
 class CommentBase(BaseModel):
     content: str = Field(..., min_length=1, max_length=10000, description="Comment content")
     position_x: Optional[int] = Field(default=None, description="Marker X position")
@@ -37,9 +34,6 @@ class CommentUpdate(BaseModel):
     is_resolved: Optional[bool] = None
     is_deleted: Optional[bool] = None
 
-
-# ==================== 响应 Schema ====================
-
 class CommentResponse(CommentBase):
     id: int
     project_id: int
@@ -67,14 +61,10 @@ class CommentListResponse(BaseModel):
     unresolved_count: int
 
 
-# ==================== 统计 Schema ====================
-
 class CommentCountResponse(BaseModel):
     total: int
     resolved: int
     unresolved: int
-    by_substep: dict  # {substep_code: count}
+    by_substep: dict
 
-
-# 更新 forward reference
 CommentResponse.update_forward_refs()

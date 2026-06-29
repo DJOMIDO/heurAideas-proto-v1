@@ -4,9 +4,6 @@ from pydantic import BaseModel, Field  # pyright: ignore[reportMissingImports]
 from typing import Optional, List
 from datetime import datetime
 
-
-# ==================== Project Related ====================
-
 class ProjectCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200, description="Project Name")
     description: Optional[str] = Field(default=None, description="Project Description")
@@ -39,9 +36,6 @@ class ProjectListResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
-# ==================== Step Related ====================
-
 class ProjectStepResponse(BaseModel):
     id: int
     code: str
@@ -52,9 +46,6 @@ class ProjectStepResponse(BaseModel):
 
     class Config:
         from_attributes = True
-
-
-# ==================== Substep Related ====================
 
 class ProjectSubtaskResponse(BaseModel):
     id: int
@@ -78,9 +69,6 @@ class ProjectSubstepResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
-# ==================== Content Related ====================
-
 class SubstepContentCreate(BaseModel):
     content_data: Optional[dict] = Field(default=None, description="Substep Content Data")
     ui_state: Optional[dict] = Field(default=None, description="UI State")
@@ -96,11 +84,7 @@ class SubstepContentResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
-# ==================== Project Detail ====================
-
 class ProjectStepDetail(BaseModel):
-    """Project Step Detail (Substeps included)"""
     id: int
     code: str
     title: str
@@ -114,7 +98,6 @@ class ProjectStepDetail(BaseModel):
 
 
 class ProjectDetailResponse(BaseModel):
-    """Project Detail Response (includes complete step tree)"""
     id: int
     name: str
     description: Optional[str]

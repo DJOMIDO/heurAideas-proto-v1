@@ -29,27 +29,20 @@ from datetime import datetime
 
 router = APIRouter(prefix="/projects/{project_id}/members", tags=["Members"])
 
-# ==================== Get project members ====================
-
-
 @router.get("/", response_model=MemberListResponse)
 async def get_project_members(
     project_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Get project members"""
-    # Ensure project exists and user has access
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Query project memberships
     memberships = (
         db.query(ProjectMember).filter(ProjectMember.project_id == project_id).all()
     )
 
-    # Construct member response with user info
     members = []
     for membership in memberships:
         user = db.query(User).filter(User.id == membership.user_id).first()
@@ -69,10 +62,6 @@ async def get_project_members(
 
     return MemberListResponse(total=len(members), members=members)
 
-
-# ==================== Add project member ====================
-
-
 @router.post("/", response_model=MemberAddResponse)
 async def add_project_member(
     project_id: int,
@@ -91,7 +80,6 @@ async def add_project_member(
             detail="Only project owner or admin can add members",
         )
 
-    # query user with provided user_id
     new_member = db.query(User).filter(User.id == member_data.user_id).first()
     if not new_member:
         raise HTTPException(
@@ -137,7 +125,6 @@ async def add_project_member(
     db.commit()
     db.refresh(membership)
 
-    # Notify the new member via WebSocket (if connected)
     try:
         await manager.send_to_user(
             user_id=new_member.id,
@@ -150,7 +137,6 @@ async def add_project_member(
             },
         )
     except Exception as e:
-        # Log the error but don't fail the request if notification fails
         print(f"[WS Warning] Failed to notify user {new_member.id}: {e}")
 
     return MemberAddResponse(
@@ -160,10 +146,6 @@ async def add_project_member(
         message=f"User {new_member.username} added as {membership.role}",
     )
 
-
-# ==================== Update member role ====================
-
-
 @router.put("/{user_id}/role")
 async def update_member_role(
     project_id: int,
@@ -172,13 +154,10 @@ async def update_member_role(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Update member role (only owner can do this)"""
-    # Ensure project exists
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Verify permissions (only owner can update roles)
     current_role = (
         db.query(ProjectMember)
         .filter(
@@ -194,14 +173,12 @@ async def update_member_role(
             detail="Only project owner can update member roles",
         )
 
-    # Validate role
     if role not in ["owner", "admin", "member"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid role. Must be owner, admin, or member",
         )
 
-    # If setting role to owner, ensure there isn't already another owner (except the current user)
     if role == "owner":
         existing_owner = (
             db.query(ProjectMember)
@@ -218,7 +195,6 @@ async def update_member_role(
                 detail="Project already has an owner",
             )
 
-    # Update member role
     membership = (
         db.query(ProjectMember)
         .filter(
@@ -235,10 +211,6 @@ async def update_member_role(
 
     return {"message": f"Role updated to {role}"}
 
-
-# ==================== Remove project member ====================
-
-
 @router.delete("/{user_id}")
 async def remove_project_member(
     project_id: int,
@@ -246,20 +218,16 @@ async def remove_project_member(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Remove project member (only owner/admin can do this)"""
-    # Ensure project exists
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Verify permissions (only owner/admin can remove members)
     if not is_project_owner_or_admin(db, project_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only project owner or admin can remove members",
         )
 
-    # Check if the target membership exists and is not the owner (cannot remove owner)
     target_membership = (
         db.query(ProjectMember)
         .filter(
@@ -277,17 +245,12 @@ async def remove_project_member(
             detail="Cannot remove project owner",
         )
 
-    # Delete the membership
     db.query(ProjectMember).filter(
         ProjectMember.project_id == project_id, ProjectMember.user_id == user_id
     ).delete()
     db.commit()
 
     return {"message": "Member removed"}
-
-
-# ==================== Get available roles ====================
-
 
 @router.get("/roles")
 async def get_available_roles():

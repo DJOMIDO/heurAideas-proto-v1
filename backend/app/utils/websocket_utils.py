@@ -1,4 +1,5 @@
 # backend/app/utils/websocket_utils.py
+
 from datetime import datetime
 from typing import Optional
 from app.websocket.manager import manager
@@ -36,7 +37,6 @@ async def notify_user_typing(
     username: str,
     exclude_user_id: Optional[int] = None
 ):
-    """通知其他用户某人正在编辑"""
     await manager.broadcast(
         project_id, 
         {

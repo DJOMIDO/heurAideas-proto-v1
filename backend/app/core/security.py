@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from jose import jwt
-import bcrypt
+from jose import jwt # pyright: ignore[reportMissingModuleSource]
+import bcrypt # pyright: ignore[reportMissingImports]
 
 from app.core.config import settings
 

@@ -16,7 +16,7 @@ from app.schemas.comment import (
     CommentCountResponse,
 )
 from app.api.auth import get_current_user
-# 导入权限函数
+
 from app.utils.permissions import (
     can_access_project,
     can_edit_comment,
@@ -30,8 +30,6 @@ from app.utils.websocket_utils import (
 )
 
 router = APIRouter(prefix="/comments", tags=["Comments"])
-
-# ==================== 辅助函数 ====================
 
 def get_subtask_code(db: Session, project_subtask_id: Optional[int]) -> Optional[str]:
     if not project_subtask_id:
@@ -78,8 +76,6 @@ def build_comment_tree(comment: Comment, db: Session, depth: int = 0, max_depth:
             comment_dict["replies"].append(reply_dict)
     return comment_dict
 
-# ==================== 获取评论列表 ====================
-
 @router.get("/project/{project_id}", response_model=CommentListResponse)
 async def get_project_comments(
     project_id: int,
@@ -89,8 +85,6 @@ async def get_project_comments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """获取项目的所有评论"""
-    # 使用权限函数
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -144,8 +138,6 @@ async def get_project_comments(
         unresolved_count=total - resolved_count
     )
 
-# ==================== 获取子步骤评论 ====================
-
 @router.get("/substep/{substep_id}", response_model=CommentListResponse)
 async def get_substep_comments(
     substep_id: str,
@@ -154,8 +146,6 @@ async def get_substep_comments(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """获取指定子步骤的所有评论"""
-    # 使用权限函数
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -195,16 +185,12 @@ async def get_substep_comments(
         unresolved_count=total - resolved_count
     )
 
-# ==================== 创建评论 ====================
-
 @router.post("/", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
 async def create_comment(
     comment: CommentCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """创建新评论或回复"""
-    # 使用权限函数
     project = db.query(Project).filter(Project.id == comment.project_id).first()
     if not project or not can_access_project(db, comment.project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
@@ -254,7 +240,6 @@ async def create_comment(
     db.commit()
     db.refresh(db_comment)
 
-    # 推送给同一项目的其他客户端
     await notify_comment_added(db_comment.project_id, {
         "id": db_comment.id,
         "content": db_comment.content,
@@ -267,15 +252,12 @@ async def create_comment(
 
     return db_comment
 
-# ==================== 获取评论详情 ====================
-
 @router.get("/{comment_id}", response_model=CommentResponse)
 async def get_comment(
     comment_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """获取评论详情"""
     comment = db.query(Comment).filter(
         Comment.id == comment_id,
         Comment.is_deleted == False
@@ -283,14 +265,11 @@ async def get_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # 使用权限函数
     project = db.query(Project).filter(Project.id == comment.project_id).first()
     if not project or not can_access_project(db, comment.project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
 
     return build_comment_dict(comment, db)
-
-# ==================== 更新评论 ====================
 
 @router.put("/{comment_id}", response_model=CommentResponse)
 async def update_comment(
@@ -299,7 +278,6 @@ async def update_comment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """更新评论"""
     comment = db.query(Comment).filter(
         Comment.id == comment_id,
         Comment.is_deleted == False
@@ -307,7 +285,6 @@ async def update_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # 只有作者可以编辑
     if not can_edit_comment(comment.author_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -327,7 +304,6 @@ async def update_comment(
     db.commit()
     db.refresh(comment)
 
-    # 推送更新
     await notify_comment_updated(comment.project_id, {
         "id": comment.id,
         "content": comment.content,
@@ -337,15 +313,12 @@ async def update_comment(
 
     return comment
 
-# ==================== 删除评论 ====================
-
 @router.delete("/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_comment(
     comment_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """删除评论"""
     comment = db.query(Comment).filter(
         Comment.id == comment_id,
         Comment.is_deleted == False
@@ -353,7 +326,6 @@ async def delete_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # 使用权限函数（作者 + owner/admin 可删除回复）
     is_reply = comment.parent_id is not None
     if not can_delete_comment(db, comment.author_id, current_user.id, comment.project_id, is_reply):
         raise HTTPException(
@@ -368,15 +340,12 @@ async def delete_comment(
 
     await notify_comment_deleted(comment.project_id, comment_id)
 
-# ==================== 标记为已解决 ====================
-
 @router.post("/{comment_id}/resolve", response_model=CommentResponse)
 async def resolve_comment(
     comment_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """标记评论为已解决"""
     comment = db.query(Comment).filter(
         Comment.id == comment_id,
         Comment.is_deleted == False
@@ -384,7 +353,6 @@ async def resolve_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # 只有 owner/admin 可以 resolve
     if not can_resolve_comment(db, comment.project_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -405,15 +373,12 @@ async def resolve_comment(
 
     return comment
 
-# ==================== 标记为未解决 ====================
-
 @router.post("/{comment_id}/unresolve", response_model=CommentResponse)
 async def unresolve_comment(
     comment_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """标记评论为未解决"""
     comment = db.query(Comment).filter(
         Comment.id == comment_id,
         Comment.is_deleted == False
@@ -421,7 +386,6 @@ async def unresolve_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # 只有 owner/admin 可以 unresolve
     if not can_resolve_comment(db, comment.project_id, current_user.id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -442,16 +406,12 @@ async def unresolve_comment(
 
     return comment
 
-# ==================== 获取评论统计 ====================
-
 @router.get("/project/{project_id}/count", response_model=CommentCountResponse)
 async def get_comment_count(
     project_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """获取项目评论统计"""
-    # 使用权限函数
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project or not can_access_project(db, project_id, current_user.id):
         raise HTTPException(status_code=404, detail="Project not found")
