@@ -3,8 +3,6 @@
 import os
 from dotenv import load_dotenv # pyright: ignore[reportMissingImports]
 
-# 只在环境变量未设置时加载 .env
-# 这样 Docker 环境变量会优先
 if not os.getenv("DATABASE_URL"):
     load_dotenv()
 

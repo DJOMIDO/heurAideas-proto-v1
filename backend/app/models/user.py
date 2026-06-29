@@ -1,3 +1,5 @@
+# backend/app/models/user.py
+
 from sqlalchemy import Column, Integer, String, DateTime # pyright: ignore[reportMissingImports]
 from sqlalchemy.sql import func # pyright: ignore[reportMissingImports]
 from sqlalchemy.orm import relationship # pyright: ignore[reportMissingImports]

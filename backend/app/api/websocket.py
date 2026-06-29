@@ -11,8 +11,6 @@ import logging
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["WebSocket"])
 
-
-# ==================== 1. 用户级 WebSocket (必须放在最前面！) ====================
 @router.websocket("/ws/user")
 async def user_websocket_endpoint(websocket: WebSocket, token: str = Query(None)):
     user_id = None
@@ -43,14 +41,12 @@ async def user_websocket_endpoint(websocket: WebSocket, token: str = Query(None)
 
     try:
         while True:
-            await websocket.receive_text()  # 保持连接活跃
+            await websocket.receive_text()
     except WebSocketDisconnect:
         print(f"[WS USER] DISCONNECTED: User={username}", flush=True)
     finally:
         manager.disconnect(websocket)
 
-
-# ==================== 2. 项目级 WebSocket (放在后面) ====================
 @router.websocket("/ws/{project_id}")
 async def websocket_endpoint(
     websocket: WebSocket, project_id: int, token: str = Query(None)

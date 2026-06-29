@@ -1,3 +1,5 @@
+# backend/app/websocket/manager.py
+
 from fastapi import WebSocket # pyright: ignore[reportMissingImports]
 from typing import Dict, Optional
 import logging
@@ -6,30 +8,22 @@ logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
-    """WebSocket 连接管理器 - 增强版（支持项目级和用户级频道）"""
 
     def __init__(self):
-        # 1. 存储项目级连接：{project_id: {user_id: websocket}}
         self.active_connections: Dict[int, Dict[int, WebSocket]] = {}
-
-        # 2. 存储用户级全局连接（如 Menu 页面）：{user_id: websocket}
         self.user_connections: Dict[int, WebSocket] = {}
-
-        # 3. 反向索引：{websocket: (type, *identifiers)}
-        # type 可以是 'project' 或 'user'
         self.connection_map: Dict[WebSocket, tuple] = {}
 
     async def connect(
         self, websocket: WebSocket, project_id: int, user_id: int
     ) -> bool:
-        """接受项目级连接并存储。如果用户已存在，直接替换旧连接"""
+  
         try:
             await websocket.accept()
 
             if project_id not in self.active_connections:
                 self.active_connections[project_id] = {}
 
-            # 如果该用户在此项目已有连接，直接替换引用，避免竞态
             if user_id in self.active_connections[project_id]:
                 old_ws = self.active_connections[project_id][user_id]
                 logger.warning(
@@ -38,7 +32,7 @@ class ConnectionManager:
                 self.connection_map.pop(old_ws, None)
 
             self.active_connections[project_id][user_id] = websocket
-            # 记录连接类型和标识，方便 disconnect 时区分清理
+
             self.connection_map[websocket] = ("project", project_id, user_id)
 
             logger.info(
@@ -50,11 +44,10 @@ class ConnectionManager:
             return False
 
     async def connect_user(self, websocket: WebSocket, user_id: int) -> bool:
-        """接受用户级全局连接（如 Menu 页面通知）"""
+
         try:
             await websocket.accept()
 
-            # 如果用户已有全局连接，替换旧连接
             if user_id in self.user_connections:
                 old_ws = self.user_connections[user_id]
                 logger.warning(
@@ -72,7 +65,7 @@ class ConnectionManager:
             return False
 
     def disconnect(self, websocket: WebSocket):
-        """断开连接并清理所有映射"""
+
         info = self.connection_map.pop(websocket, None)
         if info:
             conn_type = info[0]
@@ -99,7 +92,7 @@ class ConnectionManager:
     async def broadcast(
         self, project_id: int, message: dict, exclude_user_id: Optional[int] = None
     ):
-        """向项目的所有连接广播消息"""
+
         if project_id not in self.active_connections:
             logger.warning(
                 f"Broadcast failed: Project {project_id} has no active connections."
@@ -141,7 +134,7 @@ class ConnectionManager:
                 self.disconnect(ws)
 
     async def send_to_user(self, user_id: int, message: dict) -> bool:
-        """向特定用户的全局连接发送消息（如 Menu 页面通知）"""
+
         ws = self.user_connections.get(user_id)
         if ws and hasattr(ws, "client_state") and ws.client_state.value == 1:
             try:
@@ -149,7 +142,7 @@ class ConnectionManager:
                 return True
             except Exception as e:
                 logger.error(f"Send to user {user_id} failed: {e}")
-                # 发送失败可能是连接已断开，清理
+
                 self.disconnect(ws)
                 return False
         else:
@@ -159,7 +152,6 @@ class ConnectionManager:
             return False
 
     async def send_personal(self, websocket: WebSocket, message: dict):
-        """向单个连接发送消息"""
         try:
             if hasattr(websocket, "client_state") and websocket.client_state.value != 1:
                 self.disconnect(websocket)
@@ -172,6 +164,4 @@ class ConnectionManager:
             self.disconnect(websocket)
             return False
 
-
-# 全局单例
 manager = ConnectionManager()

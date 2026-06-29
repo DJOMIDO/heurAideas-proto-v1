@@ -1,3 +1,5 @@
+# backend/alembic/versions/97e1062577c9_add_documents_table.py
+
 """add documents table
 
 Revision ID: documents_v1
@@ -9,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa # pyright: ignore[reportMissingImports]
 
 revision: str = 'documents_v1'
-down_revision: Union[str, None] = None  # 第一次迁移，根节点
+down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

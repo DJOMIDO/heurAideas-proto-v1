@@ -43,18 +43,7 @@ from app.utils.websocket_utils import notify_content_saved
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
-# ==================== Helper Functions ====================
-
-
 def cleanup_empty_fields(data: dict) -> dict:
-    """
-    Clean up empty fields from the content data. This includes:
-    Rules:
-    - Empty strings → Remove
-    - null → Remove
-    - Empty dictionaries → Remove
-    - Empty lists → Remove
-    """
     if not isinstance(data, dict):
         return data
 
@@ -76,16 +65,9 @@ def cleanup_empty_fields(data: dict) -> dict:
 
     return cleaned
 
-
-# ==================== Helper Functions: Save Stakeholder Data ====================
-
-
 async def save_stakeholders(
     db: Session, project_id: int, substep_id: str, user_id: int, content_data: dict
 ):
-    """
-    Exract stakeholder data from the content_data and save to the database.
-    """
 
     content_data = cleanup_empty_fields(content_data)
 
@@ -176,10 +158,6 @@ async def save_stakeholders(
             db.add(stakeholder)
 
     db.commit()
-
-
-# ==================== Create Project ====================
-
 
 @router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 async def create_project(
@@ -288,10 +266,6 @@ async def create_project(
     db.commit()
     return db_project
 
-
-# ==================== Get Projects ====================
-
-
 @router.get("/", response_model=List[ProjectListResponse])
 async def get_projects(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -323,10 +297,6 @@ async def get_projects(
     ]
 
     return all_projects
-
-
-# ==================== Get Project Detail ====================
-
 
 @router.get("/{project_id}", response_model=ProjectDetailResponse)
 async def get_project_detail(
@@ -367,10 +337,6 @@ async def get_project_detail(
     project.steps = steps
 
     return project
-
-
-# ==================== Save Substep Content ====================
-
 
 @router.post(
     "/{project_id}/substeps/{substep_id}/content", response_model=SubstepContentResponse
@@ -448,10 +414,6 @@ async def save_substep_content(
 
     return db_content
 
-
-# ==================== Get Substep Content ====================
-
-
 @router.get(
     "/{project_id}/substeps/{substep_id}/content",
     response_model=Optional[SubstepContentResponse],
@@ -487,10 +449,6 @@ async def get_substep_content(
         .first()
     )
     return content
-
-
-# ==================== Get Project Stakeholders ====================
-
 
 @router.get("/{project_id}/stakeholders")
 async def get_project_stakeholders(

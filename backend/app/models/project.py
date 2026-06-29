@@ -1,3 +1,5 @@
+# backend/app/models/project.py
+
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, JSON, Boolean # pyright: ignore[reportMissingImports]
 from sqlalchemy.sql import func # pyright: ignore[reportMissingImports]
 from sqlalchemy.orm import relationship # pyright: ignore[reportMissingImports]
@@ -13,17 +15,15 @@ class Project(Base):
     creator_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     template_id = Column(Integer, ForeignKey("project_templates.id"), nullable=True)
     template_version = Column(String(50), nullable=True)
-    status = Column(String(50), default="draft")  # draft, in_progress, completed, archived
+    status = Column(String(50), default="draft")
     visibility = Column(String(50), default="private")
-    workspace_id = Column(Integer, nullable=True)  # placeholder for future multi-workspace support
+    workspace_id = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Relationships
     creator = relationship("User", back_populates="projects")
     template = relationship("ProjectTemplate")
 
-    # Relationships to members, steps, and documents
     members = relationship(
         "ProjectMember",
         back_populates="project",
@@ -56,12 +56,11 @@ class ProjectStep(Base):
     code = Column(String(20), nullable=False)
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
-    status = Column(String(50), default="todo")  # todo, in_progress, completed
+    status = Column(String(50), default="todo")
     order = Column(Integer, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Relationships
     project = relationship("Project", back_populates="steps")
     substeps = relationship(
         "ProjectSubstep",
@@ -88,7 +87,6 @@ class ProjectSubstep(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Relationships
     step = relationship("ProjectStep", back_populates="substeps")
     subtasks = relationship(
         "ProjectSubtask",
@@ -123,7 +121,6 @@ class ProjectSubtask(Base):
     order = Column(Integer, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Relationships
     substep = relationship("ProjectSubstep", back_populates="subtasks")
 
     def __repr__(self):
@@ -136,12 +133,11 @@ class SubstepContent(Base):
     id = Column(Integer, primary_key=True, index=True)
     project_substep_id = Column(Integer, ForeignKey("project_substeps.id"), unique=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    content_data = Column(JSON, nullable=True)  # all content data stored as JSON, flexible for different content types
-    ui_state = Column(JSON, nullable=True)  # Tab state, etc.
+    content_data = Column(JSON, nullable=True)
+    ui_state = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Relationships
     substep = relationship("ProjectSubstep", back_populates="content")
     editor = relationship("User")
 
@@ -161,7 +157,6 @@ class Attachment(Base):
     uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    # Relationships
     substep = relationship("ProjectSubstep", back_populates="attachments")
     uploader = relationship("User")
 

@@ -10,11 +10,9 @@ import os
 import sys
 import subprocess
 from pathlib import Path
-
 from app.database import engine, Base, get_db, SessionLocal
 from app.core.config import settings
 
-# 导入所有模型（确保表被注册）
 from app.models import (
     User,
     ProjectTemplate,
@@ -32,37 +30,30 @@ from app.models import (
     Document,
 )
 
-# 导入路由
 from app.api import auth, users, projects, comments, members, websocket, documents
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """应用生命周期管理：启动时初始化 DB 和模板"""
     print("[Startup] Initializing database tables...")
     
-    # 1. 创建所有表（幂等操作）
     try:
         Base.metadata.create_all(bind=engine)
         print("[Startup] Database tables ready")
     except Exception as e:
         print(f"[Startup] Table creation failed: {e}")
-        # 不阻止启动，让健康检查去处理
     
-    # 2. 导入模板数据（幂等：如果已存在则跳过）
     print("[Startup] Checking template data...")
     try:
-        # 使用 subprocess 运行脚本，避免导入路径和会话冲突问题
         result = subprocess.run(
             [sys.executable, "/app/scripts/import_template.py"],
             capture_output=True,
             text=True,
-            env={**os.environ}  # 传递 DATABASE_URL 等环境变量
+            env={**os.environ}
         )
         
         if result.returncode == 0:
             print("[Startup] Template initialization complete")
             if result.stdout:
-                # 只打印最后几行，避免日志过长
                 lines = result.stdout.strip().split('\n')
                 for line in lines[-5:]:
                     print(f"   {line}")
@@ -72,9 +63,8 @@ async def lifespan(app: FastAPI):
         print(f"[Startup] Template import script failed: {e}")
         print("Continuing anyway (templates can be imported manually later)")
     
-    yield  # ← 应用在此处运行
+    yield
     
-    # ========== SHUTDOWN ==========
     print("[Shutdown] Disposing database engine...")
     engine.dispose()
 
@@ -85,14 +75,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ==================== CORS 配置 (动态读取环境变量) ====================
-# 默认包含本地开发地址和你的两个生产地址
 allow_origins_str = os.getenv(
     "CORS_ORIGINS", 
     "http://localhost:5173,https://heuraideas.netlify.app,https://heuraideas-proto-v1.onrender.com"
 )
 
-# 解析逗号分隔的字符串为列表
 allow_origins = [origin.strip() for origin in allow_origins_str.split(",") if origin.strip()]
 
 print(f"[CORS] Allowed origins: {allow_origins}")
@@ -105,7 +92,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ==================== 注册路由 ====================
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(projects.router)
@@ -114,15 +100,12 @@ app.include_router(members.router)
 app.include_router(websocket.router)
 app.include_router(documents.router)
 
-# ==================== 静态文件服务（本地开发用） ====================
-# 如果未配置 Supabase，使用本地文件存储并挂载静态服务
 if not settings.SUPABASE_URL or not settings.SUPABASE_KEY:
     uploads_dir = Path("./uploads")
     uploads_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
     print("[Static] Mounted /uploads for local file serving")
 
-# ==================== 基础端点 ====================
 @app.get("/")
 async def root():
     return {
@@ -133,7 +116,6 @@ async def root():
 
 @app.get("/health")
 async def health_check(db: Session = Depends(get_db)):
-    """健康检查（Render 使用）"""
     try:
         db.execute(text("SELECT 1"))
         return {"status": "ok", "database": "connected"}
@@ -141,10 +123,8 @@ async def health_check(db: Session = Depends(get_db)):
         return {"status": "error", "database": str(e)}
 
 @app.get("/ping")
-@app.head("/ping")  # 显式支持 HEAD 请求
+@app.head("/ping")
 async def ping():
-    """心跳端点（防止 Render 免费层休眠）"""
-    # 对于 HEAD 请求，FastAPI 会自动忽略返回体，只返回头
     return {"pong": "alive", "timestamp": "now"}
 
 if __name__ == "__main__":

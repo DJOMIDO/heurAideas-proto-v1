@@ -1,3 +1,5 @@
+# backend/app/models/stakeholder.py
+
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey, JSON, UniqueConstraint # pyright: ignore[reportMissingImports]
 from sqlalchemy.sql import func # pyright: ignore[reportMissingImports]
 from sqlalchemy.orm import relationship # pyright: ignore[reportMissingImports]

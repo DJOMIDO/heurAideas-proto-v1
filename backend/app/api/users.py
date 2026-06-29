@@ -18,19 +18,14 @@ from app.api.auth import get_current_user
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
-
-# ==================== Get all users ====================
 @router.get("/", response_model=List[UserResponse])
 async def get_user_list(
     db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
     """Get all users (for team member selection)"""
     users = db.query(User).all()
-    # exclude current user from the list
     return [u for u in users if u.id != current_user.id]
 
-
-# ==================== Get current user info ====================
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_info(token: str, db: Session = Depends(get_db)):
 
@@ -56,8 +51,6 @@ async def get_current_user_info(token: str, db: Session = Depends(get_db)):
 
     return user
 
-
-# ==================== Search users ====================
 @router.get("/search")
 async def search_users(
     query: str,
@@ -68,7 +61,6 @@ async def search_users(
     if len(query) < 2:
         return []
 
-    # use ilike for case-insensitive search, and exclude current user from results
     users = (
         db.query(User)
         .filter(
