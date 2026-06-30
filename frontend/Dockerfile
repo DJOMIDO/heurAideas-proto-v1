@@ -5,6 +5,9 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+ARG VITE_API_URL=""
+ENV VITE_API_URL=${VITE_API_URL}
+
 # Copy package.json and package-lock.json to leverage Docker cache for dependencies
 COPY package*.json ./
 

@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: aideas_db
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -54,23 +54,26 @@ services:
       DB_PORT: 5432
       DB_USER: user
       DB_NAME: aideas_db
+      CORS_ORIGINS: "http://localhost:8080,http://127.0.0.1:8080,http://195.83.78.200:8080,https://heuraideas.netlify.app,https://heuraideas-proto-v1.onrender.com"
     depends_on:
       db:
         condition: service_healthy
 
   # ========== React Frontend (Nginx) ==========
-  # Development: Run frontend locally with `npm run dev`
-  # Production: Uncomment below to run frontend in Docker
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: heuraideas-frontend
-  #   ports:
-  #     - "5173:80"
-  #   depends_on:
-  #     - backend
-  #   restart: always
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    container_name: heuraideas-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: always
+    profiles:
+      - production
 
 volumes:
   postgres_data: {}
