@@ -7,12 +7,15 @@ WORKDIR /app
 
 ARG VITE_API_URL=""
 ENV VITE_API_URL=${VITE_API_URL}
+ENV NODE_ENV=development
 
 # Copy package.json and package-lock.json to leverage Docker cache for dependencies
 COPY package*.json ./
 
 # Install dependencies
 RUN npm install
+
+RUN npm install -D typescript vite
 
 # Copy the rest of the application code
 COPY . .
