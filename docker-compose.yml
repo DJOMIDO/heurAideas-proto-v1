@@ -36,7 +36,9 @@ services:
 
   # ========== FastAPI Backend ==========
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      network: host
     container_name: heuraideas-backend
     ports:
       - "8080:8000" 
