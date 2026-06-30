@@ -7,33 +7,24 @@ WORKDIR /app
 
 ARG VITE_API_URL=""
 ENV VITE_API_URL=${VITE_API_URL}
-ENV NODE_ENV=development
 
-# Copy package.json and package-lock.json to leverage Docker cache for dependencies
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+RUN npm config set fetch-retries 5 && \
+    npm config set fetch-timeout 100000 && \
+    npm config set maxsockets 3 && \
+    npm install
 
-RUN npm install -D typescript vite
-
-# Copy the rest of the application code
 COPY . .
 
-# Build the application
-RUN npm run build
+RUN npx vite build
 
 # ========== Stage 2: Production (Nginx) ==========
 FROM nginx:alpine
 
-# Copy build artifacts to Nginx default directory
 COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Copy custom Nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose port 80 for the web server
 EXPOSE 80
 
-# Start Nginx server
 CMD ["nginx", "-g", "daemon off;"]
