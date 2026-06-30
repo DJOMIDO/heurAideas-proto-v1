@@ -8,16 +8,20 @@ WORKDIR /app
 ARG VITE_API_URL=""
 ENV VITE_API_URL=${VITE_API_URL}
 
+ENV NODE_ENV=development
+
 COPY package*.json ./
 
-RUN npm config set fetch-retries 5 && \
+RUN npm config set maxsockets 1 && \
+    npm config set fetch-retries 5 && \
     npm config set fetch-timeout 100000 && \
-    npm config set maxsockets 3 && \
-    npm install
+    npm install --include=dev
 
 COPY . .
 
-RUN npx vite build
+RUN chmod +x ./node_modules/.bin/* && \
+    ./node_modules/.bin/tsc -b && \
+    ./node_modules/.bin/vite build
 
 # ========== Stage 2: Production (Nginx) ==========
 FROM nginx:alpine
