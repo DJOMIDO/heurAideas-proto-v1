@@ -39,10 +39,11 @@ services:
     build: ./backend
     container_name: heuraideas-backend
     ports:
-      - "8000:8000"
+      - "8080:8000" 
     volumes:
       - ./backend:/app
       - ./backend/uploads:/app/uploads
+      - ./frontend/dist:/app/static:ro 
     environment:
       DATABASE_URL: postgresql://user:password@db:5432/aideas_db
       SECRET_KEY: your-super-secret-key-change-in-production
@@ -54,29 +55,10 @@ services:
       DB_PORT: 5432
       DB_USER: user
       DB_NAME: aideas_db
-      CORS_ORIGINS: "http://localhost:8080,http://127.0.0.1:8080,http://195.83.78.200:8080,https://heuraideas.netlify.app,https://heuraideas-proto-v1.onrender.com"
+      CORS_ORIGINS: "https://heuraideas.netlify.app,https://heuraideas-proto-v1.onrender.com"
     depends_on:
       db:
         condition: service_healthy
-
-  # ========== React Frontend (Nginx) ==========
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_URL: ""
-    container_name: heuraideas-frontend
-    ports:
-      - "8080:80"
-    depends_on:
-      - backend
-    restart: always
-    profiles:
-      - production
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
 
 volumes:
   postgres_data: {}
