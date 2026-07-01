@@ -32,6 +32,8 @@ backend/.Python
 
 # Environment variables
 backend/.env
+frontend/.env
+.env
 
 # ============================
 # IDE

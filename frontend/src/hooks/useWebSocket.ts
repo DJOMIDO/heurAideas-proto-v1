@@ -98,15 +98,21 @@ export function useWebSocket({
     if (explicitWsUrl) {
       wsUrl = `${explicitWsUrl}${wsPath}?token=${token}`;
     } else {
-      const apiBaseUrl =
-        import.meta.env.VITE_API_URL || "http://localhost:8000";
-      try {
-        const urlObj = new URL(apiBaseUrl);
-        const protocol = urlObj.protocol === "https:" ? "wss:" : "ws:";
-        const host = urlObj.host;
-        wsUrl = `${protocol}//${host}${wsPath}?token=${token}`;
-      } catch (e) {
-        wsUrl = `ws://localhost:8000${wsPath}?token=${token}`;
+      const apiBaseUrl = import.meta.env.VITE_API_URL;
+
+      if (!apiBaseUrl) {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        wsUrl = `${protocol}//${window.location.host}${wsPath}?token=${token}`;
+      } else {
+        try {
+          const urlObj = new URL(apiBaseUrl);
+          const protocol = urlObj.protocol === "https:" ? "wss:" : "ws:";
+          const host = urlObj.host;
+          wsUrl = `${protocol}//${host}${wsPath}?token=${token}`;
+        } catch (e) {
+          const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+          wsUrl = `${protocol}//${window.location.host}${wsPath}?token=${token}`;
+        }
       }
     }
 

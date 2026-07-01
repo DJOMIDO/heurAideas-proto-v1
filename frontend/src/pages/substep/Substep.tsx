@@ -140,7 +140,6 @@ export default function Substep() {
         const field = message.field;
 
         if (message.user_id !== currentUserId) {
-
           if (editingTimeoutsRef.current.has(field)) {
             clearTimeout(editingTimeoutsRef.current.get(field)!);
           }
@@ -455,9 +454,9 @@ export default function Substep() {
 
         const data = JSON.stringify(stateToSave);
         const blob = new Blob([data], { type: "application/json" });
-        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
         navigator.sendBeacon(
-          `${apiUrl}/projects/${projectIdNum}/substeps/${substepId}/state`,
+          `/projects/${projectIdNum}/substeps/${substepId}/state`,
           blob,
         );
 

@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: aideas_db
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -36,13 +36,16 @@ services:
 
   # ========== FastAPI Backend ==========
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      network: host
     container_name: heuraideas-backend
     ports:
-      - "8000:8000"
+      - "8080:8000" 
     volumes:
       - ./backend:/app
       - ./backend/uploads:/app/uploads
+      - ./frontend/dist:/app/static:ro 
     environment:
       DATABASE_URL: postgresql://user:password@db:5432/aideas_db
       SECRET_KEY: your-super-secret-key-change-in-production
@@ -54,23 +57,13 @@ services:
       DB_PORT: 5432
       DB_USER: user
       DB_NAME: aideas_db
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000,http://localhost:8080"
     depends_on:
       db:
         condition: service_healthy
-
-  # ========== React Frontend (Nginx) ==========
-  # Development: Run frontend locally with `npm run dev`
-  # Production: Uncomment below to run frontend in Docker
-  # frontend:
-  #   build:
-  #     context: ./frontend
-  #     dockerfile: Dockerfile
-  #   container_name: heuraideas-frontend
-  #   ports:
-  #     - "5173:80"
-  #   depends_on:
-  #     - backend
-  #   restart: always
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
 
 volumes:
   postgres_data: {}
