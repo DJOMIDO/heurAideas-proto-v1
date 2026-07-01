@@ -57,7 +57,7 @@ services:
       DB_PORT: 5432
       DB_USER: user
       DB_NAME: aideas_db
-      CORS_ORIGINS: "https://heuraideas.netlify.app,https://heuraideas-proto-v1.onrender.com"
+      CORS_ORIGINS: "http://localhost:5173,http://localhost:3000,http://localhost:8080"
     depends_on:
       db:
         condition: service_healthy

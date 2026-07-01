@@ -82,7 +82,7 @@ app = FastAPI(
 
 allow_origins_str = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:5173,https://heuraideas.netlify.app,https://heuraideas-proto-v1.onrender.com",
+    "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
 )
 
 allow_origins = [
