@@ -113,7 +113,6 @@ if not settings.SUPABASE_URL or not settings.SUPABASE_KEY:
     app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
     print("[Static] Mounted /uploads for local file serving")
 
-#static_dir = Path("/app/static")
 static_dir = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 if static_dir.exists() and (static_dir / "index.html").exists():
     assets_dir = static_dir / "assets"
@@ -122,6 +121,10 @@ if static_dir.exists() and (static_dir / "index.html").exists():
 
     @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
+        if full_path.startswith("api/") or full_path.startswith("api"):
+            from fastapi.responses import JSONResponse # pyright: ignore[reportMissingImports]
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        
         if not full_path:
             return FileResponse(static_dir / "index.html")
         file_path = static_dir / full_path
