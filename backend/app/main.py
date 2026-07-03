@@ -119,6 +119,7 @@ if static_dir.exists() and (static_dir / "index.html").exists():
     if assets_dir.exists():
         app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
+    @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         api_paths = ["projects", "users", "auth", "comments", "members", "ws", "documents", "uploads", "health", "ping", "openapi.json", "docs", "redoc"]
         first_segment = full_path.split("/")[0]
