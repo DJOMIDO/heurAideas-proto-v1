@@ -113,7 +113,8 @@ if not settings.SUPABASE_URL or not settings.SUPABASE_KEY:
     app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
     print("[Static] Mounted /uploads for local file serving")
 
-static_dir = Path("/app/static")
+#static_dir = Path("/app/static")
+static_dir = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 if static_dir.exists() and (static_dir / "index.html").exists():
     assets_dir = static_dir / "assets"
     if assets_dir.exists():
