@@ -119,19 +119,13 @@ if static_dir.exists() and (static_dir / "index.html").exists():
     if assets_dir.exists():
         app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str):
-        api_paths = ["projects", "users", "auth", "comments", "members", "ws", "documents", "uploads", "health", "ping", "openapi.json", "docs", "redoc"]
-        first_segment = full_path.split("/")[0]
-        if first_segment in api_paths:
-            from fastapi.responses import JSONResponse # pyright: ignore[reportMissingImports]
-            return JSONResponse({"detail": "Not Found"}, status_code=404)
-        
-        if not full_path:
-            return FileResponse(static_dir / "index.html")
-        file_path = static_dir / full_path
-        if file_path.is_file():
-            return FileResponse(file_path)
+    @app.get("/")
+    @app.get("/menu")
+    @app.get("/overview")
+    @app.get("/substep")
+    @app.get("/login")
+    @app.get("/register")
+    async def serve_spa_routes():
         return FileResponse(static_dir / "index.html")
 
     print(f"[Static] Mounted frontend from {static_dir}")
