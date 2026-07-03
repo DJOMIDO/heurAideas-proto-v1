@@ -48,21 +48,29 @@ async def lifespan(app: FastAPI):
 
     print("[Startup] Checking template data...")
     try:
-        result = subprocess.run(
-            [sys.executable, "/app/scripts/import_template.py"],
-            capture_output=True,
-            text=True,
-            env={**os.environ},
-        )
+        script_path = Path(__file__).resolve().parent.parent / "scripts" / "import_template.py"
+        
+        if not script_path.exists():
+            script_path = Path("/app/scripts/import_template.py")
+        
+        if script_path.exists():
+            result = subprocess.run(
+                [sys.executable, str(script_path)],
+                capture_output=True,
+                text=True,
+                env={**os.environ},
+            )
 
-        if result.returncode == 0:
-            print("[Startup] Template initialization complete")
-            if result.stdout:
-                lines = result.stdout.strip().split("\n")
-                for line in lines[-5:]:
-                    print(f"   {line}")
+            if result.returncode == 0:
+                print("[Startup] Template initialization complete")
+                if result.stdout:
+                    lines = result.stdout.strip().split("\n")
+                    for line in lines[-5:]:
+                        print(f"   {line}")
+            else:
+                print(f"[Startup] Template import warning: {result.stderr[:200]}")
         else:
-            print(f"[Startup] Template import warning: {result.stderr[:200]}")
+            print(f"[Startup] Template import script not found, skipping initialization")
     except Exception as e:
         print(f"[Startup] Template import script failed: {e}")
         print("Continuing anyway (templates can be imported manually later)")
