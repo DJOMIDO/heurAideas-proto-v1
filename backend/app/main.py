@@ -136,9 +136,12 @@ if static_dir.exists() and (static_dir / "index.html").exists():
     @app.get("/overview")
     @app.get("/documents")
     @app.get("/evaluation")
+    async def serve_spa_routes():
+        return FileResponse(static_dir / "index.html")
+
     @app.get("/substep/{project_id}/{step_id}/{substep_id}")
     @app.get("/substep/{project_id}/{step_id}/{substep_id}/comments")
-    async def serve_spa_routes(**kwargs):
+    async def serve_spa_routes_with_params(project_id: str, step_id: str, substep_id: str):
         return FileResponse(static_dir / "index.html")
 
     print(f"[Static] Mounted frontend from {static_dir}")
