@@ -128,12 +128,17 @@ if static_dir.exists() and (static_dir / "index.html").exists():
         app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
     @app.get("/")
+    @app.get("/welcome")
+    @app.get("/auth")
+    @app.get("/auth/register")
+    @app.get("/auth/login")
     @app.get("/menu")
     @app.get("/overview")
-    @app.get("/substep")
-    @app.get("/login")
-    @app.get("/register")
-    async def serve_spa_routes():
+    @app.get("/documents")
+    @app.get("/evaluation")
+    @app.get("/substep/{project_id}/{step_id}/{substep_id}")
+    @app.get("/substep/{project_id}/{step_id}/{substep_id}/comments")
+    async def serve_spa_routes(**kwargs):
         return FileResponse(static_dir / "index.html")
 
     print(f"[Static] Mounted frontend from {static_dir}")
