@@ -48,21 +48,29 @@ async def lifespan(app: FastAPI):
 
     print("[Startup] Checking template data...")
     try:
-        result = subprocess.run(
-            [sys.executable, "/app/scripts/import_template.py"],
-            capture_output=True,
-            text=True,
-            env={**os.environ},
-        )
+        script_path = Path(__file__).resolve().parent.parent / "scripts" / "import_template.py"
+        
+        if not script_path.exists():
+            script_path = Path("/app/scripts/import_template.py")
+        
+        if script_path.exists():
+            result = subprocess.run(
+                [sys.executable, str(script_path)],
+                capture_output=True,
+                text=True,
+                env={**os.environ},
+            )
 
-        if result.returncode == 0:
-            print("[Startup] Template initialization complete")
-            if result.stdout:
-                lines = result.stdout.strip().split("\n")
-                for line in lines[-5:]:
-                    print(f"   {line}")
+            if result.returncode == 0:
+                print("[Startup] Template initialization complete")
+                if result.stdout:
+                    lines = result.stdout.strip().split("\n")
+                    for line in lines[-5:]:
+                        print(f"   {line}")
+            else:
+                print(f"[Startup] Template import warning: {result.stderr[:200]}")
         else:
-            print(f"[Startup] Template import warning: {result.stderr[:200]}")
+            print(f"[Startup] Template import script not found, skipping initialization")
     except Exception as e:
         print(f"[Startup] Template import script failed: {e}")
         print("Continuing anyway (templates can be imported manually later)")
@@ -113,19 +121,27 @@ if not settings.SUPABASE_URL or not settings.SUPABASE_KEY:
     app.mount("/uploads", StaticFiles(directory=str(uploads_dir)), name="uploads")
     print("[Static] Mounted /uploads for local file serving")
 
-static_dir = Path("/app/static")
+static_dir = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 if static_dir.exists() and (static_dir / "index.html").exists():
     assets_dir = static_dir / "assets"
     if assets_dir.exists():
         app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str):
-        if not full_path:
-            return FileResponse(static_dir / "index.html")
-        file_path = static_dir / full_path
-        if file_path.is_file():
-            return FileResponse(file_path)
+    @app.get("/")
+    @app.get("/welcome")
+    @app.get("/auth")
+    @app.get("/auth/register")
+    @app.get("/auth/login")
+    @app.get("/menu")
+    @app.get("/overview")
+    @app.get("/documents")
+    @app.get("/evaluation")
+    async def serve_spa_routes():
+        return FileResponse(static_dir / "index.html")
+
+    @app.get("/substep/{project_id}/{step_id}/{substep_id}")
+    @app.get("/substep/{project_id}/{step_id}/{substep_id}/comments")
+    async def serve_spa_routes_with_params(project_id: str, step_id: str, substep_id: str):
         return FileResponse(static_dir / "index.html")
 
     print(f"[Static] Mounted frontend from {static_dir}")
