@@ -60,6 +60,7 @@ npm run dev
 
 ## Access URLs
 
+- **Live Demo:** https://heuraideas-proto-v1.netlify.app/
 - **Frontend:** http://localhost:5173  
 - **Backend API:** http://localhost:8000  
 - **API Docs:** http://localhost:8000/docs  
