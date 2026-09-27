@@ -129,11 +129,11 @@ export default function DetailPanel({ substep, stepId }: DetailPanelProps) {
   };
 
   return (
-    <ResizablePanel defaultSize="75" minSize="20" className="bg-gray-50">
+    <ResizablePanel defaultSize="75" minSize="20" className="bg-[#DAD7CD]/35">
       <div className="h-full overflow-y-auto p-6">
         {substep ? (
-          <Card className="h-full border shadow-sm">
-            <CardHeader className="pb-3 border-b">
+          <Card className="h-full border-[#A3B18A]/60 bg-background shadow-sm">
+            <CardHeader className="pb-3 border-b border-[#A3B18A]/50">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-xl flex items-center gap-2">
                   {substep.title}
@@ -149,13 +149,13 @@ export default function DetailPanel({ substep, stepId }: DetailPanelProps) {
                       flex items-center gap-1.5 px-3 py-1.5 h-auto font-medium transition-all
                       ${
                         commentCount > 0
-                          ? "bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300"
-                          : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100 hover:border-gray-300"
+                          ? "bg-[#A3B18A]/35 border-[#588157] text-[#344E41] hover:bg-[#A3B18A]/55"
+                          : "bg-muted border-border text-muted-foreground hover:bg-[#DAD7CD]/60"
                       }
                     `}
                   >
                     <MessageSquare
-                      className={`w-4 h-4 ${commentCount > 0 ? "fill-blue-700" : "fill-gray-400"}`}
+                      className={`w-4 h-4 ${commentCount > 0 ? "fill-[#3A5A40]" : "fill-muted-foreground"}`}
                     />
                     <span>
                       {isSyncing
@@ -170,10 +170,10 @@ export default function DetailPanel({ substep, stepId }: DetailPanelProps) {
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
               <div>
-                <h4 className="text-sm font-semibold text-gray-500 mb-1">
+                <h4 className="text-sm font-semibold text-[#3A5A40] mb-1">
                   Description
                 </h4>
-                <p className="text-gray-700 leading-relaxed">
+                <p className="text-muted-foreground leading-relaxed">
                   {substep.description || "No description available."}
                 </p>
               </div>
@@ -192,7 +192,7 @@ export default function DetailPanel({ substep, stepId }: DetailPanelProps) {
                           {task.title}
                         </AccordionTrigger>
                         <AccordionContent>
-                          <p className="text-gray-600 text-sm mb-2">
+                          <p className="text-muted-foreground text-sm mb-2">
                             {task.description || "No description provided"}
                           </p>
                         </AccordionContent>
@@ -200,13 +200,13 @@ export default function DetailPanel({ substep, stepId }: DetailPanelProps) {
                     ))}
                   </Accordion>
                 ) : (
-                  <p className="text-sm text-gray-500">No tasks available</p>
+                  <p className="text-sm text-muted-foreground">No tasks available</p>
                 )}
               </div>
             </CardContent>
           </Card>
         ) : (
-          <div className="h-full flex flex-col items-center justify-center text-gray-400">
+          <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
             <FileText className="w-16 h-16 mb-4 opacity-30" />
             <p>Select a substep to view details</p>
           </div>

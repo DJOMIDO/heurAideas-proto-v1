@@ -31,18 +31,18 @@ export default function SubstepList({
       defaultSize="25"
       minSize="15"
       maxSize="40"
-      className="bg-white"
+      className="bg-background"
     >
       <div className="h-full overflow-y-auto p-4">
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           {substeps.map((substep, index) => (
             <div
               key={substep.id}
               className={`p-3 rounded-lg transition-all border
                 ${
                   selectedId === substep.id
-                    ? "bg-blue-50 border-blue-200 text-blue-700 shadow-sm"
-                    : "bg-white border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                    ? "bg-[#A3B18A]/35 border-[#588157] text-[#344E41] shadow-sm"
+                    : "bg-background border-[#A3B18A]/60 hover:bg-[#DAD7CD]/50 hover:border-[#588157]/50"
                 }`}
             >
               <div className="flex items-center justify-between gap-2">
@@ -51,10 +51,10 @@ export default function SubstepList({
                   className="flex-1 cursor-pointer"
                 >
                   <div className="flex flex-col gap-1">
-                    <span className="text font-semibold text-gray-500">
+                    <span className="text-xs font-semibold text-muted-foreground">
                       Substep {stepId}.{index + 1}
                     </span>
-                    <span className="font-medium text-sm text-gray-900">
+                    <span className="font-medium text-sm text-foreground">
                       {substep.title}
                     </span>
                   </div>
@@ -63,7 +63,7 @@ export default function SubstepList({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0 shrink-0 hover:bg-blue-200"
+                  className="h-8 w-8 p-0 shrink-0 hover:bg-[#A3B18A]/50"
                   onClick={(e) => {
                     e.stopPropagation();
                     navigate(

@@ -37,7 +37,7 @@ export default function StepMenu({
   return (
     <div
       ref={containerRef}
-      className="bg-gray-50 border-r border-gray-200 flex flex-col shrink-0 z-10 h-full"
+      className="earthy-step-menu border-r border-[#A3B18A]/50 flex flex-col shrink-0 z-10 h-full"
     >
       <div className="flex-1 flex flex-col overflow-hidden py-2">
         <Tabs
@@ -51,22 +51,22 @@ export default function StepMenu({
                 key={step.id}
                 value={step.id.toString()}
                 className="w-full rounded-lg transition-all duration-200
-                  bg-white border border-gray-200
-                  hover:bg-gray-100 hover:border-gray-300
-                  data-[state=active]:bg-blue-50 
-                  data-[state=active]:border-blue-300 
-                  data-[state=active]:text-blue-700
+                  bg-background border border-[#A3B18A]/60
+                  hover:bg-[#DAD7CD]/60 hover:border-[#588157]/50
+                  data-[state=active]:bg-[#A3B18A]/45
+                  data-[state=active]:border-[#588157]
+                  data-[state=active]:text-[#344E41]
                   data-[state=active]:font-semibold
                   data-[state=active]:shadow-sm
                   p-3 justify-start"
               >
                 <div className="flex items-center gap-1.5 w-full overflow-hidden">
-                  <span className="font-semibold text-sm text-gray-900 shrink-0">
+                  <span className="font-semibold text-sm text-foreground shrink-0">
                     Step {step.id}
                   </span>
 
                   {showTitle && (
-                    <span className="text-xs text-gray-500 truncate">
+                    <span className="text-xs text-muted-foreground truncate">
                       : {step.title}
                     </span>
                   )}

@@ -35,19 +35,19 @@ export default function AppSidebar({
 
   return (
     <div
-      className={`${
+      className={`earthy-sidebar ${
         isCollapsed ? "w-16" : "w-64"
-      } bg-gray-800 border-r border-gray-700 flex flex-col transition-all duration-300 ease-in-out shrink-0 z-20`}
+      } border-r border-[#588157]/30 flex flex-col transition-all duration-300 ease-in-out shrink-0 z-20`}
     >
-      <div className="p-4 border-b border-gray-700 h-16 flex items-center justify-between">
+      <div className="p-4 border-b border-[#588157]/30 h-16 flex items-center justify-between">
         {!isCollapsed ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="w-full justify-start px-2 py-2 text-white hover:bg-gray-700"
+                className="w-full justify-start px-2 py-2 text-white hover:bg-[#3A5A40]"
               >
-                <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center shrink-0 border-2 border-gray-600">
+                <div className="earthy-avatar flex size-9 items-center justify-center rounded-full shrink-0 border-2 border-[#A3B18A]">
                   <span className="text-white font-semibold text-sm">
                     {avatarInitial}
                   </span>
@@ -59,32 +59,32 @@ export default function AppSidebar({
                   </p>
                 </div>
 
-                <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                <ChevronDown className="w-4 h-4 text-[#DAD7CD] shrink-0" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
               side="right"
               sideOffset={8}
-              className="w-56 bg-gray-800 border-gray-700"
+              className="w-56 earthy-sidebar border-[#588157]/40"
             >
-              <div className="px-3 py-2 border-b border-gray-700">
+              <div className="px-3 py-2 border-b border-[#588157]/30">
                 <p className="text-white font-medium text-sm">{user?.name}</p>
-                <p className="text-gray-400 text-xs">{user?.email}</p>
+                <p className="text-[#DAD7CD]/70 text-xs">{user?.email || "Preview mode"}</p>
               </div>
 
-              <DropdownMenuItem className="text-gray-300 hover:bg-gray-700 hover:text-white cursor-pointer">
+              <DropdownMenuItem className="text-[#DAD7CD] hover:bg-[#3A5A40] hover:text-white cursor-pointer">
                 <User className="w-4 h-4 mr-2" />
                 Profile
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-gray-300 hover:bg-gray-700 hover:text-white cursor-pointer">
+              <DropdownMenuItem className="text-[#DAD7CD] hover:bg-[#3A5A40] hover:text-white cursor-pointer">
                 <Settings className="w-4 h-4 mr-2" />
                 Settings
               </DropdownMenuItem>
-              <DropdownMenuSeparator className="bg-gray-700" />
+              <DropdownMenuSeparator className="bg-[#588157]/30" />
 
               <DropdownMenuItem
-                className="text-red-400 hover:bg-gray-700 hover:text-red-300 cursor-pointer"
+                className="text-[#DAD7CD] hover:bg-[#3A5A40] hover:text-white cursor-pointer"
                 onClick={() => {
                   signOut();
                   onNavigate("/auth");
@@ -102,7 +102,7 @@ export default function AppSidebar({
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 p-0 text-white hover:bg-gray-700 shrink-0"
+          className="h-8 w-8 p-0 text-white hover:bg-[#3A5A40] shrink-0"
           onClick={onToggle}
         >
           <MenuIcon className="w-5 h-5" />
@@ -114,7 +114,7 @@ export default function AppSidebar({
           {isCollapsed ? (
             <Button
               variant="ghost"
-              className="w-12 h-12 p-0 justify-center text-white hover:bg-gray-700 transition-all duration-200"
+              className="w-12 h-12 p-0 justify-center text-white hover:bg-[#3A5A40] transition-all duration-200"
               title="Manage Project"
             >
               <Settings className="w-5 h-5" />
@@ -122,7 +122,7 @@ export default function AppSidebar({
           ) : (
             <Button
               variant="ghost"
-              className="w-full justify-start px-4 py-3 text-white hover:bg-gray-700 transition-all duration-200"
+              className="w-full justify-start px-4 py-3 text-white hover:bg-[#3A5A40] transition-all duration-200"
             >
               <Settings className="w-5 h-5" />
               <span className="ml-3">Manage Project</span>
@@ -132,7 +132,7 @@ export default function AppSidebar({
           {isCollapsed ? (
             <Button
               variant="ghost"
-              className="w-12 h-12 p-0 justify-center text-white hover:bg-gray-700 transition-all duration-200"
+              className="w-12 h-12 p-0 justify-center text-white hover:bg-[#3A5A40] transition-all duration-200"
               title="Switch Project"
             >
               <FileText className="w-5 h-5" />
@@ -140,7 +140,7 @@ export default function AppSidebar({
           ) : (
             <Button
               variant="ghost"
-              className="w-full justify-start px-4 py-3 text-white hover:bg-gray-700 transition-all duration-200"
+              className="w-full justify-start px-4 py-3 text-white hover:bg-[#3A5A40] transition-all duration-200"
             >
               <FileText className="w-5 h-5" />
               <span className="ml-3">Switch Project</span>
@@ -150,7 +150,7 @@ export default function AppSidebar({
           {isCollapsed ? (
             <Button
               variant="ghost"
-              className="w-12 h-12 p-0 justify-center text-white hover:bg-gray-700 transition-all duration-200"
+              className="w-12 h-12 p-0 justify-center text-white hover:bg-[#3A5A40] transition-all duration-200"
               title="Review Project"
             >
               <User className="w-5 h-5" />
@@ -158,7 +158,7 @@ export default function AppSidebar({
           ) : (
             <Button
               variant="ghost"
-              className="w-full justify-start px-4 py-3 text-white hover:bg-gray-700 transition-all duration-200"
+              className="w-full justify-start px-4 py-3 text-white hover:bg-[#3A5A40] transition-all duration-200"
             >
               <User className="w-5 h-5" />
               <span className="ml-3">Review Project</span>
@@ -168,7 +168,7 @@ export default function AppSidebar({
           {isCollapsed ? (
             <Button
               variant="ghost"
-              className="w-12 h-12 p-0 justify-center text-white hover:bg-gray-700 transition-all duration-200"
+              className="w-12 h-12 p-0 justify-center text-white hover:bg-[#3A5A40] transition-all duration-200"
               title="Manage Documents"
               onClick={() => onNavigate("/documents")}
             >
@@ -177,7 +177,7 @@ export default function AppSidebar({
           ) : (
             <Button
               variant="ghost"
-              className="w-full justify-start px-4 py-3 text-white hover:bg-gray-700 transition-all duration-200"
+              className="w-full justify-start px-4 py-3 text-white hover:bg-[#3A5A40] transition-all duration-200"
               onClick={() => onNavigate("/documents")}
             >
               <FileText className="w-5 h-5" />
@@ -188,7 +188,7 @@ export default function AppSidebar({
           {isCollapsed ? (
             <Button
               variant="ghost"
-              className="w-12 h-12 p-0 justify-center text-white hover:bg-gray-700 transition-all duration-200"
+              className="w-12 h-12 p-0 justify-center text-white hover:bg-[#3A5A40] transition-all duration-200"
               title="Evaluation"
               onClick={() => onNavigate("/evaluation")}
             >
@@ -197,7 +197,7 @@ export default function AppSidebar({
           ) : (
             <Button
               variant="ghost"
-              className="w-full justify-start px-4 py-3 text-white hover:bg-gray-700 transition-all duration-200"
+              className="w-full justify-start px-4 py-3 text-white hover:bg-[#3A5A40] transition-all duration-200"
               onClick={() => onNavigate("/evaluation")}
             >
               <FileText className="w-5 h-5" />
@@ -207,11 +207,11 @@ export default function AppSidebar({
         </div>
       </div>
 
-      <div className="p-2 border-t border-gray-700">
+      <div className="p-2 border-t border-[#588157]/30">
         {isCollapsed ? (
           <Button
             variant="ghost"
-            className="w-12 h-12 p-0 justify-center text-white hover:bg-gray-700 transition-all duration-200"
+            className="w-12 h-12 p-0 justify-center text-white hover:bg-[#3A5A40] transition-all duration-200"
             onClick={() => onNavigate("/menu")}
             title="Back to Menu"
           >
@@ -220,7 +220,7 @@ export default function AppSidebar({
         ) : (
           <Button
             variant="ghost"
-            className="w-full justify-start px-4 py-3 text-white hover:bg-gray-700 transition-all duration-200"
+            className="w-full justify-start px-4 py-3 text-white hover:bg-[#3A5A40] transition-all duration-200"
             onClick={() => onNavigate("/menu")}
           >
             <ArrowLeft className="w-5 h-5" />
