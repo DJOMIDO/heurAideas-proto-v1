@@ -52,34 +52,55 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      <div className="flex-1 bg-white p-12 flex flex-col">
-        <Tabs
-          value={mode}
-          onValueChange={(value) => setMode(value as "login" | "register")}
-          className="w-fit mx-auto"
-        >
-          <TabsList className="grid w-full h-full grid-cols-2 bg-gray-100 p-1 rounded-lg">
-            <TabsTrigger
-              value="login"
-              className="flex-1 rounded-md py-2 font-semibold text-black data-[state=active]:bg-black data-[state=active]:text-white"
-            >
-              Sign In
-            </TabsTrigger>
-            <TabsTrigger
-              value="register"
-              className="flex-1 rounded-md py-2 font-semibold text-black data-[state=active]:bg-black data-[state=active]:text-white"
-            >
-              Sign Up
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+    <main className="flex min-h-screen flex-col md:flex-row">
+      <section className="earthy-page relative flex min-h-screen flex-1 flex-col overflow-hidden px-5 py-8 sm:px-8 md:p-12">
+        <div className="pointer-events-none absolute -left-24 top-16 size-72 rounded-full bg-[#A3B18A]/35 blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 bottom-0 size-80 rounded-full bg-[#588157]/20 blur-3xl" />
 
-        <div className="flex-1 flex items-center justify-center">
-          {mode === "login" ? (
+        <div className="relative mx-auto flex w-full max-w-[440px] flex-1 flex-col justify-center">
+          <div className="mb-8">
+            <div className="earthy-mark mb-5 flex size-11 items-center justify-center rounded-lg text-lg font-bold text-white shadow-sm">
+              H
+            </div>
+            <p className="earthy-accent mb-2 text-sm font-semibold uppercase tracking-[0.18em]">
+              HeurAIDEAS
+            </p>
+            <h1 className="text-3xl font-bold tracking-tight text-stone-950 sm:text-4xl">
+              {mode === "login" ? "Welcome back" : "Create your account"}
+            </h1>
+            <p className="mt-2 text-stone-600">
+              {mode === "login"
+                ? "Sign in to continue your work."
+                : "Start shaping better ideas with your team."}
+            </p>
+          </div>
+
+          <div className="rounded-xl border bg-card p-5 shadow-sm sm:p-6">
+            <Tabs
+              value={mode}
+              onValueChange={(value) => setMode(value as "login" | "register")}
+              className="w-full"
+            >
+              <TabsList className="earthy-tabs grid h-full w-full grid-cols-2 rounded-lg p-1">
+              <TabsTrigger
+                value="login"
+                className="flex-1 rounded-md py-2 font-semibold text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+              >
+                Sign In
+              </TabsTrigger>
+              <TabsTrigger
+                value="register"
+                className="flex-1 rounded-md py-2 font-semibold text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+              >
+                Sign Up
+              </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {mode === "login" ? (
             <form
               onSubmit={handleLogin}
-              className="w-full max-w-[400px] space-y-6"
+              className="mt-8 w-full space-y-6"
             >
               <div className="space-y-2">
                 <Label htmlFor="login-email">Email</Label>
@@ -111,7 +132,7 @@ export default function Auth() {
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="w-1/2 bg-black text-white hover:bg-gray-700 shadow-lg hover:shadow-xl transition-shadow disabled:opacity-50"
+                  className="w-full sm:w-1/2"
                 >
                   {isLoading ? "Signing in..." : "Sign In"}
                 </Button>
@@ -119,7 +140,7 @@ export default function Auth() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-1/2 bg-gray-400 text-white hover:bg-gray-700 shadow-lg hover:shadow-xl transition-shadow"
+                  className="w-full sm:w-1/2"
                   onClick={() => navigate("/")}
                   disabled={isLoading}
                 >
@@ -127,10 +148,10 @@ export default function Auth() {
                 </Button>
               </div>
             </form>
-          ) : (
+            ) : (
             <form
               onSubmit={handleRegister}
-              className="w-full max-w-[400px] space-y-6"
+              className="mt-8 w-full space-y-6"
             >
               <div className="space-y-2">
                 <Label htmlFor="register-email">Email</Label>
@@ -175,21 +196,22 @@ export default function Auth() {
                 <Button
                   type="submit"
                   disabled={isLoading}
-                  className="w-1/2 bg-black text-white hover:bg-gray-700 shadow-lg hover:shadow-xl transition-shadow disabled:opacity-50"
+                  className="w-full sm:w-1/2"
                 >
                   {isLoading ? "Creating account..." : "Create Account"}
                 </Button>
               </div>
             </form>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div className="flex-1 bg-[linear-gradient(125deg,#6366f1_0%,#4f46e5_30%,#10b981_70%,#059669_100%)] flex items-center justify-center p-12">
+      <section className="earthy-panel hidden min-h-[180px] flex-1 items-center justify-center px-5 py-10 sm:min-h-[220px] sm:px-8 md:flex md:min-h-screen md:p-12">
         <div className="max-w-[400px] text-center text-white">
-          <h2 className="text-5xl font-bold mb-6">Welcome to HeurAIDEAS</h2>
+          <h2 className="text-4xl font-bold leading-tight sm:text-5xl">Welcome to HeurAIDEAS</h2>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }

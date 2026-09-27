@@ -3,8 +3,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Folder, LogOut } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { ArrowUpRight, FolderOpen, LogOut, Plus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -80,6 +86,7 @@ export default function Menu() {
   useEffect(() => {
     if (!isAuthenticated()) {
       navigate("/auth");
+      return;
     }
     loadProjects();
   }, [navigate, loadProjects]);
@@ -104,98 +111,125 @@ export default function Menu() {
   const avatarInitial = user?.name?.charAt(0).toUpperCase() || "U";
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="flex justify-between items-center mb-10">
+    <main className="earthy-page min-h-screen px-5 py-6 sm:px-8 sm:py-8">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="earthy-mark flex size-10 items-center justify-center rounded-lg text-sm font-bold text-white shadow-sm">
+            H
+          </div>
+          <div>
+            <p className="text-sm font-semibold tracking-tight text-foreground">
+              HeurAIDEAS
+            </p>
+            <p className="text-xs text-muted-foreground">Workspace</p>
+          </div>
+        </div>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button className="flex items-center gap-2 bg-white text-gray-800 shadow-md hover:shadow-lg hover:text-white border-0">
-              <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-semibold text-xs">
-                  {avatarInitial}
-                </span>
+            <Button variant="outline" className="gap-2 bg-background">
+              <div className="earthy-avatar flex size-6 items-center justify-center rounded-full text-xs font-semibold text-white">
+                {avatarInitial}
               </div>
               Manage account
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-56 bg-white border border-gray-200"
+            className="w-56"
           >
             <div className="px-3 py-2">
-              <p className="font-medium text-sm text-gray-900">
+              <p className="text-sm font-medium">
                 {user?.name || "Guest"}
               </p>
-              <p className="text-xs text-gray-500">{user?.email || ""}</p>
+              <p className="text-xs text-muted-foreground">{user?.email || "Preview mode"}</p>
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="text-red-600 cursor-pointer hover:bg-gray-50"
+              className="cursor-pointer"
               onClick={() => {
                 signOut();
                 navigate("/auth");
               }}
             >
-              <LogOut className="w-4 h-4 mr-2" />
+              <LogOut data-icon="inline-start" />
               Sign Out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-5xl font-bold text-center mb-20">
-          Welcome, {user?.name || "Guest"}!
-        </h1>
+      <div className="mx-auto w-full max-w-6xl py-16 sm:py-20">
+        <div className="max-w-2xl">
+          <div className="mb-4 flex items-center gap-2 text-sm font-medium text-emerald-800">
+            <Sparkles data-icon="inline-start" />
+            Start with a clear next step
+          </div>
+          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+            Welcome{user?.name ? `, ${user.name}` : ""}.
+          </h1>
+          <p className="mt-4 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
+            Create a new project or continue exploring one of your recent ideas.
+          </p>
+        </div>
       </div>
 
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16">
-        <Card className="bg-green-50 p-8 flex flex-col shadow-lg border-0">
-          <CardHeader className="text-center">
-            <CardTitle>Create new project</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center">
-            <div className="h-[240px] flex items-center justify-center">
-              <button
-                className="bg-transparent border-0 p-0 cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => setShowCreateDialog(true)}
-                disabled={isLoading}
-              >
-                <Plus className="w-34 h-34 text-green-500" />
-              </button>
+      <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-5 md:grid-cols-2">
+        <Card className="earthy-menu-card group flex flex-col">
+          <CardHeader className="gap-3">
+            <div className="earthy-icon flex size-11 items-center justify-center rounded-lg text-white">
+              <Plus />
             </div>
+            <CardTitle className="text-xl">Create a new project</CardTitle>
+            <CardDescription>
+              Start a fresh workspace for a team, research question, or idea.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto pt-5">
+            <Button
+              className="earthy-button w-full justify-between"
+              onClick={() => setShowCreateDialog(true)}
+              disabled={isLoading}
+            >
+              Create project
+              <ArrowUpRight data-icon="inline-end" />
+            </Button>
           </CardContent>
         </Card>
 
-        <Card className="bg-purple-50 p-8 flex flex-col shadow-lg border-0">
-          <CardHeader className="text-center">
-            <CardTitle>Open existing project</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center">
-            <div className="h-[240px] flex items-center justify-center">
-              <button className="bg-transparent border-0 p-0 cursor-pointer hover:opacity-80 transition-opacity">
-                <Folder className="w-30 h-30 text-purple-500" />
-              </button>
+        <Card className="earthy-menu-card group flex flex-col">
+          <CardHeader className="gap-3">
+            <div className="earthy-icon flex size-11 items-center justify-center rounded-lg text-white">
+              <FolderOpen />
             </div>
-
-            <div className="text-left w-full mt-2 border-t border-gray-200 pt-2">
-              <h3 className="font-medium text-sm mb-2">Recent projects:</h3>
-              <ul className="space-y-1 text-sm">
-                {isLoading ? (
-                  <li className="text-gray-500">Loading...</li>
-                ) : projects.length > 0 ? (
-                  projects.map((project) => (
-                    <li
-                      key={project.id}
-                      className="hover:bg-purple-100 p-1.5 rounded transition-colors cursor-pointer"
-                      onClick={() => handleOpenProject(project.id)}
-                    >
-                      {project.name}
-                    </li>
-                  ))
-                ) : (
-                  <li className="text-gray-500">No recent projects</li>
-                )}
-              </ul>
+            <CardTitle className="text-xl">Open an existing project</CardTitle>
+            <CardDescription>
+              Pick up where you left off with one of your recent workspaces.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="mt-auto pt-5">
+            <div className="flex flex-col gap-2">
+              {isLoading ? (
+                <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+                  Loading recent projects...
+                </p>
+              ) : projects.length > 0 ? (
+                projects.map((project) => (
+                  <Button
+                    key={project.id}
+                    variant="outline"
+                    className="justify-between bg-background text-left"
+                    onClick={() => handleOpenProject(project.id)}
+                  >
+                    <span className="truncate">{project.name}</span>
+                    <ArrowUpRight data-icon="inline-end" />
+                  </Button>
+                ))
+              ) : (
+                <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+                  No recent projects yet.
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -210,6 +244,6 @@ export default function Menu() {
           email: user?.email || "",
         }}
       />
-    </div>
+    </main>
   );
 }

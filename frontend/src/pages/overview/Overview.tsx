@@ -103,7 +103,7 @@ export default function Overview() {
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden bg-white">
+    <div className="earthy-page flex h-screen w-full overflow-hidden">
       <AppSidebar
         isCollapsed={isSidebarCollapsed}
         onToggle={toggleSidebar}
@@ -121,7 +121,7 @@ export default function Overview() {
 
         <ResizableHandle
           withHandle
-          className="w-2 bg-gray-200 hover:bg-gray-400 transition-colors z-10 cursor-col-resize"
+          className="w-2 bg-[#A3B18A]/40 hover:bg-[#588157]/50 transition-colors z-10 cursor-col-resize"
         />
 
         <ResizablePanel defaultSize="85" minSize="50">
@@ -144,7 +144,7 @@ export default function Overview() {
 
               <ResizableHandle
                 withHandle
-                className="w-2 bg-gray-200 hover:bg-gray-300 transition-colors z-10 cursor-col-resize"
+                className="w-2 bg-[#A3B18A]/40 hover:bg-[#588157]/50 transition-colors z-10 cursor-col-resize"
               />
 
               <DetailPanel substep={selectedSubstep} stepId={activeStepId} />

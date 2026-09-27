@@ -8,24 +8,30 @@ export default function Welcome() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[linear-gradient(125deg,#6366f1_0%,#4f46e5_30%,#10b981_70%,#059669_100%)] p-4">
-      <div className="text-center">
-        <h1 className="text-5xl font-bold mb-4 text-white">
+    <main className="earthy-page relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-8 sm:p-8">
+      <div className="pointer-events-none absolute -left-24 top-16 size-72 rounded-full bg-[#A3B18A]/35 blur-3xl" />
+      <div className="pointer-events-none absolute -right-20 bottom-0 size-80 rounded-full bg-[#588157]/20 blur-3xl" />
+      <div className="relative w-full max-w-2xl text-center">
+        <div className="earthy-mark mx-auto mb-6 flex size-12 items-center justify-center rounded-lg text-lg font-bold text-white shadow-sm">
+          H
+        </div>
+        <h1 className="mb-4 text-4xl font-bold leading-tight tracking-tight text-foreground sm:text-5xl">
           Welcome to HeurAIDEAS
         </h1>
 
-        <p className="text-white text-lg mb-10 opacity-90">
-          Short description of the project's aims
+        <p className="mx-auto mb-8 max-w-2xl text-base leading-7 text-muted-foreground sm:mb-10 sm:text-lg">
+          A collaborative space for exploring ideas and shaping better decisions.
         </p>
 
-        <div className="flex gap-4 justify-center">
-          <Button className="bg-black text-white hover:bg-gray-700 shadow-lg hover:shadow-xl transition-shadow" size="lg">
+        <div className="mx-auto flex w-full max-w-xl flex-col justify-center gap-3 sm:flex-row sm:gap-4">
+          <Button className="earthy-button w-full sm:w-auto" size="lg">
             See more information
           </Button>
 
           {isAuthenticated() ? (
             <Button
-              className="bg-white text-indigo-600 hover:bg-gray-100 shadow-lg hover:shadow-xl transition-shadow"
+              variant="outline"
+              className="earthy-button w-full sm:w-auto"
               size="lg"
               onClick={() => navigate("/menu", { replace: true })}
             >
@@ -33,7 +39,7 @@ export default function Welcome() {
             </Button>
           ) : (
             <Button
-              className="bg-black text-white hover:bg-gray-700 shadow-lg hover:shadow-xl transition-shadow"
+              className="earthy-button w-full sm:w-auto"
               size="lg"
               onClick={() => navigate("/auth")}
             >
@@ -42,6 +48,6 @@ export default function Welcome() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

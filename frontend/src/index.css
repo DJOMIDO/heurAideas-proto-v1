@@ -11,6 +11,12 @@ html {
 font-size: 16px;
 }
 
+html,
+body,
+#root {
+min-width: 320px;
+}
+
 body {
 margin: 0;
 font-family: Arial, Helvetica, sans-serif;
@@ -18,6 +24,50 @@ line-height: 1.6;
 color: #1f2937;
 background-color: #f9fafb;
 min-height: 100vh;
+padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+.earthy-page {
+background: #DAD7CD;
+}
+
+.earthy-panel {
+background: #344E41;
+}
+
+.earthy-tabs {
+background: #A3B18A;
+}
+
+.earthy-mark,
+.earthy-button {
+background: #3A5A40;
+}
+
+.earthy-button:hover {
+background: #588157;
+}
+
+.earthy-accent {
+color: #3A5A40;
+}
+
+.earthy-avatar,
+.earthy-icon {
+background: #3A5A40;
+}
+
+.earthy-menu-card {
+border-color: #A3B18A;
+background: color-mix(in srgb, white 82%, #DAD7CD);
+}
+
+.earthy-sidebar {
+background: #344E41;
+}
+
+.earthy-step-menu {
+background: color-mix(in srgb, #DAD7CD 72%, white);
 }
 
 button {
